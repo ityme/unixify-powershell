@@ -7,19 +7,19 @@ PowerShell 7 的 Unix 风格命令、补全和 profile。需要 `pwsh`。
 下载运行时到 `~/.config/upwsh`，写入当前用户的 pwsh profile（`$PROFILE.CurrentUserAllHosts`）。
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.sh | bash
 ```
 
 PowerShell：
 
 ```powershell
-pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.ps1 | iex"
+pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.ps1 | iex"
 ```
 
 指定目录：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash -s -- --directory ~/.config/upwsh
+curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.sh | bash -s -- --directory ~/.config/upwsh
 ```
 
 管道安装也可以用环境变量：`UNIXIFY_DIR`、`UNIXIFY_REF`、`UNIXIFY_REPO`。
@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/insta
 upwsh --load --check
 ```
 
-选项见 `install.ps1 --help`。
+选项见 `scripts/bootstrap.ps1 --help`。
 
 ## 用
 
@@ -56,10 +56,10 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 ```powershell
 git clone https://github.com/ityme/unixify-powershell.git
 cd unixify-powershell
-pwsh -NoLogo -NoProfile -File install.ps1
+pwsh -NoLogo -NoProfile -File scripts/bootstrap.ps1
 ```
 
-旁边有源码时，`install.ps1` 不再下载，把 `src/` 拷到 `~/.config/upwsh`。
+旁边有源码时，`scripts/bootstrap.ps1` 不再下载，把 `src/` 拷到 `~/.config/upwsh`。
 
 只挂钩这份源码、不拷文件：
 

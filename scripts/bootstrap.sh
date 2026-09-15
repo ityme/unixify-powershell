@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 下载 unixify-powershell 并挂钩当前用户的 pwsh。
-#   curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.sh | bash
 
 set -euo pipefail
 
@@ -16,8 +16,8 @@ bootstrap=""
 src="${BASH_SOURCE[0]:-}"
 if [[ -n "$src" && -f "$src" ]]; then
   dir="$(cd "$(dirname "$src")" && pwd)"
-  if [[ -f "$dir/install.ps1" ]]; then
-    bootstrap="$dir/install.ps1"
+  if [[ -f "$dir/bootstrap.ps1" ]]; then
+    bootstrap="$dir/bootstrap.ps1"
   fi
 fi
 
@@ -30,7 +30,7 @@ trap cleanup EXIT
 
 if [[ -z "$bootstrap" ]]; then
   tmp="$(mktemp)"
-  url="https://raw.githubusercontent.com/${REPO}/${REF}/install.ps1"
+  url="https://raw.githubusercontent.com/${REPO}/${REF}/scripts/bootstrap.ps1"
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$url" -o "$tmp"
   elif command -v wget >/dev/null 2>&1; then

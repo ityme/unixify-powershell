@@ -1,8 +1,8 @@
 # 下载 unixify-powershell 并挂钩当前用户的 pwsh。
-#   curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash
-#   pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.ps1 | iex"
-#   pwsh -NoLogo -NoProfile -File install.ps1
-#   pwsh -NoLogo -NoProfile -File install.ps1 --directory ~/.config/upwsh
+#   curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.sh | bash
+#   pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.ps1 | iex"
+#   pwsh -NoLogo -NoProfile -File scripts/bootstrap.ps1
+#   pwsh -NoLogo -NoProfile -File scripts/bootstrap.ps1 --directory ~/.config/upwsh
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -13,12 +13,12 @@ $script:UserAgent = 'unixify-powershell-installer'
 
 function Get-InstallUsage {
     @'
-usage: install.ps1 [-h | --help] [-c | --check]
-                   [-d | --directory <dir>] [-p | --profile <path>]
-                   [--current-host] [--ref <ref>] [--repo <owner/name>]
-                   [--source <dir>]
+usage: bootstrap.ps1 [-h | --help] [-c | --check]
+                     [-d | --directory <dir>] [-p | --profile <path>]
+                     [--current-host] [--ref <ref>] [--repo <owner/name>]
+                     [--source <dir>]
 
-These are common install.ps1 commands used in various situations:
+These are common bootstrap.ps1 commands used in various situations:
 
 install this runtime
    --directory      Runtime directory, default ~/.config/upwsh
@@ -33,8 +33,8 @@ inspect without writing
 
 A network install can run:
 
-  curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash
-  pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.ps1 | iex"
+  curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.sh | bash
+  pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.ps1 | iex"
 
 Environment: UNIXIFY_DIR UNIXIFY_REF UNIXIFY_REPO UNIXIFY_SOURCE
 Pipe installs can pass options through environment variables or
@@ -205,11 +205,20 @@ function Get-SiblingRuntimeRoot {
     if (-not $here) {
         return $null
     }
-    try {
-        return Resolve-RuntimeRoot $here
-    } catch {
-        return $null
+
+    $current = $here
+    while ($current) {
+        try {
+            return Resolve-RuntimeRoot $current
+        } catch {
+        }
+        $parent = Split-Path -Parent $current
+        if (-not $parent -or $parent -eq $current) {
+            break
+        }
+        $current = $parent
     }
+    return $null
 }
 
 function Get-GitHubHeaders {
