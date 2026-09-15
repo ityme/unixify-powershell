@@ -2,7 +2,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash
 #   pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.ps1 | iex"
 #   pwsh -NoLogo -NoProfile -File install.ps1
-#   pwsh -NoLogo -NoProfile -File install.ps1 --directory ~/.config/pwsh
+#   pwsh -NoLogo -NoProfile -File install.ps1 --directory ~/.config/upwsh
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -20,10 +20,10 @@ unixify-powershell  下载运行时并挂钩当前用户的 pwsh
   pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.ps1 | iex"
   pwsh -NoLogo -NoProfile -File install.ps1
   pwsh -NoLogo -NoProfile -File install.ps1 --check
-  pwsh -NoLogo -NoProfile -File install.ps1 --directory ~/.config/pwsh
+  pwsh -NoLogo -NoProfile -File install.ps1 --directory ~/.config/upwsh
 
 选项:
-  -d, --directory DIR     运行时目录，默认 ~/.config/pwsh
+  -d, --directory DIR     运行时目录，默认 ~/.config/upwsh
   -p, --profile PATH      要写的 pwsh profile，默认 $PROFILE.CurrentUserAllHosts
       --current-host      写 $PROFILE.CurrentUserCurrentHost
       --ref REF           分支或 tag。设置后从 GitHub 下载，不用旁边这份源码
@@ -151,7 +151,7 @@ function ConvertTo-WindowsStyleDirectory {
 }
 
 function Get-DefaultDestination {
-    Join-Path $HOME '.config\pwsh'
+    Join-Path $HOME '.config\upwsh'
 }
 
 function Test-RuntimeRoot {

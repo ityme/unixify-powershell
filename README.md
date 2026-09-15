@@ -4,7 +4,7 @@ PowerShell 7 的 Unix 风格命令、补全和 profile。需要 `pwsh`。
 
 ## 安装
 
-下载运行时到 `~/.config/pwsh`，写入当前用户的 pwsh profile（`$PROFILE.CurrentUserAllHosts`）。
+下载运行时到 `~/.config/upwsh`，写入当前用户的 pwsh profile（`$PROFILE.CurrentUserAllHosts`）。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash
@@ -19,7 +19,7 @@ pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/un
 指定目录：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash -s -- --directory ~/.config/pwsh
+curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash -s -- --directory ~/.config/upwsh
 ```
 
 管道安装也可以用环境变量：`UNIXIFY_DIR`、`UNIXIFY_REF`、`UNIXIFY_REPO`。
@@ -37,14 +37,14 @@ upwsh --reload --check
 profile 加载后直接跑 `upwsh`。没加载时用部署出来的脚本：
 
 ```powershell
-pwsh -NoLogo -NoProfile -File $HOME/.config/pwsh/scripts/upwsh.ps1 --help
+pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 ```
 
 | 命令 | 作用 |
 | --- | --- |
 | `upwsh --reload --check` | 看 profile 有没有挂钩 |
 | `upwsh --reload` | 挂钩当前这份运行时 |
-| `upwsh --reload --deploy` | 拷到 `~/.config/pwsh`，挂钩副本 |
+| `upwsh --reload --deploy` | 拷到 `~/.config/upwsh`，挂钩副本 |
 | `upwsh --reload --uninstall` | 去掉挂钩，不删文件 |
 | `upwsh --install --check` | 看 bat、eza、rg 等 CLI |
 | `upwsh --install` | 安装常用 CLI |
@@ -59,7 +59,7 @@ cd unixify-powershell
 pwsh -NoLogo -NoProfile -File install.ps1
 ```
 
-旁边有源码时，`install.ps1` 不再下载，把 `src/` 拷到 `~/.config/pwsh`。
+旁边有源码时，`install.ps1` 不再下载，把 `src/` 拷到 `~/.config/upwsh`。
 
 只挂钩这份源码、不拷文件：
 
@@ -76,10 +76,10 @@ upwsh --reload --uninstall
 或：
 
 ```powershell
-pwsh -NoLogo -NoProfile -File $HOME/.config/pwsh/scripts/upwsh.ps1 --reload --uninstall
+pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --reload --uninstall
 ```
 
-`~/.config/pwsh` 还在，要删自己删。
+`~/.config/upwsh` 还在，要删自己删。
 
 ## 开发
 

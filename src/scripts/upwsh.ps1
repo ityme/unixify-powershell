@@ -21,7 +21,7 @@ upwsh  统一入口：挂钩 pwsh profile，或安装常用 CLI
   upwsh -r --check
   upwsh --reload --uninstall
   upwsh --reload --deploy
-  upwsh --reload --deploy -d ~/.config/pwsh
+  upwsh --reload --deploy -d ~/.config/upwsh
   upwsh --reload --current-host
   upwsh --reload --profile PATH
   upwsh -i
@@ -43,7 +43,7 @@ reload 选项:
   -c, --check             只查看挂钩状态，不写文件
   -u, --uninstall         去掉挂钩标记块
       --deploy            先把运行时拷到目标目录（不含 tests），再挂钩那份副本
-  -d, --directory DIR     --deploy 的目标目录，默认 ~/.config/pwsh
+  -d, --directory DIR     --deploy 的目标目录，默认 ~/.config/upwsh
       --current-host      写 $PROFILE.CurrentUserCurrentHost
                           默认写 $PROFILE.CurrentUserAllHosts
   -p, --profile PATH      指定要改的 profile 文件

@@ -29,7 +29,7 @@ function Get-SourceProfilePath {
 }
 
 function Get-DefaultDestination {
-    Join-Path $HOME '.config\pwsh'
+    Join-Path $HOME '.config\upwsh'
 }
 
 function Get-HookProfilePath {
