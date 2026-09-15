@@ -10,51 +10,36 @@ $script:Arguments = @($args)
 
 function Get-UpwshUsage {
     @'
-upwsh  统一入口：挂钩 pwsh profile，或安装常用 CLI
+usage: upwsh [-h | --help]
+             [-r | --reload | reload] [-i | --install | install]
+             [-c | --check] [-u | --uninstall] [--deploy]
+             [-d | --directory <dir>] [-p | --profile <path>]
+             [--current-host] [-o | --only <name>...] [-f | --force]
+             [<args>]
 
-用法:
-  upwsh
-  upwsh --help
-  upwsh -r
-  upwsh --reload
-  upwsh reload
-  upwsh -r --check
-  upwsh --reload --uninstall
-  upwsh --reload --deploy
-  upwsh --reload --deploy -d ~/.config/upwsh
-  upwsh --reload --current-host
-  upwsh --reload --profile PATH
-  upwsh -i
-  upwsh --install
-  upwsh install
-  upwsh -i --check
-  upwsh --install -d /d/bin
-  upwsh --install -o eza rg
-  upwsh --install -c -d /d/bin -o eza rg -f
+These are common upwsh commands used in various situations:
 
-动作:
-  -r, --reload, reload    挂钩当前用户的 pwsh，相当于 scripts/install_profile.ps1
-  -i, --install, install  安装常用 CLI，相当于 scripts/install_cli_tools.ps1
-  -h, --help              显示本说明
+hook the current user's pwsh
+   reload           Hook pwsh so it loads this runtime
+   --check          Show hook status without writing files
+   --uninstall      Remove the profile hook without deleting files
+   --deploy         Copy the runtime to ~/.config/upwsh and hook that copy
+   --directory      Runtime directory, default ~/.config/upwsh
+   --profile        pwsh profile to edit, default CurrentUserAllHosts
+   --current-host   Write $PROFILE.CurrentUserCurrentHost
 
-  无参数或 --help 显示本说明。-r 和 -i 不能同时用。
+install common CLI tools
+   install          Download listed CLI tools into a directory
+   --check          Show which listed tools are already installed
+   --directory      Install directory, default I:\ityme\bin
+   --only           Install only the named tools
+   --force          Overwrite existing executables
 
-reload 选项:
-  -c, --check             只查看挂钩状态，不写文件
-  -u, --uninstall         去掉挂钩标记块
-      --deploy            先把运行时拷到目标目录（不含 tests），再挂钩那份副本
-  -d, --directory DIR     --deploy 的目标目录，默认 ~/.config/upwsh
-      --current-host      写 $PROFILE.CurrentUserCurrentHost
-                          默认写 $PROFILE.CurrentUserAllHosts
-  -p, --profile PATH      指定要改的 profile 文件
+'upwsh --help' prints this overview. reload and install cannot be used
+together.
 
-install 选项:
-  -c, --check             只查看哪些 CLI 已安装
-  -d, --directory DIR     安装目录，默认 I:\ityme\bin，可用 /d/bin
-  -o, --only NAME...      只装列出的工具
-  -f, --force             覆盖已有 exe
-
-清单: bat btm delta dust eza fd fzf hyperfine jq lazygit procs rg shfmt starship tssh yazi yq zoxide
+Listed tools: bat btm delta dust eza fd fzf hyperfine jq lazygit procs
+rg shfmt starship tssh yazi yq zoxide
 '@
 }
 

@@ -34,29 +34,21 @@ function global:du {
 # 示例：tools -c -d /d/bin -o eza rg -f
 function Get-ToolsUsage {
     @'
-tools  安装常用 CLI 到指定目录（默认 I:\ityme\bin）
+usage: tools [-h | --help] [-c | --check] [-d | --directory <dir>]
+             [-o | --only <name>...] [-f | --force]
 
-用法:
-  tools
-  tools --help
-  tools -c
-  tools --check
-  tools -d /d/bin
-  tools --directory /d/bin
-  tools -o eza rg
-  tools --only eza rg
-  tools -f
-  tools --force
-  tools -c -d /d/bin -o eza rg -f
+These are common tools commands used in various situations:
 
-选项:
-  -c, --check         只查看哪些已安装
-  -d, --directory DIR 安装目录，可用 /d/bin
-  -o, --only NAME...  只装列出的工具
-  -f, --force         覆盖已有 exe
-  -h, --help          显示本说明
+install listed CLI tools
+   --check          Show which listed tools are already installed
+   --directory      Install directory, default I:\ityme\bin
+   --only           Install only the named tools
+   --force          Overwrite existing executables
 
-清单: bat btm delta dust eza fd fzf hyperfine jq lazygit procs rg shfmt starship tssh yazi yq zoxide
+'tools --help' prints this overview.
+
+Listed tools: bat btm delta dust eza fd fzf hyperfine jq lazygit procs
+rg shfmt starship tssh yazi yq zoxide
 '@
 }
 

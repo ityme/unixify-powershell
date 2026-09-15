@@ -13,27 +13,32 @@ $script:UserAgent = 'unixify-powershell-installer'
 
 function Get-InstallUsage {
     @'
-unixify-powershell  下载运行时并挂钩当前用户的 pwsh
+usage: install.ps1 [-h | --help] [-c | --check]
+                   [-d | --directory <dir>] [-p | --profile <path>]
+                   [--current-host] [--ref <ref>] [--repo <owner/name>]
+                   [--source <dir>]
 
-用法:
+These are common install.ps1 commands used in various situations:
+
+install this runtime
+   --directory      Runtime directory, default ~/.config/upwsh
+   --profile        pwsh profile to edit, default CurrentUserAllHosts
+   --current-host   Write $PROFILE.CurrentUserCurrentHost
+   --source         Local source tree, skip download
+   --ref            Git branch or tag to download
+   --repo           GitHub repository, default ityme/unixify-powershell
+
+inspect without writing
+   --check          Show hook status without copying files
+
+A network install can run:
+
   curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash
   pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.ps1 | iex"
-  pwsh -NoLogo -NoProfile -File install.ps1
-  pwsh -NoLogo -NoProfile -File install.ps1 --check
-  pwsh -NoLogo -NoProfile -File install.ps1 --directory ~/.config/upwsh
 
-选项:
-  -d, --directory DIR     运行时目录，默认 ~/.config/upwsh
-  -p, --profile PATH      要写的 pwsh profile，默认 $PROFILE.CurrentUserAllHosts
-      --current-host      写 $PROFILE.CurrentUserCurrentHost
-      --ref REF           分支或 tag。设置后从 GitHub 下载，不用旁边这份源码
-      --repo OWNER/NAME   默认 ityme/unixify-powershell
-      --source DIR        本地源码树，跳过下载
-  -c, --check             只查看挂钩状态，不拷文件
-  -h, --help              显示本说明
-
-环境变量: UNIXIFY_DIR UNIXIFY_REF UNIXIFY_REPO UNIXIFY_SOURCE
-管道安装用环境变量或 `bash -s --` 传选项。
+Environment: UNIXIFY_DIR UNIXIFY_REF UNIXIFY_REPO UNIXIFY_SOURCE
+Pipe installs can pass options through environment variables or
+'bash -s --'.
 '@
 }
 

@@ -99,10 +99,10 @@ try {
     Invoke-UpwshTest 'help flag prints usage' {
         $result = Invoke-Upwsh -Tokens @('--help')
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text '动作:'
+        Assert-Contains $result.Text 'These are common upwsh commands'
         $result = Invoke-Upwsh -Tokens @('-h')
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'reload 选项:'
+        Assert-Contains $result.Text "hook the current user's pwsh"
     }
 
     Invoke-UpwshTest 'unknown option prints usage and exits 2' {
