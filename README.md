@@ -1,21 +1,93 @@
-# PowerShell 配置
+# unixify-powershell
 
-独立于 WezTerm。WezTerm 只在该 profile 存在时选用它。统一入口是 `upwsh`：
+PowerShell 7 的 Unix 风格命令、补全和 profile。需要 `pwsh`。
 
-```powershell
-pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 --help
-pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 --reload
-pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 --install --check
+## 安装
+
+下载运行时到 `~/.config/pwsh`，写入当前用户的 pwsh profile（`$PROFILE.CurrentUserAllHosts`）。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash
 ```
 
-profile 加载后也可直接跑 `upwsh --help`。`--reload` / `-r` 挂钩当前用户的 pwsh（默认 `$PROFILE.CurrentUserAllHosts`，指向本仓库 `src/profile.ps1`）。`--install` / `-i` 安装常用 CLI。二级选项见 `upwsh --help`。
+PowerShell：
 
-`src/` 是源码树。发版去掉 `src/tests/`，其余部署到 `$HOME\.config\pwsh`。
+```powershell
+pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.ps1 | iex"
+```
 
-验证：
+指定目录：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/install.sh | bash -s -- --directory ~/.config/pwsh
+```
+
+管道安装也可以用环境变量：`UNIXIFY_DIR`、`UNIXIFY_REF`、`UNIXIFY_REPO`。
+
+装完开一个新的 `pwsh`。`upwsh --help` 能跑就对了。
+
+```powershell
+upwsh --reload --check
+```
+
+选项见 `install.ps1 --help`。
+
+## 用
+
+profile 加载后直接跑 `upwsh`。没加载时用部署出来的脚本：
+
+```powershell
+pwsh -NoLogo -NoProfile -File $HOME/.config/pwsh/scripts/upwsh.ps1 --help
+```
+
+| 命令 | 作用 |
+| --- | --- |
+| `upwsh --reload --check` | 看 profile 有没有挂钩 |
+| `upwsh --reload` | 挂钩当前这份运行时 |
+| `upwsh --reload --deploy` | 拷到 `~/.config/pwsh`，挂钩副本 |
+| `upwsh --reload --uninstall` | 去掉挂钩，不删文件 |
+| `upwsh --install --check` | 看 bat、eza、rg 等 CLI |
+| `upwsh --install` | 安装常用 CLI |
+
+二级选项见 `upwsh --help`。
+
+## 从仓库装
+
+```powershell
+git clone https://github.com/ityme/unixify-powershell.git
+cd unixify-powershell
+pwsh -NoLogo -NoProfile -File install.ps1
+```
+
+旁边有源码时，`install.ps1` 不再下载，把 `src/` 拷到 `~/.config/pwsh`。
+
+只挂钩这份源码、不拷文件：
+
+```powershell
+pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 --reload
+```
+
+## 卸载
+
+```powershell
+upwsh --reload --uninstall
+```
+
+或：
+
+```powershell
+pwsh -NoLogo -NoProfile -File $HOME/.config/pwsh/scripts/upwsh.ps1 --reload --uninstall
+```
+
+`~/.config/pwsh` 还在，要删自己删。
+
+## 开发
+
+`src/` 是源码树。打 `v*` tag 时，CI 打的 zip 不含 `src/tests/`。
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_install.ps1
 ```
