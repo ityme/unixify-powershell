@@ -7,7 +7,6 @@ $root = Join-Path ([IO.Path]::GetTempPath()) (
 $work = Join-Path $root 'work'
 $fakeHome = Join-Path $root 'home'
 $originalHome = $HOME
-$originalWezTermPane = $env:WEZTERM_PANE
 $locationPushed = $false
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
@@ -170,7 +169,6 @@ try {
     New-FixtureFile '.viminfo' -Hidden -BaseDirectory $fakeHome | Out-Null
     New-FixtureDirectory '.vim' -Hidden -BaseDirectory $fakeHome | Out-Null
 
-    $env:WEZTERM_PANE = 'profile-test-pane'
     . (Resolve-Path $profilePath)
     Set-Variable -Name HOME -Value $fakeHome -Scope Global -Force
 
@@ -738,7 +736,6 @@ try {
         Pop-Location -ErrorAction SilentlyContinue
     }
     Set-Variable -Name HOME -Value $originalHome -Scope Global -Force
-    $env:WEZTERM_PANE = $originalWezTermPane
     if (Test-Path -LiteralPath $root) {
         Remove-Item -LiteralPath $root -Recurse -Force
     }

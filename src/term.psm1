@@ -1,9 +1,5 @@
 # 终端状态上报。不绑按键。
-# 协议细节（OSC、WEZTERM_*、$env:WEZTERM_PANE）留在本文件。
-
-function Test-TermPane {
-    [bool]$env:WEZTERM_PANE
-}
+# 协议细节（OSC、WEZTERM_*）留在本文件。默认写入，不看终端种类。
 
 function Get-TermWorkingDirectory {
     try {
@@ -26,10 +22,6 @@ function Write-TermUserVariable {
         [AllowEmptyString()]
         [string]$Value = ''
     )
-
-    if (-not (Test-TermPane)) {
-        return
-    }
 
     try {
         $encodedValue = [Convert]::ToBase64String(
@@ -83,10 +75,6 @@ function Write-TermPaneTitle {
         [string]$Command = ''
     )
 
-    if (-not (Test-TermPane)) {
-        return
-    }
-
     try {
         $title = Get-WezTermPaneTitle -Command $Command
         [Console]::Write([char]0x1b + ']2;' + $title + [char]0x07)
@@ -98,7 +86,7 @@ function Write-TermPaneTitle {
 function Write-TermWorkingDirectoryUri {
     param([string]$Path)
 
-    if (-not (Test-TermPane) -or -not $Path) {
+    if (-not $Path) {
         return
     }
 
