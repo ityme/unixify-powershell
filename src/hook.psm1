@@ -248,7 +248,6 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine -ListAvailable)) {
     if ($enterHandler.Function -in @(
             'AcceptLine'
             'ValidateAndAcceptLine'
-            'WezTermAcceptLine'
             'HookAcceptLine'
         )) {
         Set-PSReadLineKeyHandler `
