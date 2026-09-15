@@ -1,0 +1,565 @@
+# 路径库：展示把盘符和反斜杠收成 unix，执行只把 /盘符 倒回 Windows。
+
+function ConvertTo-UnixStyleText {
+    param([AllowEmptyString()][string]$Text)
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+    $unix = [regex]::Replace(
+        $Text,
+        '(?<=^|[\s=''"])(?:/)?([A-Za-z]):[\\/]*',
+        { param($m) '/' + $m.Groups[1].Value.ToLowerInvariant() + '/' }
+    )
+    return $unix.Replace('\', '/')
+}
+
+function ConvertTo-WindowsStyleText {
+    param([AllowEmptyString()][string]$Text)
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+    $home = ($HOME.TrimEnd('\', '/') -replace '\\', '/')
+    $windows = [regex]::Replace($Text, '(?<=^|[\s=''"])~(?=/|$|\\)', $home)
+    $windows = [regex]::Replace(
+        $windows,
+        '/([A-Za-z]):',
+        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':' }
+    )
+    # /c 和 /c/ 都是盘根 C:/。写成 C: 会变成该盘当前目录。
+    return [regex]::Replace(
+        $windows,
+        '(?<=^|[\s=''"])/([A-Za-z])(/|$)',
+        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':/' }
+    )
+}
+
+function Resolve-ExpandedGlobPath {
+    param(
+        [string]$Pattern,
+        [System.IO.FileSystemInfo]$Item
+    )
+
+    $fullName = $Item.FullName.Replace('\', '/')
+    $windowsPattern = ConvertTo-WindowsStyleText $Pattern
+    if (
+        [IO.Path]::IsPathRooted($windowsPattern) -or
+        $windowsPattern -match '^[A-Za-z]:'
+    ) {
+        return $fullName
+    }
+
+    try {
+        $cwd = (Get-Location).ProviderPath.Replace('\', '/').TrimEnd('/')
+        $fullTrim = $fullName.TrimEnd('/')
+        if ($fullTrim.StartsWith($cwd + '/', [StringComparison]::OrdinalIgnoreCase)) {
+            return $fullTrim.Substring($cwd.Length + 1)
+        }
+        if ($fullTrim.Equals($cwd, [StringComparison]::OrdinalIgnoreCase)) {
+            return '.'
+        }
+    } catch {
+    }
+
+    return $fullName
+}
+
+function Expand-PathGlob {
+    param([string]$Pattern)
+
+    if ($Pattern -notmatch '[*?]') {
+        return @($Pattern)
+    }
+
+    $leaf = Split-Path -Leaf $Pattern
+    $force = $leaf.StartsWith('.')
+    $items = @(
+        Get-ChildItem -Path $Pattern -Force:$force -ErrorAction SilentlyContinue
+    )
+    if ($items.Count -eq 0) {
+        return @($Pattern)
+    }
+
+    foreach ($item in $items) {
+        Resolve-ExpandedGlobPath -Pattern $Pattern -Item $item
+    }
+}
+
+function ConvertTo-WindowsPathOperands {
+    param([object[]]$Arguments)
+
+    foreach ($argument in @($Arguments)) {
+        if ($argument -is [string]) {
+            Expand-PathGlob (ConvertTo-WindowsStyleText $argument)
+        } else {
+            $argument
+        }
+    }
+}
+
+function ConvertTo-WindowsCommandLine {
+    param([AllowEmptyString()][string]$InputScript = '')
+
+    if ([string]::IsNullOrWhiteSpace($InputScript)) {
+        return $InputScript
+    }
+
+    $windows = ConvertTo-WindowsStyleText $InputScript
+    $trimmedOriginal = $InputScript.Trim()
+    $trimmedWindows = $windows.Trim()
+    if (
+        $trimmedOriginal -notmatch '\s' -and
+        (Test-PathLikeToken $trimmedOriginal) -and
+        (Test-Path -LiteralPath $trimmedWindows -PathType Container)
+    ) {
+        return "cd $trimmedWindows"
+    }
+
+    return $windows
+}
+
+
+function ConvertTo-WindowsArguments {
+    param([object[]]$Arguments)
+    foreach ($argument in $Arguments) {
+        if ($argument -is [string]) { ConvertTo-WindowsStyleText $argument } else { $argument }
+    }
+}
+
+function Resolve-WindowsPath {
+    param([string]$Path)
+    $windowsPath = ConvertTo-WindowsStyleText $Path
+    if ([IO.Path]::IsPathRooted($windowsPath) -or $windowsPath -match '^[a-zA-Z]:[^\\/]') { return $windowsPath }
+    try {
+        return [IO.Path]::GetFullPath((Join-Path (Get-Location).ProviderPath $windowsPath))
+    } catch { return $windowsPath }
+}
+
+function ConvertFrom-QuotedText {
+    param([string]$Text)
+    if ($Text.Length -ge 2) {
+        if ($Text[0] -eq "'" -and $Text[-1] -eq "'") { return $Text.Substring(1, $Text.Length - 2).Replace("''", "'") }
+        if ($Text[0] -eq '"' -and $Text[-1] -eq '"') { return $Text.Substring(1, $Text.Length - 2) }
+    }
+    return $Text
+}
+
+function ConvertTo-QuotedText {
+    param([string]$Text)
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+    $safeBareWord = $Text -match '^[\p{L}\p{M}\p{N}._~/:+=%!-]+$'
+    if (-not $safeBareWord -or $Text.StartsWith('-')) { return "'$($Text.Replace("'", "''"))'" }
+    return $Text
+}
+
+function Get-UnixPathCompletion {
+    param(
+        [string]$WordToComplete,
+        [switch]$DirectoryOnly,
+        [string]$BaseDirectory
+    )
+
+    $word = $WordToComplete.Trim([char[]]@([char]39, [char]34))
+    $isHomePath = $word -eq '~' -or $word -match '^~[\\\/]'
+    $isAbsolutePath = $word -match '^(?:/[a-zA-Z](?:/|$)|/?[a-zA-Z]:[\\/])'
+    $wordSeparatorIndex = [Math]::Max($word.LastIndexOf('\'), $word.LastIndexOf('/'))
+    $relativeParent = if (-not $isAbsolutePath -and $wordSeparatorIndex -ge 0) {
+        $word.Substring(0, $wordSeparatorIndex + 1) -replace '\\', '/'
+    } elseif (-not $isAbsolutePath -and $word -eq '..') {
+        '../'
+    } else {
+        ''
+    }
+
+    if ($word -match '^/$') {
+        Get-PSDrive -PSProvider FileSystem |
+            Where-Object { $_.Name -match '^[a-zA-Z]$' } |
+            Sort-Object Name |
+            ForEach-Object {
+                $completion = "/$($_.Name.ToLower())/"
+                [System.Management.Automation.CompletionResult]::new(
+                    $completion,
+                    $completion,
+                    'ProviderContainer',
+                    $_.Root
+                )
+            }
+        return
+    }
+
+    # A bare drive such as /i means the root of I: during completion.
+    if ($word -eq '~') {
+        $windowsWord = $HOME.TrimEnd([char[]]@('\', '/')) + '\'
+    } elseif ($word -match '^/([a-zA-Z])$') {
+        $windowsWord = $Matches[1].ToUpper() + ':\'
+    } else {
+        $windowsWord = ConvertTo-WindowsStyleText $word
+    }
+
+    if ([string]::IsNullOrWhiteSpace($BaseDirectory)) {
+        try {
+            $BaseDirectory = (Get-Location).ProviderPath
+        } catch {
+            $BaseDirectory = '.'
+        }
+    } else {
+        $BaseDirectory = ConvertTo-WindowsStyleText $BaseDirectory
+    }
+
+    if ([string]::IsNullOrWhiteSpace($windowsWord)) {
+        $parent = '.'
+        $leaf = ''
+    } elseif ($windowsWord -eq '.' -or $windowsWord -eq '..') {
+        # '.' / '..' 是目录本身，不是隐藏文件前缀。
+        $parent = $windowsWord
+        $leaf = ''
+    } else {
+        $separatorIndex = [Math]::Max(
+            $windowsWord.LastIndexOf('\'),
+            $windowsWord.LastIndexOf('/')
+        )
+
+        if ($separatorIndex -ge 0) {
+            $parent = $windowsWord.Substring(0, $separatorIndex + 1)
+            $leaf = $windowsWord.Substring($separatorIndex + 1)
+        } else {
+            $parent = '.'
+            $leaf = $windowsWord
+        }
+    }
+
+    $lookupParent = if ($isAbsolutePath -or [IO.Path]::IsPathRooted($parent)) {
+        $parent
+    } else {
+        Join-Path $BaseDirectory $parent
+    }
+
+    # 用户进入一个目录后也应能继续补全其隐藏项，例如 app-factory/.git；
+    # 其他没有明确路径上下文的补全仍保持隐藏项默认不显示。
+    # '.' 和 '..' 是当前/上级目录，不能当成隐藏文件前缀。
+    $hasTrailingSeparator = $word.EndsWith('/') -or $word.EndsWith('\')
+    $includeHidden = (
+        $hasTrailingSeparator -or
+        (
+            $leaf.StartsWith('.') -and
+            $leaf -ne '.' -and
+            $leaf -ne '..'
+        )
+    )
+    Get-ChildItem `
+        -LiteralPath $lookupParent `
+        -Force:$includeHidden `
+        -ErrorAction SilentlyContinue |
+        Where-Object { -not $DirectoryOnly -or $_.PSIsContainer } |
+        Where-Object {
+            if ([string]::IsNullOrEmpty($leaf)) {
+                $true
+            } elseif (
+                $leaf.Contains('*') -or
+                $leaf.Contains('?')
+            ) {
+                $_.Name -like $leaf
+            } else {
+                $_.Name -like "$([WildcardPattern]::Escape($leaf))*"
+            }
+        } |
+        Sort-Object @{ Expression = 'PSIsContainer'; Descending = $true }, Name |
+        ForEach-Object {
+            $completion = if ($isHomePath) {
+                if ($relativeParent) {
+                    $relativeParent + $_.Name
+                } else {
+                    '~/' + $_.Name
+                }
+            } elseif ($isAbsolutePath) {
+                ConvertTo-UnixStyleText $_.FullName
+            } else {
+                $relativeParent + $_.Name
+            }
+
+            $completion = $completion -replace '\\', '/'
+            if ($_.PSIsContainer) {
+                $completion = $completion.TrimEnd('/') + '/'
+            }
+            $completion = ConvertTo-QuotedText $completion
+            $resultType = if ($_.PSIsContainer) {
+                'ProviderContainer'
+            } else {
+                'ProviderItem'
+            }
+
+            [System.Management.Automation.CompletionResult]::new(
+                $completion,
+                $_.Name,
+                $resultType,
+                $_.FullName
+            )
+        }
+}
+
+#endregion
+
+function Test-PathLikeToken {
+    param([string]$WordToComplete)
+
+    $word = $WordToComplete.Trim([char[]]@([char]39, [char]34))
+    if ([string]::IsNullOrEmpty($word)) {
+        return $false
+    }
+
+    # 含 / 或 \ 当作路径候选；若目录里没有匹配项，hook 会把原生补全留下，
+    # 避免 git 的 feature/aaaa 被空的文件系统结果盖掉。
+    return $word -match '^(?:~(?:[\\/]|$)|\./|\.\./|/|[a-zA-Z]:[\\/])' -or
+        $word.Contains('/') -or
+        $word.Contains('\')
+}
+
+
+function Test-PathCompletionResult {
+    param([object]$Match)
+
+    return [string]$Match.ResultType -in @(
+        'ProviderItem'
+        'ProviderContainer'
+        'ProviderFile'
+        'ProviderDirectory'
+    )
+}
+
+# 用途：统一处理 PowerShell 默认补全和项目自定义补全的路径文本。
+function ConvertTo-UnixCompletionResult {
+    param(
+        [object]$Match,
+        [string]$CurrentText
+    )
+
+    if (-not (Test-PathCompletionResult $Match)) {
+        return $Match
+    }
+
+    $completionText = [string]$Match.CompletionText
+    $currentPath = ConvertFrom-QuotedText $CurrentText
+    $completionPrefix = ''
+    $pathText = $completionText
+    if ($currentPath -match '^(--?[^=]+=)(.*)$') {
+        $candidatePrefix = $Matches[1]
+        if ($completionText.StartsWith($candidatePrefix)) {
+            $completionPrefix = $candidatePrefix
+            $pathText = $completionText.Substring($candidatePrefix.Length)
+            $currentPath = $Matches[2]
+        }
+    }
+
+    $path = ConvertFrom-QuotedText $pathText
+    $normalizedPath = ConvertTo-UnixStyleText $path
+
+    # 用户已经输入 ~/... 时，保留波浪线前缀，不要把原生补全展开成
+    # /c/Users/... 绝对路径。
+    if ($currentPath -eq '~' -or $currentPath -match '^~[/\\]') {
+        $windowsHome = $HOME.TrimEnd([char[]]@('\', '/'))
+        $unixHome = ConvertTo-UnixStyleText $windowsHome
+        $unquotedNormalized = ConvertFrom-QuotedText $normalizedPath
+        if ($unquotedNormalized -eq $unixHome -or $unquotedNormalized.StartsWith("$unixHome/")) {
+            $normalizedPath = '~' + $unquotedNormalized.Substring($unixHome.Length)
+            if ($normalizedPath -eq '~') {
+                $normalizedPath = '~/'
+            }
+        }
+    }
+
+    # PowerShell 默认补全经常为相对路径添加 .\；只有用户明确输入 ./ 或
+    # ../ 时才保留该前缀，避免把 app-f 补成 ./app-factory。
+    if (
+        $normalizedPath.StartsWith('./') -and
+        $currentPath -notmatch '^\.([/\\]|$)'
+    ) {
+        $normalizedPath = $normalizedPath.Substring(2)
+    }
+
+    if (
+        [string]$Match.ResultType -eq 'ProviderContainer' -and
+        -not $normalizedPath.EndsWith('/')
+    ) {
+        $normalizedPath += '/'
+    }
+
+    $normalizedText = $completionPrefix + (
+        ConvertTo-QuotedText $normalizedPath
+    )
+    if ($normalizedText -eq $completionText) {
+        return $Match
+    }
+
+    [System.Management.Automation.CompletionResult]::new(
+        $normalizedText,
+        [string]$Match.ListItemText,
+        [string]$Match.ResultType,
+        [string]$Match.ToolTip
+    )
+}
+
+# 用途：生成补全候选的比较文本。文件系统候选先经过 unix 路径规范化，
+# 其他候选保持原文，避免把 Git ref 或普通参数错误合并。
+function Get-CompletionComparisonText {
+    param(
+        [object]$Match,
+        [string]$CurrentText
+    )
+
+    if (Test-PathCompletionResult $Match) {
+        return [string](
+            ConvertTo-UnixCompletionResult `
+                -Match $Match `
+                -CurrentText $CurrentText
+        ).CompletionText
+    }
+
+    return [string]$Match.CompletionText
+}
+
+# 用途：单遍去重并计算最终写回文本；只转换唯一候选或公共前缀。
+function Get-CompletionDecision {
+    param(
+        [object[]]$Matches,
+        [string]$CurrentText
+    )
+
+    $seen = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::OrdinalIgnoreCase
+    )
+    $firstMatch = $null
+    $prefix = $null
+    $matchCount = 0
+    $allPathResults = $true
+
+    foreach ($match in @($Matches)) {
+        $comparisonText = Get-CompletionComparisonText `
+            -Match $match `
+            -CurrentText $CurrentText
+        if (-not $seen.Add($comparisonText)) {
+            continue
+        }
+
+        $matchCount++
+        if (-not $firstMatch) {
+            $firstMatch = $match
+        }
+
+        $resultType = [string]$match.ResultType
+        if (-not $resultType.StartsWith('Provider', [StringComparison]::Ordinal)) {
+            $allPathResults = $false
+        }
+
+        $candidate = $comparisonText
+        if ($candidate.Length -ge 2) {
+            $first = $candidate[0]
+            $last = $candidate[$candidate.Length - 1]
+            if ($first -eq [char]39 -and $last -eq [char]39) {
+                $candidate = $candidate.Substring(1, $candidate.Length - 2).
+                    Replace("''", "'")
+            } elseif ($first -eq [char]34 -and $last -eq [char]34) {
+                $candidate = $candidate.Substring(1, $candidate.Length - 2).
+                    Replace('""', '"')
+            }
+        }
+
+        if ($null -eq $prefix) {
+            $prefix = $candidate
+            continue
+        }
+
+        $length = [Math]::Min($prefix.Length, $candidate.Length)
+        $index = 0
+        while (
+            $index -lt $length -and
+            [char]::ToUpperInvariant($prefix[$index]) -eq
+                [char]::ToUpperInvariant($candidate[$index])
+        ) {
+            $index++
+        }
+
+        $prefix = $prefix.Substring(0, $index)
+        if ($prefix.Length -eq 0) {
+            break
+        }
+    }
+
+    $replacement = ''
+    if ($matchCount -eq 1) {
+        $replacement = [string](
+            ConvertTo-UnixCompletionResult `
+                -Match $firstMatch `
+                -CurrentText $CurrentText
+        ).CompletionText
+    } elseif ($matchCount -gt 1 -and $prefix) {
+        if ($allPathResults) {
+            $prefixResult = [System.Management.Automation.CompletionResult]::new(
+                $prefix,
+                $prefix,
+                'ProviderItem',
+                $prefix
+            )
+            $replacement = [string](
+                ConvertTo-UnixCompletionResult `
+                    -Match $prefixResult `
+                    -CurrentText $CurrentText
+            ).CompletionText
+        } else {
+            $replacement = ConvertTo-QuotedText $prefix
+        }
+    }
+
+    [pscustomobject]@{
+        MatchCount  = $matchCount
+        Replacement = $replacement
+    }
+}
+
+function Invoke-PathCompletionHook {
+    param($State)
+
+    $currentText = ''
+    if (
+        $State.ReplacementIndex -ge 0 -and
+        $State.ReplacementLength -ge 0 -and
+        $State.ReplacementIndex -le $State.Line.Length -and
+        $State.ReplacementLength -le ($State.Line.Length - $State.ReplacementIndex)
+    ) {
+        $currentText = $State.Line.Substring(
+            $State.ReplacementIndex,
+            $State.ReplacementLength
+        )
+    }
+
+    if (Test-PathLikeToken $currentText) {
+        $fileMatches = @(
+            Get-UnixPathCompletion -WordToComplete $currentText
+        )
+        if ($fileMatches.Count -gt 0) {
+            $State.Matches = $fileMatches
+            return $State
+        }
+    }
+
+    $State.Matches = @(
+        foreach ($match in @($State.Matches)) {
+            ConvertTo-UnixCompletionResult `
+                -Match $match `
+                -CurrentText $currentText
+        }
+    )
+    return $State
+}
+
+
+Export-ModuleMember -Function @(
+    'ConvertTo-UnixStyleText'
+    'ConvertTo-WindowsStyleText'
+    'ConvertTo-WindowsArguments'
+    'ConvertTo-WindowsCommandLine'
+    'ConvertTo-WindowsPathOperands'
+    'ConvertFrom-QuotedText'
+    'ConvertTo-QuotedText'
+    'ConvertTo-UnixCompletionResult'
+    'Expand-PathGlob'
+    'Get-CompletionDecision'
+    'Get-UnixPathCompletion'
+    'Invoke-PathCompletionHook'
+    'Resolve-WindowsPath'
+    'Test-PathLikeToken'
+)

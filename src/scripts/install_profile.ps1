@@ -1,0 +1,203 @@
+# 让当前用户的 pwsh 加载本仓库。默认挂钩源码树里的 profile.ps1。
+#   install_profile.ps1
+#   install_profile.ps1 -Check
+#   install_profile.ps1 -Uninstall
+#   install_profile.ps1 -Deploy
+#   install_profile.ps1 -CurrentHost
+
+[CmdletBinding()]
+param(
+    [string]$ProfilePath,
+    [string]$Destination,
+    [switch]$Check,
+    [switch]$Uninstall,
+    [switch]$Deploy,
+    [switch]$CurrentHost
+)
+
+$ErrorActionPreference = 'Stop'
+$script:NewLine = "`r`n"
+$script:BeginMarker = '# >>> unixify-powershell >>>'
+$script:EndMarker = '# <<< unixify-powershell <<<'
+$script:LegacyBeginMarker = '# >>> pwsh-unixify >>>'
+$script:LegacyEndMarker = '# <<< pwsh-unixify <<<'
+
+function Get-SourceRoot {
+    [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+}
+
+function Get-SourceProfilePath {
+    Join-Path (Get-SourceRoot) 'profile.ps1'
+}
+
+function Get-DefaultDestination {
+    Join-Path $HOME '.config\pwsh'
+}
+
+function Get-HookProfilePath {
+    if ($ProfilePath) {
+        return [IO.Path]::GetFullPath($ProfilePath)
+    }
+    if ($CurrentHost) {
+        return $PROFILE.CurrentUserCurrentHost
+    }
+    return $PROFILE.CurrentUserAllHosts
+}
+
+function ConvertTo-SingleQuotedText {
+    param([string]$Text)
+    "'" + $Text.Replace("'", "''") + "'"
+}
+
+function Get-InstallBlock {
+    param([string]$TargetProfile)
+
+    $quoted = ConvertTo-SingleQuotedText $TargetProfile
+    @(
+        $script:BeginMarker
+        "if (Test-Path -LiteralPath $quoted -PathType Leaf) {"
+        "    . $quoted"
+        '}'
+        $script:EndMarker
+    ) -join $script:NewLine
+}
+
+function Get-MarkerPattern {
+    param([string]$Begin, [string]$End)
+
+    '(?ms)^' + [regex]::Escape($Begin) +
+    '\r?\n.*?' + [regex]::Escape($End) +
+    '(?:\r?\n)?'
+}
+
+function Get-InstallPatterns {
+    @(
+        (Get-MarkerPattern $script:BeginMarker $script:EndMarker)
+        (Get-MarkerPattern $script:LegacyBeginMarker $script:LegacyEndMarker)
+    )
+}
+
+function Read-ProfileText {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return ''
+    }
+    [IO.File]::ReadAllText($Path)
+}
+
+function Write-ProfileText {
+    param([string]$Path, [string]$Text)
+
+    $parent = Split-Path -Parent $Path
+    if ($parent) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+    [IO.File]::WriteAllText($Path, $Text)
+}
+
+function Remove-InstallBlock {
+    param([string]$Text)
+
+    $removed = $Text
+    foreach ($pattern in (Get-InstallPatterns)) {
+        $removed = [regex]::Replace($removed, $pattern, '')
+    }
+    $removed.TrimEnd() + $(if ($removed.Trim()) { $script:NewLine } else { '' })
+}
+
+function Set-InstallBlock {
+    param([string]$Text, [string]$Block)
+
+    $without = Remove-InstallBlock $Text
+    if ([string]::IsNullOrWhiteSpace($without)) {
+        return $Block + $script:NewLine
+    }
+    $without.TrimEnd() + $script:NewLine + $script:NewLine + $Block + $script:NewLine
+}
+
+function Get-InstalledTarget {
+    param([string]$Text)
+
+    foreach ($pattern in (Get-InstallPatterns)) {
+        $match = [regex]::Match($Text, $pattern)
+        if (-not $match.Success) {
+            continue
+        }
+        if ($match.Value -match "LiteralPath '((?:''|[^'])*)'") {
+            return $Matches[1].Replace("''", "'")
+        }
+        return $null
+    }
+    return $null
+}
+
+function Copy-RuntimeTree {
+    param([string]$Source, [string]$Destination)
+
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    Get-ChildItem -LiteralPath $Source -Force |
+        Where-Object { $_.Name -ne 'tests' } |
+        ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName `
+                -Destination (Join-Path $Destination $_.Name) `
+                -Recurse -Force
+        }
+}
+
+function Write-InstallStatus {
+    param(
+        [string]$HookPath,
+        [string]$TargetPath,
+        [string]$State
+    )
+
+    Write-Output ("profile  {0}" -f $HookPath)
+    Write-Output ("target   {0}" -f $TargetPath)
+    Write-Output ("state    {0}" -f $State)
+}
+
+if ($Uninstall -and $Deploy) {
+    throw 'Use either -Uninstall or -Deploy, not both.'
+}
+
+$hookPath = Get-HookProfilePath
+$sourceProfile = Get-SourceProfilePath
+if (-not (Test-Path -LiteralPath $sourceProfile -PathType Leaf)) {
+    throw "missing profile: $sourceProfile"
+}
+
+$targetProfile = $sourceProfile
+if ($Deploy) {
+    if (-not $Destination) {
+        $Destination = Get-DefaultDestination
+    }
+    $Destination = [IO.Path]::GetFullPath($Destination)
+    Copy-RuntimeTree -Source (Get-SourceRoot) -Destination $Destination
+    $targetProfile = Join-Path $Destination 'profile.ps1'
+}
+
+$existing = Read-ProfileText $hookPath
+$installedTarget = Get-InstalledTarget $existing
+
+if ($Check) {
+    $state = if ($installedTarget) { 'installed' } else { 'missing' }
+    $shownTarget = if ($installedTarget) { $installedTarget } else { $targetProfile }
+    Write-InstallStatus -HookPath $hookPath -TargetPath $shownTarget -State $state
+    return
+}
+
+if ($Uninstall) {
+    if (-not $installedTarget) {
+        Write-InstallStatus -HookPath $hookPath -TargetPath $targetProfile -State 'missing'
+        return
+    }
+    Write-ProfileText -Path $hookPath -Text (Remove-InstallBlock $existing)
+    Write-InstallStatus -HookPath $hookPath -TargetPath $installedTarget -State 'removed'
+    return
+}
+
+$updated = Set-InstallBlock -Text $existing -Block (Get-InstallBlock $targetProfile)
+Write-ProfileText -Path $hookPath -Text $updated
+$state = if ($Deploy) { 'deployed' } else { 'installed' }
+Write-InstallStatus -HookPath $hookPath -TargetPath $targetProfile -State $state
