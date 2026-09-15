@@ -1,11 +1,33 @@
 # 按键与 prompt 管道。
 #
 # Tab:  completion -> path
-# Enter: path -> term
-# prompt: starship -> term OSC
+# Enter: term command -> path rewrite -> accept
+# prompt: starship -> term
 
 $script:SkipConvertedHistory = $false
 
+function Test-CompleteCommandLine {
+    param(
+        [AllowEmptyString()]
+        [string]$InputScript = ''
+    )
+
+    if ([string]::IsNullOrWhiteSpace($InputScript)) {
+        return $false
+    }
+
+    $tokens = $null
+    $parseErrors = $null
+    [void][System.Management.Automation.Language.Parser]::ParseInput(
+        $InputScript,
+        [ref]$tokens,
+        [ref]$parseErrors
+    )
+
+    return -not @(
+        $parseErrors | Where-Object IncompleteInput
+    ).Count
+}
 
 function Get-CommandLineName {
     param([string]$Line)
@@ -227,10 +249,11 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine -ListAvailable)) {
             'AcceptLine'
             'ValidateAndAcceptLine'
             'WezTermAcceptLine'
+            'HookAcceptLine'
         )) {
         Set-PSReadLineKeyHandler `
             -Chord Enter `
-            -BriefDescription 'WezTermAcceptLine' `
+            -BriefDescription 'HookAcceptLine' `
             -LongDescription 'Path rewrite then accept line' `
             -ScriptBlock {
                 param($key, $arg)
@@ -242,8 +265,7 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine -ListAvailable)) {
                     [ref]$cursor
                 )
                 if (Test-CompleteCommandLine -InputScript $line) {
-                    Write-WezTermUserVariable -Name 'WEZTERM_COMMAND' -Value $line
-                    Write-WezTermPaneTitle -Command $line
+                    Sync-TermCommand -Command $line
                     $rewritten = ConvertTo-WindowsCommandLine -InputScript $line
                     if (
                         $rewritten -cne $line -and
@@ -278,34 +300,14 @@ if ($starshipCommand) {
     }
 }
 
-if (-not (Test-Path Variable:script:WezTermBasePrompt)) {
-    $script:WezTermBasePrompt = (Get-Command prompt).ScriptBlock
+if (-not (Test-Path Variable:script:BasePrompt)) {
+    $script:BasePrompt = (Get-Command prompt).ScriptBlock
 }
 
 function global:prompt {
-    $promptText = & $script:WezTermBasePrompt
-
-    Write-WezTermUserVariable -Name 'WEZTERM_SHELL' -Value 'pwsh'
-    Write-WezTermUserVariable -Name 'WEZTERM_COMMAND' -Value ''
-    Write-WezTermPaneTitle
-
-    $location = ''
-    try {
-        $location = $ExecutionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath
-    } catch {
-    }
-
-    Write-WezTermUserVariable -Name 'WEZTERM_CWD' -Value $location
-
-    try {
-        if ($location) {
-            $uri = [Uri]::new($location).AbsoluteUri
-            [Console]::Write([char]0x1b + ']7;' + $uri + [char]0x1b + '\')
-        }
-    } catch {
-    }
-
+    $promptText = & $script:BasePrompt
+    Sync-TermPrompt
     return $promptText
 }
 
-Export-ModuleMember -Function Complete-HookLine, Test-WindowsCommandLineReplacement
+Export-ModuleMember -Function Complete-HookLine, Test-CompleteCommandLine, Test-WindowsCommandLineReplacement

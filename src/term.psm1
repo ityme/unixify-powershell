@@ -1,6 +1,23 @@
-# WezTerm 上报。不绑按键。
+# 终端状态上报。不绑按键。
+# 协议细节（OSC、WEZTERM_*、$env:WEZTERM_PANE）留在本文件。
 
-function Write-WezTermUserVariable {
+function Test-TermPane {
+    [bool]$env:WEZTERM_PANE
+}
+
+function Get-TermWorkingDirectory {
+    try {
+        return $ExecutionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath
+    } catch {
+        try {
+            return (Get-Location).Path
+        } catch {
+            return ''
+        }
+    }
+}
+
+function Write-TermUserVariable {
     param(
         [Parameter(Mandatory)]
         [ValidatePattern('^[A-Za-z0-9_]+$')]
@@ -10,7 +27,7 @@ function Write-WezTermUserVariable {
         [string]$Value = ''
     )
 
-    if (-not $env:WEZTERM_PANE) {
+    if (-not (Test-TermPane)) {
         return
     }
 
@@ -33,12 +50,7 @@ function Get-WezTermPaneTitle {
         [string]$Command = ''
     )
 
-    try {
-        $location = $ExecutionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath
-    } catch {
-        $location = (Get-Location).Path
-    }
-
+    $location = Get-TermWorkingDirectory
     $trimmedLocation = $location.TrimEnd([char[]]@('\', '/'))
     $directory = if ($trimmedLocation) {
         Split-Path -Leaf $trimmedLocation
@@ -65,13 +77,13 @@ function Get-WezTermPaneTitle {
     return $title
 }
 
-function Write-WezTermPaneTitle {
+function Write-TermPaneTitle {
     param(
         [AllowEmptyString()]
         [string]$Command = ''
     )
 
-    if (-not $env:WEZTERM_PANE) {
+    if (-not (Test-TermPane)) {
         return
     }
 
@@ -83,27 +95,36 @@ function Write-WezTermPaneTitle {
     }
 }
 
-function Test-CompleteCommandLine {
-    param(
-        [AllowEmptyString()]
-        [string]$InputScript = ''
-    )
+function Write-TermWorkingDirectoryUri {
+    param([string]$Path)
 
-    if ([string]::IsNullOrWhiteSpace($InputScript)) {
-        return $false
+    if (-not (Test-TermPane) -or -not $Path) {
+        return
     }
 
-    $tokens = $null
-    $parseErrors = $null
-    [void][System.Management.Automation.Language.Parser]::ParseInput(
-        $InputScript,
-        [ref]$tokens,
-        [ref]$parseErrors
-    )
-
-    return -not @(
-        $parseErrors | Where-Object IncompleteInput
-    ).Count
+    try {
+        $uri = [Uri]::new($Path).AbsoluteUri
+        [Console]::Write([char]0x1b + ']7;' + $uri + [char]0x1b + '\')
+    } catch {
+    }
 }
 
-Export-ModuleMember -Function Get-WezTermPaneTitle, Test-CompleteCommandLine, Write-WezTermPaneTitle, Write-WezTermUserVariable
+function Sync-TermCommand {
+    param(
+        [AllowEmptyString()]
+        [string]$Command = ''
+    )
+
+    Write-TermUserVariable -Name 'WEZTERM_COMMAND' -Value $Command
+    Write-TermPaneTitle -Command $Command
+}
+
+function Sync-TermPrompt {
+    Write-TermUserVariable -Name 'WEZTERM_SHELL' -Value 'pwsh'
+    Sync-TermCommand -Command ''
+    $location = Get-TermWorkingDirectory
+    Write-TermUserVariable -Name 'WEZTERM_CWD' -Value $location
+    Write-TermWorkingDirectoryUri -Path $location
+}
+
+Export-ModuleMember -Function Get-WezTermPaneTitle, Sync-TermCommand, Sync-TermPrompt

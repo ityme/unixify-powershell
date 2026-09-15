@@ -251,11 +251,11 @@ try {
     }
     Invoke-CompletionTest 'command status: Enter handler is registered once' {
         $handler = Get-PSReadLineKeyHandler -Chord Enter
-        Assert-Equal $handler.Function 'WezTermAcceptLine'
+        Assert-Equal $handler.Function 'HookAcceptLine'
 
         . (Resolve-Path $profilePath)
         $reloadedHandler = Get-PSReadLineKeyHandler -Chord Enter
-        Assert-Equal $reloadedHandler.Function 'WezTermAcceptLine'
+        Assert-Equal $reloadedHandler.Function 'HookAcceptLine'
     }
     Invoke-CompletionTest 'literal path wrappers preserve wildcard characters' {
         $literalPath = 'literal-[a].txt'
