@@ -1,7 +1,7 @@
 # 下载 unixify-powershell 并挂钩当前用户的 pwsh。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
 #   $env:UPWSH_DIR = "$HOME\.config\upwsh"; irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1 --directory=~/.config/upwsh
+#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1 --directory ~/.config/upwsh
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -13,9 +13,9 @@ $script:UserAgent = 'unixify-powershell-installer'
 function Get-InstallUsage {
     @'
 usage: bootstrap.ps1 [-h | --help] [-c | --check]
-                     [-d | --directory=<dir>] [-p | --profile=<path>]
-                     [--current-host] [--ref=<ref>] [--repo=<owner/name>]
-                     [--source=<dir>]
+                     [-d | --directory <dir>] [-p | --profile <path>]
+                     [--current-host] [--ref <ref>] [--repo <owner/name>]
+                     [--source <dir>]
 
 These are common bootstrap.ps1 commands used in various situations:
 
@@ -53,46 +53,13 @@ function New-InstallParseResult {
     }
 }
 
-function Expand-InstallTokens {
-    param([object[]]$Tokens)
-
-    $expanded = [Collections.Generic.List[string]]::new()
-    foreach ($raw in $Tokens) {
-        if ($null -eq $raw -or [string]$raw -eq '') {
-            continue
-        }
-        $token = [string]$raw
-        if ($token -match '^(--[^=]+)=(.*)$' -or $token -match '^(-[A-Za-z])=(.*)$') {
-            $expanded.Add($Matches[1]) | Out-Null
-            $expanded.Add($Matches[2]) | Out-Null
-            continue
-        }
-        $expanded.Add($token) | Out-Null
-    }
-    @($expanded)
-}
-
-function Read-InstallOptionValue {
-    param(
-        [object[]]$Tokens,
-        [int]$Index,
-        [string]$Error
-    )
-
-    if ($Index + 1 -ge $Tokens.Count) {
-        return [pscustomobject]@{ Ok = $false; Error = $Error }
-    }
-    $value = [string]$Tokens[$Index + 1]
-    if ([string]::IsNullOrWhiteSpace($value) -or $value.StartsWith('-')) {
-        return [pscustomobject]@{ Ok = $false; Error = $Error }
-    }
-    [pscustomobject]@{ Ok = $true; Value = $value }
-}
-
 function ConvertFrom-InstallArguments {
     param([object[]]$Tokens)
 
-    $tokens = Expand-InstallTokens $Tokens
+    $tokens = @(
+        $Tokens |
+            Where-Object { $_ -ne $null -and [string]$_ -ne '' }
+    )
     $result = New-InstallParseResult
     $index = 0
 
@@ -112,53 +79,48 @@ function ConvertFrom-InstallArguments {
                 $index++
             }
             '^(--directory|-d)$' {
-                $got = Read-InstallOptionValue $tokens $index 'missing directory'
-                if (-not $got.Ok) {
+                if ($index + 1 -ge $tokens.Count) {
                     $result.Help = $true
-                    $result.Error = $got.Error
+                    $result.Error = 'missing directory'
                     return $result
                 }
-                $result.Directory = $got.Value
+                $result.Directory = [string]$tokens[$index + 1]
                 $index += 2
             }
             '^(--profile|-p)$' {
-                $got = Read-InstallOptionValue $tokens $index 'missing profile path'
-                if (-not $got.Ok) {
+                if ($index + 1 -ge $tokens.Count) {
                     $result.Help = $true
-                    $result.Error = $got.Error
+                    $result.Error = 'missing profile path'
                     return $result
                 }
-                $result.Profile = $got.Value
+                $result.Profile = [string]$tokens[$index + 1]
                 $index += 2
             }
             '^--ref$' {
-                $got = Read-InstallOptionValue $tokens $index 'missing ref'
-                if (-not $got.Ok) {
+                if ($index + 1 -ge $tokens.Count) {
                     $result.Help = $true
-                    $result.Error = $got.Error
+                    $result.Error = 'missing ref'
                     return $result
                 }
-                $result.Ref = $got.Value
+                $result.Ref = [string]$tokens[$index + 1]
                 $index += 2
             }
             '^--repo$' {
-                $got = Read-InstallOptionValue $tokens $index 'missing repo'
-                if (-not $got.Ok) {
+                if ($index + 1 -ge $tokens.Count) {
                     $result.Help = $true
-                    $result.Error = $got.Error
+                    $result.Error = 'missing repo'
                     return $result
                 }
-                $result.Repo = $got.Value
+                $result.Repo = [string]$tokens[$index + 1]
                 $index += 2
             }
             '^--source$' {
-                $got = Read-InstallOptionValue $tokens $index 'missing source directory'
-                if (-not $got.Ok) {
+                if ($index + 1 -ge $tokens.Count) {
                     $result.Help = $true
-                    $result.Error = $got.Error
+                    $result.Error = 'missing source directory'
                     return $result
                 }
-                $result.Source = $got.Value
+                $result.Source = [string]$tokens[$index + 1]
                 $index += 2
             }
             default {

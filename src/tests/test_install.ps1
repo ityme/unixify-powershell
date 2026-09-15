@@ -91,8 +91,8 @@ try {
 
     Invoke-InstallTest 'no args from this repo deploys sibling runtime' {
         $result = Invoke-Bootstrap -Tokens @(
-            "--directory=$deployRoot"
-            "--profile=$hook"
+            '--directory', $deployRoot
+            '--profile', $hook
         )
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    deployed'
@@ -139,7 +139,7 @@ try {
         try {
             $env:UPWSH_DIR = $envDir
             $global:LASTEXITCODE = 0
-            $output = & $bootstrap "--profile=$envHook" 2>&1 | Out-String
+            $output = & $bootstrap --profile $envHook 2>&1 | Out-String
             Assert-Equal $global:LASTEXITCODE 0
             Assert-Contains $output 'state    deployed'
             Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'profile.ps1')) (
@@ -151,27 +151,13 @@ try {
         }
     }
 
-    Invoke-InstallTest 'directory equals form deploys to the given path' {
-        $equalsDir = Join-Path $root 'from-equals'
-        $equalsHook = Join-Path $root 'equals-profile.ps1'
-        $result = Invoke-Bootstrap -Tokens @(
-            "--directory=$equalsDir"
-            "--profile=$equalsHook"
-        )
-        Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'state    deployed'
-        Assert-True (Test-Path -LiteralPath (Join-Path $equalsDir 'profile.ps1')) (
-            '--directory= missed profile.ps1'
-        )
-    }
-
     Invoke-InstallTest 'source deploys from a local checkout' {
         $customHook = Join-Path $root 'source-profile.ps1'
         $customDir = Join-Path $root 'from-source'
         $result = Invoke-Bootstrap -Tokens @(
-            "--source=$sourceRoot"
-            "--directory=$customDir"
-            "--profile=$customHook"
+            '--source', $sourceRoot
+            '--directory', $customDir
+            '--profile', $customHook
         )
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    deployed'
@@ -188,7 +174,7 @@ try {
         $customHook = Join-Path $root 'src-profile.ps1'
         $customDir = Join-Path $root 'from-src'
         $result = Invoke-Bootstrap -Tokens @(
-            "--source=$runtimeRoot"
+            '--source', $runtimeRoot
             '--directory', $customDir
             '--profile', $customHook
         )
@@ -202,10 +188,10 @@ try {
         $checkDir = Join-Path $root 'check-dir'
         $checkHook = Join-Path $root 'check-profile.ps1'
         $result = Invoke-Bootstrap -Tokens @(
-            "--source=$sourceRoot"
+            '--source', $sourceRoot
             '--check'
             '-d', $checkDir
-            "--profile=$checkHook"
+            '--profile', $checkHook
         )
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    missing'
@@ -216,9 +202,9 @@ try {
     Invoke-InstallTest 'missing source directory exits 1' {
         $missing = Join-Path $root 'no-such-src'
         $result = Invoke-Bootstrap -Tokens @(
-            "--source=$missing"
-            "--directory=$(Join-Path $root 'unused')"
-            "--profile=$(Join-Path $root 'unused.ps1')"
+            '--source', $missing
+            '--directory', (Join-Path $root 'unused')
+            '--profile', (Join-Path $root 'unused.ps1')
         )
         Assert-Equal $result.Code 1
         Assert-Contains $result.Text 'missing profile.ps1'

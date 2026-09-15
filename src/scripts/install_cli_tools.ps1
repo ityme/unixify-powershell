@@ -57,7 +57,7 @@ function Get-GitHubLatestRelease {
     Invoke-RestMethod `
         -Uri "https://api.github.com/repos/$Repo/releases/latest" `
         -Headers @{
-            'User-Agent' = 'wezterm-cli-installer'
+            'User-Agent' = 'unixify-powershell-installer'
             Accept       = 'application/vnd.github+json'
         }
 }
