@@ -1,7 +1,7 @@
-# upwsh：统一入口。hook 挂钩 pwsh profile，tool 安装 CLI。
+# upwsh：统一入口。load 挂钩 pwsh profile，tool 安装 CLI。
 #   upwsh --help
-#   upwsh hook
-#   upwsh --hook --check
+#   upwsh load
+#   upwsh --load --check
 #   upwsh -t --check
 #   upwsh --tool -d /d/bin -o eza rg -f
 
@@ -11,7 +11,7 @@ $script:Arguments = @($args)
 function Get-UpwshUsage {
     @'
 usage: upwsh [-h | --help]
-             [--hook | hook] [-t | --tool | tool]
+             [-l | --load | load] [-t | --tool | tool]
              [-c | --check] [-u | --uninstall] [--deploy]
              [-d | --directory <dir>] [-p | --profile <path>]
              [--current-host] [-o | --only <name>...] [-f | --force]
@@ -20,7 +20,7 @@ usage: upwsh [-h | --help]
 These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
-   hook             Hook pwsh so it loads this runtime
+   load             Hook pwsh so it loads this runtime
    --check          Show hook status without writing files
    --uninstall      Remove the profile hook without deleting files
    --deploy         Copy the runtime to ~/.config/upwsh and hook that copy
@@ -35,7 +35,7 @@ install a listed CLI tool
    --only           Install only the named tools
    --force          Overwrite existing executables
 
-'upwsh --help' prints this overview. hook and tool cannot be used
+'upwsh --help' prints this overview. load and tool cannot be used
 together.
 
 Listed tools: bat btm delta dust eza fd fzf hyperfine jq lazygit procs
@@ -86,8 +86,8 @@ function ConvertFrom-UpwshArguments {
             $result.Help = $true
             return $result
         }
-        '^(--hook|hook)$' {
-            $result.Command = 'hook'
+        '^(--load|-l|load)$' {
+            $result.Command = 'load'
             $index = 1
         }
         '^(--tool|-t|tool)$' {
@@ -108,9 +108,9 @@ function ConvertFrom-UpwshArguments {
                 $result.Help = $true
                 return $result
             }
-            '^(--hook|hook|--tool|-t|tool)$' {
+            '^(--load|-l|load|--tool|-t|tool)$' {
                 $result.Help = $true
-                $result.Error = 'use either --hook or --tool'
+                $result.Error = 'use either --load or --tool'
                 return $result
             }
             '^(--check|-c)$' {
@@ -118,27 +118,27 @@ function ConvertFrom-UpwshArguments {
                 $index++
             }
             '^(--uninstall|-u)$' {
-                if ($result.Command -ne 'hook') {
+                if ($result.Command -ne 'load') {
                     $result.Help = $true
-                    $result.Error = '--uninstall is only valid with --hook'
+                    $result.Error = '--uninstall is only valid with --load'
                     return $result
                 }
                 $result.Uninstall = $true
                 $index++
             }
             '^--deploy$' {
-                if ($result.Command -ne 'hook') {
+                if ($result.Command -ne 'load') {
                     $result.Help = $true
-                    $result.Error = '--deploy is only valid with --hook'
+                    $result.Error = '--deploy is only valid with --load'
                     return $result
                 }
                 $result.Deploy = $true
                 $index++
             }
             '^--current-host$' {
-                if ($result.Command -ne 'hook') {
+                if ($result.Command -ne 'load') {
                     $result.Help = $true
-                    $result.Error = '--current-host is only valid with --hook'
+                    $result.Error = '--current-host is only valid with --load'
                     return $result
                 }
                 $result.CurrentHost = $true
@@ -164,9 +164,9 @@ function ConvertFrom-UpwshArguments {
                 $index += 2
             }
             '^(--profile|-p)$' {
-                if ($result.Command -ne 'hook') {
+                if ($result.Command -ne 'load') {
                     $result.Help = $true
-                    $result.Error = '--profile is only valid with --hook'
+                    $result.Error = '--profile is only valid with --load'
                     return $result
                 }
                 $next = if ($index + 1 -lt $tokens.Count) { [string]$tokens[$index + 1] } else { '' }
@@ -210,7 +210,7 @@ function ConvertFrom-UpwshArguments {
         }
     }
 
-    if ($result.Command -eq 'hook') {
+    if ($result.Command -eq 'load') {
         if ($result.Uninstall -and $result.Deploy) {
             $result.Help = $true
             $result.Error = 'use either --uninstall or --deploy'
@@ -248,7 +248,7 @@ function ConvertTo-WindowsStyleDirectory {
     )
 }
 
-function Invoke-UpwshHook {
+function Invoke-UpwshLoad {
     param($Parsed)
 
     $installer = Join-Path $PSScriptRoot 'install_profile.ps1'
@@ -322,8 +322,8 @@ if ($parsed.Help -or -not $parsed.Command) {
     return
 }
 
-if ($parsed.Command -eq 'hook') {
-    Invoke-UpwshHook -Parsed $parsed
+if ($parsed.Command -eq 'load') {
+    Invoke-UpwshLoad -Parsed $parsed
     Complete-Upwsh 0 $scriptInvocation
     return
 }

@@ -81,8 +81,8 @@ try {
         $result = Invoke-Upwsh
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'upwsh'
-        Assert-Contains $result.Text '--hook'
-        Assert-Contains $result.Text 'hook'
+        Assert-Contains $result.Text '--load'
+        Assert-Contains $result.Text '-l'
         Assert-Contains $result.Text '--tool'
         Assert-Contains $result.Text '-t'
         Assert-Contains $result.Text '--check'
@@ -109,26 +109,26 @@ try {
         $result = Invoke-Upwsh -Tokens @('--nope')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'unknown option'
-        Assert-Contains $result.Text '--hook'
+        Assert-Contains $result.Text '--load'
     }
 
-    Invoke-UpwshTest 'hook and tool together is an error' {
-        $result = Invoke-Upwsh -Tokens @('--hook', '-t')
+    Invoke-UpwshTest 'load and tool together is an error' {
+        $result = Invoke-Upwsh -Tokens @('-l', '-t')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use either --hook or --tool'
+        Assert-Contains $result.Text 'use either --load or --tool'
     }
 
-    Invoke-UpwshTest 'hook check uses a custom profile path' {
-        $result = Invoke-Upwsh -Tokens @('--hook', '--check', '--profile', $hook)
+    Invoke-UpwshTest 'load check uses a custom profile path' {
+        $result = Invoke-Upwsh -Tokens @('--load', '--check', '--profile', $hook)
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    missing'
         Assert-Contains $result.Text $hook
         Assert-Contains $result.Text $sourceProfile
-        Assert-True (-not (Test-Path -LiteralPath $hook)) 'hook --check created a profile'
+        Assert-True (-not (Test-Path -LiteralPath $hook)) 'load --check created a profile'
     }
 
-    Invoke-UpwshTest 'hook command hooks the custom profile' {
-        $result = Invoke-Upwsh -Tokens @('hook', '-p', $hook)
+    Invoke-UpwshTest 'load short flag hooks the custom profile' {
+        $result = Invoke-Upwsh -Tokens @('-l', '-p', $hook)
         Assert-Equal $result.Code 0
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $result.Text 'state    installed'
@@ -136,28 +136,28 @@ try {
         Assert-Contains $text $sourceProfile
     }
 
-    Invoke-UpwshTest 'hook subcommand check reports installed' {
-        $result = Invoke-Upwsh -Tokens @('hook', '-c', '--profile', $hook)
+    Invoke-UpwshTest 'load subcommand check reports installed' {
+        $result = Invoke-Upwsh -Tokens @('load', '-c', '--profile', $hook)
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    installed'
     }
 
-    Invoke-UpwshTest 'hook uninstall removes the hook' {
-        $result = Invoke-Upwsh -Tokens @('--hook', '--uninstall', '--profile', $hook)
+    Invoke-UpwshTest 'load uninstall removes the hook' {
+        $result = Invoke-Upwsh -Tokens @('--load', '--uninstall', '--profile', $hook)
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    removed'
         $text = [IO.File]::ReadAllText($hook)
-        Assert-True ($text -notlike '*unixify-powershell*') "hook --uninstall left the marker:`n$text"
+        Assert-True ($text -notlike '*unixify-powershell*') "load --uninstall left the marker:`n$text"
     }
 
-    Invoke-UpwshTest 'hook directory without deploy is an error' {
-        $result = Invoke-Upwsh -Tokens @('--hook', '-d', $root, '--profile', $hook)
+    Invoke-UpwshTest 'load directory without deploy is an error' {
+        $result = Invoke-Upwsh -Tokens @('--load', '-d', $root, '--profile', $hook)
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text '--directory is only valid with --deploy'
     }
 
-    Invoke-UpwshTest 'tool options are rejected on hook' {
-        $result = Invoke-Upwsh -Tokens @('--hook', '--force', '--profile', $hook)
+    Invoke-UpwshTest 'tool options are rejected on load' {
+        $result = Invoke-Upwsh -Tokens @('--load', '--force', '--profile', $hook)
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text '--force is only valid with --tool'
     }
@@ -175,10 +175,10 @@ try {
         Assert-Contains $result.Text 'missing tool name'
     }
 
-    Invoke-UpwshTest 'hook options are rejected on tool' {
+    Invoke-UpwshTest 'load options are rejected on tool' {
         $result = Invoke-Upwsh -Tokens @('--tool', '--uninstall')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text '--uninstall is only valid with --hook'
+        Assert-Contains $result.Text '--uninstall is only valid with --load'
     }
 
     Invoke-UpwshTest 'tool check uses the requested directory' {
@@ -212,7 +212,7 @@ try {
     Invoke-UpwshTest 'profile function forwards to the script' {
         . $sourceProfile
         $output = upwsh --help | Out-String
-        Assert-Contains $output '--hook'
+        Assert-Contains $output '--load'
         Assert-Contains $output '--tool'
         $command = Get-Command upwsh -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Function'
