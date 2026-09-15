@@ -125,30 +125,16 @@ try {
     Invoke-InstallProfileTest 'install replaces an old marked block' {
         [IO.File]::WriteAllText(
             $hook,
-            "# >>> pwsh-unixify >>>`r`n. 'C:\old\profile.ps1'`r`n# <<< pwsh-unixify <<<`r`n"
+            "# >>> unixify-powershell >>>`r`n. 'C:\old\profile.ps1'`r`n# <<< unixify-powershell <<<`r`n"
         )
         Invoke-Installer -ProfilePath $hook | Out-Null
         $text = [IO.File]::ReadAllText($hook)
         Assert-True ($text -notlike '*C:\old\profile.ps1*') "old target remained:`n$text"
-        Assert-True ($text -notlike '*pwsh-unixify*') "legacy marker remained:`n$text"
         Assert-Contains $text $sourceProfile
-        Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Equal ([regex]::Matches($text, '# >>> unixify-powershell >>>').Count) 1
     }
 
-    Invoke-InstallProfileTest 'check reports a legacy marked hook' {
-        $quoted = $sourceProfile.Replace("'", "''")
-        [IO.File]::WriteAllText(
-            $hook,
-            "# >>> pwsh-unixify >>>`r`nif (Test-Path -LiteralPath '$quoted' -PathType Leaf) {`r`n    . '$quoted'`r`n}`r`n# <<< pwsh-unixify <<<`r`n"
-        )
-        $output = Invoke-Installer -ProfilePath $hook -Check
-        Assert-Contains $output 'state    installed'
-        Assert-Contains $output $sourceProfile
-    }
-
     Invoke-InstallProfileTest 'check reports installed target' {
-        Invoke-Installer -ProfilePath $hook | Out-Null
         $output = Invoke-Installer -ProfilePath $hook -Check
         Assert-Contains $output 'state    installed'
         Assert-Contains $output $sourceProfile
@@ -163,20 +149,6 @@ try {
         Assert-Contains $output 'state    removed'
         Assert-Contains $text 'keep-me'
         Assert-True ($text -notlike '*unixify-powershell*') "marker remained:`n$text"
-        Assert-True ($text -notlike '*pwsh-unixify*') "legacy marker remained:`n$text"
-    }
-
-    Invoke-InstallProfileTest 'uninstall removes a legacy marked block' {
-        $customHook = Join-Path $root 'legacy-uninstall.ps1'
-        [IO.File]::WriteAllText(
-            $customHook,
-            "Write-Output 'keep-me'`r`n# >>> pwsh-unixify >>>`r`nif (Test-Path -LiteralPath 'C:\old\profile.ps1' -PathType Leaf) {`r`n    . 'C:\old\profile.ps1'`r`n}`r`n# <<< pwsh-unixify <<<`r`n"
-        )
-        $output = Invoke-Installer -ProfilePath $customHook -Uninstall
-        $text = [IO.File]::ReadAllText($customHook)
-        Assert-Contains $output 'state    removed'
-        Assert-Contains $text 'keep-me'
-        Assert-True ($text -notlike '*pwsh-unixify*') "legacy marker remained:`n$text"
     }
 
     Invoke-InstallProfileTest 'uninstall on missing hook is a no-op' {

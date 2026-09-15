@@ -19,8 +19,6 @@ $ErrorActionPreference = 'Stop'
 $script:NewLine = "`r`n"
 $script:BeginMarker = '# >>> unixify-powershell >>>'
 $script:EndMarker = '# <<< unixify-powershell <<<'
-$script:LegacyBeginMarker = '# >>> pwsh-unixify >>>'
-$script:LegacyEndMarker = '# <<< pwsh-unixify <<<'
 
 function Get-SourceRoot {
     [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -62,19 +60,10 @@ function Get-InstallBlock {
     ) -join $script:NewLine
 }
 
-function Get-MarkerPattern {
-    param([string]$Begin, [string]$End)
-
-    '(?ms)^' + [regex]::Escape($Begin) +
-    '\r?\n.*?' + [regex]::Escape($End) +
+function Get-InstallPattern {
+    '(?ms)^' + [regex]::Escape($script:BeginMarker) +
+    '\r?\n.*?' + [regex]::Escape($script:EndMarker) +
     '(?:\r?\n)?'
-}
-
-function Get-InstallPatterns {
-    @(
-        (Get-MarkerPattern $script:BeginMarker $script:EndMarker)
-        (Get-MarkerPattern $script:LegacyBeginMarker $script:LegacyEndMarker)
-    )
 }
 
 function Read-ProfileText {
@@ -99,10 +88,7 @@ function Write-ProfileText {
 function Remove-InstallBlock {
     param([string]$Text)
 
-    $removed = $Text
-    foreach ($pattern in (Get-InstallPatterns)) {
-        $removed = [regex]::Replace($removed, $pattern, '')
-    }
+    $removed = [regex]::Replace($Text, (Get-InstallPattern), '')
     $removed.TrimEnd() + $(if ($removed.Trim()) { $script:NewLine } else { '' })
 }
 
@@ -119,15 +105,12 @@ function Set-InstallBlock {
 function Get-InstalledTarget {
     param([string]$Text)
 
-    foreach ($pattern in (Get-InstallPatterns)) {
-        $match = [regex]::Match($Text, $pattern)
-        if (-not $match.Success) {
-            continue
-        }
-        if ($match.Value -match "LiteralPath '((?:''|[^'])*)'") {
-            return $Matches[1].Replace("''", "'")
-        }
+    $match = [regex]::Match($Text, (Get-InstallPattern))
+    if (-not $match.Success) {
         return $null
+    }
+    if ($match.Value -match "LiteralPath '((?:''|[^'])*)'") {
+        return $Matches[1].Replace("''", "'")
     }
     return $null
 }

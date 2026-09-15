@@ -148,7 +148,6 @@ try {
         Assert-Contains $result.Text 'state    removed'
         $text = [IO.File]::ReadAllText($hook)
         Assert-True ($text -notlike '*unixify-powershell*') "reload --uninstall left the marker:`n$text"
-        Assert-True ($text -notlike '*pwsh-unixify*') "reload --uninstall left the legacy marker:`n$text"
     }
 
     Invoke-UpwshTest 'reload directory without deploy is an error' {
