@@ -251,6 +251,56 @@ try {
         Assert-Equal (Get-TermCommandName 'git status') 'git'
         Assert-Equal (Get-TermCommandName "& 'C:\bin\rg.exe' -n foo") 'rg.exe'
     }
+    Invoke-CompletionTest 'term report includes configured fields' {
+        $originalOut = [Console]::Out
+        $stream = [IO.MemoryStream]::new()
+        $writer = [IO.StreamWriter]::new($stream)
+        $writer.AutoFlush = $true
+        try {
+            [Console]::SetOut($writer)
+            Sync-TermPrompt -Succeeded $true -ExitCode 0
+            $writer.Flush()
+            $text = [Text.Encoding]::UTF8.GetString($stream.ToArray())
+        } finally {
+            [Console]::SetOut($originalOut)
+            $writer.Dispose()
+        }
+        Assert-True ($text -match 'SetUserVar=HOST=') 'missing HOST'
+        Assert-True ($text -match 'SetUserVar=USER=') 'missing USER'
+        Assert-True ($text -match 'SetUserVar=CWD=') 'missing CWD'
+        Assert-True ($text.Contains("]2;")) 'missing OSC 2'
+        Assert-True ($text.Contains("]7;")) 'missing OSC 7'
+        Assert-True ($text.Contains("]133;A")) 'missing OSC 133 A'
+    }
+    Invoke-CompletionTest 'term report skips commented fields' {
+        $module = (Get-Command Sync-TermPrompt -ErrorAction Stop).Module
+        Assert-True ([bool]$module) 'term module was not loaded'
+        $originalOut = [Console]::Out
+        $stream = [IO.MemoryStream]::new()
+        $writer = [IO.StreamWriter]::new($stream)
+        $writer.AutoFlush = $true
+        try {
+            & $module {
+                $script:TermReport.Remove('HOST') | Out-Null
+                $script:TermIdentity = $null
+                $script:TermIdentitySequences = $null
+            }
+            [Console]::SetOut($writer)
+            Sync-TermPrompt -Succeeded $true -ExitCode 0
+            $writer.Flush()
+            $text = [Text.Encoding]::UTF8.GetString($stream.ToArray())
+        } finally {
+            & $module {
+                $script:TermReport.Add('HOST') | Out-Null
+                $script:TermIdentity = $null
+                $script:TermIdentitySequences = $null
+            }
+            [Console]::SetOut($originalOut)
+            $writer.Dispose()
+        }
+        Assert-True ($text -notmatch 'SetUserVar=HOST=') 'HOST still reported'
+        Assert-True ($text -match 'SetUserVar=USER=') 'USER was dropped with HOST'
+    }
     Invoke-CompletionTest 'term report finishes within 20ms' {
         $originalOut = [Console]::Out
         $buffer = [IO.StreamWriter]::new([IO.MemoryStream]::new())
