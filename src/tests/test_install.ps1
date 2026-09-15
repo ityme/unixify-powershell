@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$bootstrap = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\scripts\bootstrap.ps1'))
+$bootstrap = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\bootstrap.ps1'))
 $sourceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $runtimeRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $root = Join-Path ([IO.Path]::GetTempPath()) (
@@ -192,7 +192,7 @@ try {
     $bash = Get-Command bash -ErrorAction SilentlyContinue
     if ($bash) {
         Invoke-InstallTest 'bootstrap.sh forwards source deploy to pwsh' {
-            $sh = [IO.Path]::GetFullPath((Join-Path $sourceRoot 'scripts\bootstrap.sh'))
+            $sh = [IO.Path]::GetFullPath((Join-Path $sourceRoot 'src\scripts\bootstrap.sh'))
             $customHook = Join-Path $root 'sh-profile.ps1'
             $customDir = Join-Path $root 'from-sh'
             $previous = $global:LASTEXITCODE

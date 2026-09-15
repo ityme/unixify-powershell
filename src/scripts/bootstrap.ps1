@@ -1,8 +1,8 @@
 # 下载 unixify-powershell 并挂钩当前用户的 pwsh。
-#   curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.sh | bash
-#   pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.ps1 | iex"
-#   pwsh -NoLogo -NoProfile -File scripts/bootstrap.ps1
-#   pwsh -NoLogo -NoProfile -File scripts/bootstrap.ps1 --directory ~/.config/upwsh
+#   curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.sh | bash
+#   pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex"
+#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1
+#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1 --directory ~/.config/upwsh
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -33,8 +33,8 @@ inspect without writing
 
 A network install can run:
 
-  curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.sh | bash
-  pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/scripts/bootstrap.ps1 | iex"
+  curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.sh | bash
+  pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex"
 
 Environment: UNIXIFY_DIR UNIXIFY_REF UNIXIFY_REPO UNIXIFY_SOURCE
 Pipe installs can pass options through environment variables or
