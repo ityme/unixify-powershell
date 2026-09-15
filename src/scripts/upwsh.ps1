@@ -3,7 +3,8 @@
 #   upwsh load
 #   upwsh --load --check
 #   upwsh -t --check
-#   upwsh --tool -d /d/bin -o eza rg -f
+#   upwsh --tool --install eza rg
+#   upwsh --tool --uninstall eza
 
 $ErrorActionPreference = 'Stop'
 $script:Arguments = @($args)
@@ -12,7 +13,7 @@ function Get-UpwshUsage {
     @'
 usage: upwsh [-h | --help]
              [-l | --load | load] [-t | --tool | tool]
-             [-c | --check] [-u | --uninstall] [--deploy]
+             [-c | --check] [-i | --install] [-u | --uninstall] [--deploy]
              [-d | --directory <dir>] [-p | --profile <path>]
              [--current-host] [-o | --only <name>...] [-f | --force]
              [<args>]
@@ -29,10 +30,12 @@ hook the current user's pwsh
    --current-host   Write $PROFILE.CurrentUserCurrentHost
 
 install a listed CLI tool
-   tool             Download listed CLI tools into a directory
+   tool             Download or remove listed CLI tools
+   --install        Install the named tools; with no names, install the list
+   --uninstall      Remove the named tools from the directory
    --check          Show which listed tools are already installed
    --directory      Install directory, default I:\ityme\bin
-   --only           Install only the named tools
+   --only           Same as naming tools after --install
    --force          Overwrite existing executables
 
 'upwsh --help' prints this overview. load and tool cannot be used
@@ -56,6 +59,7 @@ function New-UpwshParseResult {
         Command     = $Command
         Check       = $false
         Uninstall   = $false
+        Install     = $false
         Deploy      = $false
         CurrentHost = $false
         Force       = $false
@@ -117,14 +121,39 @@ function ConvertFrom-UpwshArguments {
                 $result.Check = $true
                 $index++
             }
-            '^(--uninstall|-u)$' {
-                if ($result.Command -ne 'load') {
+            '^(--install|-i)$' {
+                if ($result.Command -ne 'tool') {
                     $result.Help = $true
-                    $result.Error = '--uninstall is only valid with --load'
+                    $result.Error = '--install is only valid with --tool'
+                    return $result
+                }
+                $result.Install = $true
+                $index++
+                while (
+                    $index -lt $tokens.Count -and
+                    -not ([string]$tokens[$index]).StartsWith('-')
+                ) {
+                    $result.Only = @($result.Only + [string]$tokens[$index])
+                    $index++
+                }
+            }
+            '^(--uninstall|-u)$' {
+                if ($result.Command -notin @('load', 'tool')) {
+                    $result.Help = $true
+                    $result.Error = '--uninstall is only valid with --load or --tool'
                     return $result
                 }
                 $result.Uninstall = $true
                 $index++
+                if ($result.Command -eq 'tool') {
+                    while (
+                        $index -lt $tokens.Count -and
+                        -not ([string]$tokens[$index]).StartsWith('-')
+                    ) {
+                        $result.Only = @($result.Only + [string]$tokens[$index])
+                        $index++
+                    }
+                }
             }
             '^--deploy$' {
                 if ($result.Command -ne 'load') {
@@ -186,12 +215,11 @@ function ConvertFrom-UpwshArguments {
                 }
                 $index++
                 $got = $false
-                $only = [Collections.Generic.List[string]]::new()
                 while (
                     $index -lt $tokens.Count -and
                     -not ([string]$tokens[$index]).StartsWith('-')
                 ) {
-                    $only.Add([string]$tokens[$index])
+                    $result.Only = @($result.Only + [string]$tokens[$index])
                     $got = $true
                     $index++
                 }
@@ -200,7 +228,6 @@ function ConvertFrom-UpwshArguments {
                     $result.Error = 'missing tool name'
                     return $result
                 }
-                $result.Only = @($only)
             }
             default {
                 $result.Help = $true
@@ -219,6 +246,24 @@ function ConvertFrom-UpwshArguments {
         if ($result.Directory -and -not $result.Deploy) {
             $result.Help = $true
             $result.Error = '--directory is only valid with --deploy'
+            return $result
+        }
+    }
+
+    if ($result.Command -eq 'tool') {
+        if ($result.Install -and $result.Uninstall) {
+            $result.Help = $true
+            $result.Error = 'use either --install or --uninstall'
+            return $result
+        }
+        if ($result.Uninstall -and $result.Only.Count -eq 0) {
+            $result.Help = $true
+            $result.Error = 'missing tool name'
+            return $result
+        }
+        if ($result.Force -and $result.Uninstall) {
+            $result.Help = $true
+            $result.Error = '--force is only valid with --install'
             return $result
         }
     }
@@ -290,6 +335,9 @@ function Invoke-UpwshTool {
     }
     if ($Parsed.Force) {
         $installerArgs.Force = $true
+    }
+    if ($Parsed.Uninstall) {
+        $installerArgs.Uninstall = $true
     }
     & $installer @installerArgs
 }

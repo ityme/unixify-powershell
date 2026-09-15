@@ -86,6 +86,8 @@ try {
         Assert-Contains $result.Text '--tool'
         Assert-Contains $result.Text '-t'
         Assert-Contains $result.Text '--check'
+        Assert-Contains $result.Text '--install'
+        Assert-Contains $result.Text '-i'
         Assert-Contains $result.Text '--uninstall'
         Assert-Contains $result.Text '--deploy'
         Assert-Contains $result.Text '--current-host'
@@ -175,10 +177,33 @@ try {
         Assert-Contains $result.Text 'missing tool name'
     }
 
-    Invoke-UpwshTest 'load options are rejected on tool' {
+    Invoke-UpwshTest 'tool uninstall without a name prints usage' {
         $result = Invoke-Upwsh -Tokens @('--tool', '--uninstall')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text '--uninstall is only valid with --load'
+        Assert-Contains $result.Text 'missing tool name'
+    }
+
+    Invoke-UpwshTest 'tool install and uninstall together is an error' {
+        $result = Invoke-Upwsh -Tokens @('--tool', '--install', '--uninstall')
+        Assert-Equal $result.Code 2
+        Assert-Contains $result.Text 'use either --install or --uninstall'
+    }
+
+    Invoke-UpwshTest 'load options are rejected on tool' {
+        $result = Invoke-Upwsh -Tokens @('--tool', '--deploy')
+        Assert-Equal $result.Code 2
+        Assert-Contains $result.Text '--deploy is only valid with --load'
+    }
+
+    Invoke-UpwshTest 'tool uninstall removes a named exe' {
+        $exe = Join-Path $bin 'eza.exe'
+        [IO.File]::WriteAllText($exe, 'stub')
+        $result = Invoke-Upwsh -Tokens @(
+            '--tool', '--uninstall', 'eza', '--directory', $bin
+        )
+        Assert-Equal $result.Code 0
+        Assert-Contains $result.Text 'removed'
+        Assert-True (-not (Test-Path -LiteralPath $exe)) "uninstall left $exe"
     }
 
     Invoke-UpwshTest 'tool check uses the requested directory' {

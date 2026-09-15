@@ -8,7 +8,8 @@ param(
     [string]$Dir = 'I:\ityme\bin',
     [string[]]$Only = @(),
     [switch]$Check,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$Uninstall
 )
 
 $ErrorActionPreference = 'Stop'
@@ -91,6 +92,18 @@ function Get-ReleaseAsset {
     return $preferred[0]
 }
 
+function Uninstall-CliTool {
+    param($Tool, [string]$Destination)
+
+    $target = Join-Path $Destination $Tool.Exe
+    if (-not (Test-Path -LiteralPath $target)) {
+        Write-Output "skip  $($Tool.Name) (missing $target)"
+        return
+    }
+    Remove-Item -LiteralPath $target -Force
+    Write-Output "ok    $($Tool.Name) removed $target"
+}
+
 function Install-CliTool {
     param($Tool, [string]$Destination, [switch]$Force)
 
@@ -152,6 +165,16 @@ if ($names.Count -gt 0) {
     }
 }
 
+if ($Uninstall -and $Check) {
+    throw 'Use either -Uninstall or -Check, not both.'
+}
+if ($Uninstall -and $Force) {
+    throw '-Force is only valid when installing.'
+}
+if ($Uninstall -and $names.Count -eq 0) {
+    throw 'missing tool name'
+}
+
 Write-Output "dir   $Dir"
 foreach ($tool in $selected) {
     if ($Check) {
@@ -160,10 +183,14 @@ foreach ($tool in $selected) {
         Write-Output ("{0,-10} {1}" -f $tool.Name, $state)
         continue
     }
+    if ($Uninstall) {
+        Uninstall-CliTool -Tool $tool -Destination $Dir
+        continue
+    }
     Install-CliTool -Tool $tool -Destination $Dir -Force:$Force
 }
 
-if (-not $Check) {
+if (-not $Check -and -not $Uninstall) {
     $resolvedDir = [IO.Path]::GetFullPath($Dir)
     $onPath = $false
     foreach ($entry in @($env:PATH -split ';')) {
