@@ -78,7 +78,7 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --load --uni
 
 ## 开发
 
-`src/` 是源码树。打 `v*` tag 时，CI 打的 zip 不含 `src/tests/`。
+`src/` 是源码树。
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
