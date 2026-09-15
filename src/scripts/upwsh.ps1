@@ -1,7 +1,7 @@
-# upwsh：统一入口。reload 挂钩 pwsh profile，install 安装 CLI。
+# upwsh：统一入口。load 挂钩 pwsh profile，install 安装 CLI。
 #   upwsh --help
-#   upwsh -r
-#   upwsh --reload --check
+#   upwsh -l
+#   upwsh --load --check
 #   upwsh -i --check
 #   upwsh --install -d /d/bin -o eza rg -f
 
@@ -11,7 +11,7 @@ $script:Arguments = @($args)
 function Get-UpwshUsage {
     @'
 usage: upwsh [-h | --help]
-             [-r | --reload | reload] [-i | --install | install]
+             [-l | --load | load] [-i | --install | install]
              [-c | --check] [-u | --uninstall] [--deploy]
              [-d | --directory <dir>] [-p | --profile <path>]
              [--current-host] [-o | --only <name>...] [-f | --force]
@@ -20,7 +20,7 @@ usage: upwsh [-h | --help]
 These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
-   reload           Hook pwsh so it loads this runtime
+   load             Hook pwsh so it loads this runtime
    --check          Show hook status without writing files
    --uninstall      Remove the profile hook without deleting files
    --deploy         Copy the runtime to ~/.config/upwsh and hook that copy
@@ -35,7 +35,7 @@ install common CLI tools
    --only           Install only the named tools
    --force          Overwrite existing executables
 
-'upwsh --help' prints this overview. reload and install cannot be used
+'upwsh --help' prints this overview. load and install cannot be used
 together.
 
 Listed tools: bat btm delta dust eza fd fzf hyperfine jq lazygit procs
@@ -86,8 +86,8 @@ function ConvertFrom-UpwshArguments {
             $result.Help = $true
             return $result
         }
-        '^(--reload|-r|reload)$' {
-            $result.Command = 'reload'
+        '^(--load|-l|load)$' {
+            $result.Command = 'load'
             $index = 1
         }
         '^(--install|-i|install)$' {
@@ -108,9 +108,9 @@ function ConvertFrom-UpwshArguments {
                 $result.Help = $true
                 return $result
             }
-            '^(--reload|-r|reload|--install|-i|install)$' {
+            '^(--load|-l|load|--install|-i|install)$' {
                 $result.Help = $true
-                $result.Error = 'use either --reload or --install'
+                $result.Error = 'use either --load or --install'
                 return $result
             }
             '^(--check|-c)$' {
@@ -118,27 +118,27 @@ function ConvertFrom-UpwshArguments {
                 $index++
             }
             '^(--uninstall|-u)$' {
-                if ($result.Command -ne 'reload') {
+                if ($result.Command -ne 'load') {
                     $result.Help = $true
-                    $result.Error = '--uninstall is only valid with --reload'
+                    $result.Error = '--uninstall is only valid with --load'
                     return $result
                 }
                 $result.Uninstall = $true
                 $index++
             }
             '^--deploy$' {
-                if ($result.Command -ne 'reload') {
+                if ($result.Command -ne 'load') {
                     $result.Help = $true
-                    $result.Error = '--deploy is only valid with --reload'
+                    $result.Error = '--deploy is only valid with --load'
                     return $result
                 }
                 $result.Deploy = $true
                 $index++
             }
             '^--current-host$' {
-                if ($result.Command -ne 'reload') {
+                if ($result.Command -ne 'load') {
                     $result.Help = $true
-                    $result.Error = '--current-host is only valid with --reload'
+                    $result.Error = '--current-host is only valid with --load'
                     return $result
                 }
                 $result.CurrentHost = $true
@@ -164,9 +164,9 @@ function ConvertFrom-UpwshArguments {
                 $index += 2
             }
             '^(--profile|-p)$' {
-                if ($result.Command -ne 'reload') {
+                if ($result.Command -ne 'load') {
                     $result.Help = $true
-                    $result.Error = '--profile is only valid with --reload'
+                    $result.Error = '--profile is only valid with --load'
                     return $result
                 }
                 $next = if ($index + 1 -lt $tokens.Count) { [string]$tokens[$index + 1] } else { '' }
@@ -210,7 +210,7 @@ function ConvertFrom-UpwshArguments {
         }
     }
 
-    if ($result.Command -eq 'reload') {
+    if ($result.Command -eq 'load') {
         if ($result.Uninstall -and $result.Deploy) {
             $result.Help = $true
             $result.Error = 'use either --uninstall or --deploy'
@@ -248,7 +248,7 @@ function ConvertTo-WindowsStyleDirectory {
     )
 }
 
-function Invoke-UpwshReload {
+function Invoke-UpwshLoad {
     param($Parsed)
 
     $installer = Join-Path $PSScriptRoot 'install_profile.ps1'
@@ -322,8 +322,8 @@ if ($parsed.Help -or -not $parsed.Command) {
     return
 }
 
-if ($parsed.Command -eq 'reload') {
-    Invoke-UpwshReload -Parsed $parsed
+if ($parsed.Command -eq 'load') {
+    Invoke-UpwshLoad -Parsed $parsed
     Complete-Upwsh 0 $scriptInvocation
     return
 }

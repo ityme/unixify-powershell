@@ -81,8 +81,8 @@ try {
         $result = Invoke-Upwsh
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'upwsh'
-        Assert-Contains $result.Text '--reload'
-        Assert-Contains $result.Text '-r'
+        Assert-Contains $result.Text '--load'
+        Assert-Contains $result.Text '-l'
         Assert-Contains $result.Text '--install'
         Assert-Contains $result.Text '-i'
         Assert-Contains $result.Text '--check'
@@ -109,26 +109,26 @@ try {
         $result = Invoke-Upwsh -Tokens @('--nope')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'unknown option'
-        Assert-Contains $result.Text '--reload'
+        Assert-Contains $result.Text '--load'
     }
 
-    Invoke-UpwshTest 'reload and install together is an error' {
-        $result = Invoke-Upwsh -Tokens @('-r', '-i')
+    Invoke-UpwshTest 'load and install together is an error' {
+        $result = Invoke-Upwsh -Tokens @('-l', '-i')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use either --reload or --install'
+        Assert-Contains $result.Text 'use either --load or --install'
     }
 
-    Invoke-UpwshTest 'reload check uses a custom profile path' {
-        $result = Invoke-Upwsh -Tokens @('--reload', '--check', '--profile', $hook)
+    Invoke-UpwshTest 'load check uses a custom profile path' {
+        $result = Invoke-Upwsh -Tokens @('--load', '--check', '--profile', $hook)
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    missing'
         Assert-Contains $result.Text $hook
         Assert-Contains $result.Text $sourceProfile
-        Assert-True (-not (Test-Path -LiteralPath $hook)) 'reload --check created a profile'
+        Assert-True (-not (Test-Path -LiteralPath $hook)) 'load --check created a profile'
     }
 
-    Invoke-UpwshTest 'reload short flag hooks the custom profile' {
-        $result = Invoke-Upwsh -Tokens @('-r', '-p', $hook)
+    Invoke-UpwshTest 'load short flag hooks the custom profile' {
+        $result = Invoke-Upwsh -Tokens @('-l', '-p', $hook)
         Assert-Equal $result.Code 0
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $result.Text 'state    installed'
@@ -136,28 +136,28 @@ try {
         Assert-Contains $text $sourceProfile
     }
 
-    Invoke-UpwshTest 'reload subcommand check reports installed' {
-        $result = Invoke-Upwsh -Tokens @('reload', '-c', '--profile', $hook)
+    Invoke-UpwshTest 'load subcommand check reports installed' {
+        $result = Invoke-Upwsh -Tokens @('load', '-c', '--profile', $hook)
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    installed'
     }
 
-    Invoke-UpwshTest 'reload uninstall removes the hook' {
-        $result = Invoke-Upwsh -Tokens @('--reload', '--uninstall', '--profile', $hook)
+    Invoke-UpwshTest 'load uninstall removes the hook' {
+        $result = Invoke-Upwsh -Tokens @('--load', '--uninstall', '--profile', $hook)
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    removed'
         $text = [IO.File]::ReadAllText($hook)
-        Assert-True ($text -notlike '*unixify-powershell*') "reload --uninstall left the marker:`n$text"
+        Assert-True ($text -notlike '*unixify-powershell*') "load --uninstall left the marker:`n$text"
     }
 
-    Invoke-UpwshTest 'reload directory without deploy is an error' {
-        $result = Invoke-Upwsh -Tokens @('--reload', '-d', $root, '--profile', $hook)
+    Invoke-UpwshTest 'load directory without deploy is an error' {
+        $result = Invoke-Upwsh -Tokens @('--load', '-d', $root, '--profile', $hook)
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text '--directory is only valid with --deploy'
     }
 
-    Invoke-UpwshTest 'install options are rejected on reload' {
-        $result = Invoke-Upwsh -Tokens @('--reload', '--force', '--profile', $hook)
+    Invoke-UpwshTest 'install options are rejected on load' {
+        $result = Invoke-Upwsh -Tokens @('--load', '--force', '--profile', $hook)
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text '--force is only valid with --install'
     }
@@ -175,10 +175,10 @@ try {
         Assert-Contains $result.Text 'missing tool name'
     }
 
-    Invoke-UpwshTest 'reload options are rejected on install' {
+    Invoke-UpwshTest 'load options are rejected on install' {
         $result = Invoke-Upwsh -Tokens @('--install', '--uninstall')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text '--uninstall is only valid with --reload'
+        Assert-Contains $result.Text '--uninstall is only valid with --load'
     }
 
     Invoke-UpwshTest 'install check uses the requested directory' {
@@ -212,7 +212,7 @@ try {
     Invoke-UpwshTest 'profile function forwards to the script' {
         . $sourceProfile
         $output = upwsh --help | Out-String
-        Assert-Contains $output '--reload'
+        Assert-Contains $output '--load'
         Assert-Contains $output '--install'
         $command = Get-Command upwsh -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Function'
