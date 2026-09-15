@@ -1,7 +1,7 @@
 # 下载 unixify-powershell 并挂钩当前用户的 pwsh。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1
-#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1 --directory ~/.config/upwsh
+#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1))) --directory=~/.config/upwsh
+#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1 --directory=~/.config/upwsh
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -13,9 +13,9 @@ $script:UserAgent = 'unixify-powershell-installer'
 function Get-InstallUsage {
     @'
 usage: bootstrap.ps1 [-h | --help] [-c | --check]
-                     [-d | --directory <dir>] [-p | --profile <path>]
-                     [--current-host] [--ref <ref>] [--repo <owner/name>]
-                     [--source <dir>]
+                     [-d | --directory=<dir>] [-p | --profile=<path>]
+                     [--current-host] [--ref=<ref>] [--repo=<owner/name>]
+                     [--source=<dir>]
 
 These are common bootstrap.ps1 commands used in various situations:
 
@@ -33,9 +33,7 @@ inspect without writing
 A network install can run:
 
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-
-Environment: UNIXIFY_DIR UNIXIFY_REF UNIXIFY_REPO UNIXIFY_SOURCE
-Pipe installs pass options through environment variables.
+  & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1))) --directory=~/.config/upwsh
 '@
 }
 
@@ -53,13 +51,46 @@ function New-InstallParseResult {
     }
 }
 
+function Expand-InstallTokens {
+    param([object[]]$Tokens)
+
+    $expanded = [Collections.Generic.List[string]]::new()
+    foreach ($raw in $Tokens) {
+        if ($null -eq $raw -or [string]$raw -eq '') {
+            continue
+        }
+        $token = [string]$raw
+        if ($token -match '^(--[^=]+)=(.*)$' -or $token -match '^(-[A-Za-z])=(.*)$') {
+            $expanded.Add($Matches[1]) | Out-Null
+            $expanded.Add($Matches[2]) | Out-Null
+            continue
+        }
+        $expanded.Add($token) | Out-Null
+    }
+    @($expanded)
+}
+
+function Read-InstallOptionValue {
+    param(
+        [object[]]$Tokens,
+        [int]$Index,
+        [string]$Error
+    )
+
+    if ($Index + 1 -ge $Tokens.Count) {
+        return [pscustomobject]@{ Ok = $false; Error = $Error }
+    }
+    $value = [string]$Tokens[$Index + 1]
+    if ([string]::IsNullOrWhiteSpace($value) -or $value.StartsWith('-')) {
+        return [pscustomobject]@{ Ok = $false; Error = $Error }
+    }
+    [pscustomobject]@{ Ok = $true; Value = $value }
+}
+
 function ConvertFrom-InstallArguments {
     param([object[]]$Tokens)
 
-    $tokens = @(
-        $Tokens |
-            Where-Object { $_ -ne $null -and [string]$_ -ne '' }
-    )
+    $tokens = Expand-InstallTokens $Tokens
     $result = New-InstallParseResult
     $index = 0
 
@@ -79,48 +110,53 @@ function ConvertFrom-InstallArguments {
                 $index++
             }
             '^(--directory|-d)$' {
-                if ($index + 1 -ge $tokens.Count) {
+                $got = Read-InstallOptionValue $tokens $index 'missing directory'
+                if (-not $got.Ok) {
                     $result.Help = $true
-                    $result.Error = 'missing directory'
+                    $result.Error = $got.Error
                     return $result
                 }
-                $result.Directory = [string]$tokens[$index + 1]
+                $result.Directory = $got.Value
                 $index += 2
             }
             '^(--profile|-p)$' {
-                if ($index + 1 -ge $tokens.Count) {
+                $got = Read-InstallOptionValue $tokens $index 'missing profile path'
+                if (-not $got.Ok) {
                     $result.Help = $true
-                    $result.Error = 'missing profile path'
+                    $result.Error = $got.Error
                     return $result
                 }
-                $result.Profile = [string]$tokens[$index + 1]
+                $result.Profile = $got.Value
                 $index += 2
             }
             '^--ref$' {
-                if ($index + 1 -ge $tokens.Count) {
+                $got = Read-InstallOptionValue $tokens $index 'missing ref'
+                if (-not $got.Ok) {
                     $result.Help = $true
-                    $result.Error = 'missing ref'
+                    $result.Error = $got.Error
                     return $result
                 }
-                $result.Ref = [string]$tokens[$index + 1]
+                $result.Ref = $got.Value
                 $index += 2
             }
             '^--repo$' {
-                if ($index + 1 -ge $tokens.Count) {
+                $got = Read-InstallOptionValue $tokens $index 'missing repo'
+                if (-not $got.Ok) {
                     $result.Help = $true
-                    $result.Error = 'missing repo'
+                    $result.Error = $got.Error
                     return $result
                 }
-                $result.Repo = [string]$tokens[$index + 1]
+                $result.Repo = $got.Value
                 $index += 2
             }
             '^--source$' {
-                if ($index + 1 -ge $tokens.Count) {
+                $got = Read-InstallOptionValue $tokens $index 'missing source directory'
+                if (-not $got.Ok) {
                     $result.Help = $true
-                    $result.Error = 'missing source directory'
+                    $result.Error = $got.Error
                     return $result
                 }
-                $result.Source = [string]$tokens[$index + 1]
+                $result.Source = $got.Value
                 $index += 2
             }
             default {
@@ -350,25 +386,11 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     return
 }
 
-$repo = if ($parsed.Repo) {
-    $parsed.Repo
-} elseif ($env:UNIXIFY_REPO) {
-    $env:UNIXIFY_REPO
-} else {
-    $script:DefaultRepo
-}
-$ref = if ($parsed.Ref) { $parsed.Ref } elseif ($env:UNIXIFY_REF) { $env:UNIXIFY_REF } else { $null }
-$source = if ($parsed.Source) {
-    $parsed.Source
-} elseif ($env:UNIXIFY_SOURCE) {
-    $env:UNIXIFY_SOURCE
-} else {
-    $null
-}
+$repo = if ($parsed.Repo) { $parsed.Repo } else { $script:DefaultRepo }
+$ref = $parsed.Ref
+$source = $parsed.Source
 $directory = if ($parsed.Directory) {
     $parsed.Directory
-} elseif ($env:UNIXIFY_DIR) {
-    $env:UNIXIFY_DIR
 } else {
     Get-DefaultDestination
 }
