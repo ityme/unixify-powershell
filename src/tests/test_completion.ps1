@@ -230,22 +230,58 @@ try {
         }
     }
     Invoke-CompletionTest 'pane title: idle shows current directory' {
-        Assert-Equal (Get-WezTermPaneTitle) (Split-Path -Leaf $work)
+        Assert-Equal (Get-TermPaneTitle) (Split-Path -Leaf $work)
     }
     Invoke-CompletionTest 'pane title: command includes directory and command' {
         Assert-Equal `
-            (Get-WezTermPaneTitle -Command 'git status') `
-            "$(Split-Path -Leaf $work) › git status"
+            (Get-TermPaneTitle -Command 'git status') `
+            "$(Split-Path -Leaf $work) › git"
     }
     Invoke-CompletionTest 'pane title: command control characters are flattened' {
         Assert-Equal `
-            (Get-WezTermPaneTitle -Command "Write-Output`nvalue`a") `
-            "$(Split-Path -Leaf $work) › Write-Output value"
+            (Get-TermPaneTitle -Command "Write-Output`nvalue`a") `
+            "$(Split-Path -Leaf $work) › Write-Output"
     }
     Invoke-CompletionTest 'pane title: long command is bounded' {
-        $title = Get-WezTermPaneTitle -Command ('x' * 300)
+        $title = Get-TermPaneTitle -Command ('x' * 300)
         Assert-Equal $title.Length 160
         Assert-True $title.EndsWith('...') 'long pane title was not truncated'
+    }
+    Invoke-CompletionTest 'command name: first token and path leaf' {
+        Assert-Equal (Get-TermCommandName 'git status') 'git'
+        Assert-Equal (Get-TermCommandName "& 'C:\bin\rg.exe' -n foo") 'rg.exe'
+    }
+    Invoke-CompletionTest 'term report finishes within 20ms' {
+        $originalOut = [Console]::Out
+        $buffer = [IO.StreamWriter]::new([IO.MemoryStream]::new())
+        try {
+            [Console]::SetOut($buffer)
+            1..15 | ForEach-Object {
+                Sync-TermPrompt -Succeeded $true -ExitCode 0
+                Sync-TermCommand -Command 'git status'
+            }
+            $promptTimes = foreach ($i in 1..40) {
+                $watch = [Diagnostics.Stopwatch]::StartNew()
+                Sync-TermPrompt -Succeeded $true -ExitCode 0
+                $watch.Stop()
+                $watch.Elapsed.TotalMilliseconds
+            }
+            $commandTimes = foreach ($i in 1..40) {
+                $watch = [Diagnostics.Stopwatch]::StartNew()
+                Sync-TermCommand -Command 'git status'
+                $watch.Stop()
+                $watch.Elapsed.TotalMilliseconds
+            }
+        } finally {
+            [Console]::SetOut($originalOut)
+            $buffer.Dispose()
+        }
+        $sorted = @(@($promptTimes) + @($commandTimes) | Sort-Object)
+        $p95 = $sorted[[Math]::Min($sorted.Count - 1, [int][Math]::Floor($sorted.Count * 0.95))]
+        $avg = ($sorted | Measure-Object -Average).Average
+        Assert-True (
+            $avg -lt 10 -and $p95 -lt 20
+        ) "term report avg ${avg}ms p95 ${p95}ms"
     }
     Invoke-CompletionTest 'command status: Enter handler is registered once' {
         $handler = Get-PSReadLineKeyHandler -Chord Enter

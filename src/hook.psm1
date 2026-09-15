@@ -305,8 +305,10 @@ if (-not (Test-Path Variable:script:BasePrompt)) {
 }
 
 function global:prompt {
+    $succeeded = $?
+    $exitCode = $global:LASTEXITCODE
     $promptText = & $script:BasePrompt
-    Sync-TermPrompt
+    Sync-TermPrompt -Succeeded $succeeded -ExitCode $exitCode
     return $promptText
 }
 
