@@ -1,6 +1,6 @@
 # 下载 unixify-powershell 并挂钩当前用户的 pwsh。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1))) --directory=~/.config/upwsh
+#   $env:UPWSH_DIR = "$HOME\.config\upwsh"; irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
 #   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1 --directory=~/.config/upwsh
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
@@ -33,7 +33,9 @@ inspect without writing
 A network install can run:
 
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-  & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1))) --directory=~/.config/upwsh
+
+Environment: UPWSH_DIR UPWSH_REF UPWSH_REPO UPWSH_SOURCE
+Pipe installs pass options through environment variables.
 '@
 }
 
@@ -386,11 +388,25 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     return
 }
 
-$repo = if ($parsed.Repo) { $parsed.Repo } else { $script:DefaultRepo }
-$ref = $parsed.Ref
-$source = $parsed.Source
+$repo = if ($parsed.Repo) {
+    $parsed.Repo
+} elseif ($env:UPWSH_REPO) {
+    $env:UPWSH_REPO
+} else {
+    $script:DefaultRepo
+}
+$ref = if ($parsed.Ref) { $parsed.Ref } elseif ($env:UPWSH_REF) { $env:UPWSH_REF } else { $null }
+$source = if ($parsed.Source) {
+    $parsed.Source
+} elseif ($env:UPWSH_SOURCE) {
+    $env:UPWSH_SOURCE
+} else {
+    $null
+}
 $directory = if ($parsed.Directory) {
     $parsed.Directory
+} elseif ($env:UPWSH_DIR) {
+    $env:UPWSH_DIR
 } else {
     Get-DefaultDestination
 }

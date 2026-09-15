@@ -10,11 +10,14 @@ PowerShell 7 的 Unix 风格命令、补全和 profile。需要 `pwsh`。
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
 ```
 
-指定目录：
+指定目录用 `UPWSH_DIR`：
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1))) --directory=~/.config/upwsh
+$env:UPWSH_DIR = "$HOME\.config\upwsh"
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
 ```
+
+管道安装也可以用 `UPWSH_REF`、`UPWSH_REPO`。
 
 装完开一个新的 `pwsh`。`upwsh --help` 能跑就对了。
 

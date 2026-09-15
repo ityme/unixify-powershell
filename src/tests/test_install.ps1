@@ -60,7 +60,15 @@ function Invoke-Bootstrap {
     param([string[]]$Tokens = @())
 
     $previous = $global:LASTEXITCODE
+    $savedRepo = $env:UPWSH_REPO
+    $savedRef = $env:UPWSH_REF
+    $savedDir = $env:UPWSH_DIR
+    $savedSource = $env:UPWSH_SOURCE
     try {
+        $env:UPWSH_REPO = $null
+        $env:UPWSH_REF = $null
+        $env:UPWSH_DIR = $null
+        $env:UPWSH_SOURCE = $null
         $global:LASTEXITCODE = 0
         $output = & $bootstrap @Tokens 2>&1 | Out-String
         [pscustomobject]@{
@@ -69,6 +77,10 @@ function Invoke-Bootstrap {
         }
     } finally {
         $global:LASTEXITCODE = $previous
+        $env:UPWSH_REPO = $savedRepo
+        $env:UPWSH_REF = $savedRef
+        $env:UPWSH_DIR = $savedDir
+        $env:UPWSH_SOURCE = $savedSource
     }
 }
 
@@ -102,6 +114,7 @@ try {
         Assert-Contains $result.Text 'unixify-powershell'
         Assert-Contains $result.Text '--directory'
         Assert-Contains $result.Text '--source'
+        Assert-Contains $result.Text 'UPWSH_DIR'
         Assert-Contains $result.Text 'irm'
     }
 
@@ -116,6 +129,26 @@ try {
         $result = Invoke-Bootstrap -Tokens @('--directory')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'missing directory'
+    }
+
+    Invoke-InstallTest 'UPWSH_DIR deploys to the given path' {
+        $envDir = Join-Path $root 'from-env'
+        $envHook = Join-Path $root 'env-profile.ps1'
+        $previous = $global:LASTEXITCODE
+        $saved = $env:UPWSH_DIR
+        try {
+            $env:UPWSH_DIR = $envDir
+            $global:LASTEXITCODE = 0
+            $output = & $bootstrap "--profile=$envHook" 2>&1 | Out-String
+            Assert-Equal $global:LASTEXITCODE 0
+            Assert-Contains $output 'state    deployed'
+            Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'profile.ps1')) (
+                'UPWSH_DIR missed profile.ps1'
+            )
+        } finally {
+            $env:UPWSH_DIR = $saved
+            $global:LASTEXITCODE = $previous
+        }
     }
 
     Invoke-InstallTest 'directory equals form deploys to the given path' {
