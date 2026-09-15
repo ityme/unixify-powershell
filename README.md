@@ -4,25 +4,20 @@ PowerShell 7 的 Unix 风格命令、补全和 profile。需要 `pwsh`。
 
 ## 安装
 
-下载运行时到 `~/.config/upwsh`，写入当前用户的 pwsh profile（`$PROFILE.CurrentUserAllHosts`）。
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.sh | bash
-```
-
-PowerShell：
+下载运行时到 `~/.config/upwsh`，写入当前用户的 pwsh profile（`$PROFILE.CurrentUserAllHosts`）。Windows，需要 PowerShell 7。
 
 ```powershell
-pwsh -NoLogo -NoProfile -Command "irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex"
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
 ```
 
-指定目录：
+指定目录用 `UNIXIFY_DIR`：
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.sh | bash -s -- --directory ~/.config/upwsh
+```powershell
+$env:UNIXIFY_DIR = "$HOME\.config\upwsh"
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
 ```
 
-管道安装也可以用环境变量：`UNIXIFY_DIR`、`UNIXIFY_REF`、`UNIXIFY_REPO`。
+管道安装也可以用 `UNIXIFY_REF`、`UNIXIFY_REPO`。
 
 装完开一个新的 `pwsh`。`upwsh --help` 能跑就对了。
 

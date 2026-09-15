@@ -114,7 +114,7 @@ try {
         Assert-Contains $result.Text 'unixify-powershell'
         Assert-Contains $result.Text '--directory'
         Assert-Contains $result.Text '--source'
-        Assert-Contains $result.Text 'curl'
+        Assert-Contains $result.Text 'irm'
     }
 
     Invoke-InstallTest 'unknown option prints usage and exits 2' {
@@ -189,27 +189,6 @@ try {
         Assert-Contains $result.Text 'missing profile.ps1'
     }
 
-    $bash = Get-Command bash -ErrorAction SilentlyContinue
-    if ($bash) {
-        Invoke-InstallTest 'bootstrap.sh forwards source deploy to pwsh' {
-            $sh = [IO.Path]::GetFullPath((Join-Path $sourceRoot 'src\scripts\bootstrap.sh'))
-            $customHook = Join-Path $root 'sh-profile.ps1'
-            $customDir = Join-Path $root 'from-sh'
-            $previous = $global:LASTEXITCODE
-            try {
-                $global:LASTEXITCODE = 0
-                $output = & bash $sh --source $sourceRoot --directory $customDir --profile $customHook 2>&1 |
-                    Out-String
-                Assert-Equal $global:LASTEXITCODE 0
-                Assert-Contains $output 'state    deployed'
-                Assert-True (Test-Path -LiteralPath (Join-Path $customDir 'profile.ps1')) (
-                    'bootstrap.sh missed profile.ps1'
-                )
-            } finally {
-                $global:LASTEXITCODE = $previous
-            }
-        }
-    }
 } finally {
     if (Test-Path -LiteralPath $root) {
         Remove-Item -LiteralPath $root -Recurse -Force
