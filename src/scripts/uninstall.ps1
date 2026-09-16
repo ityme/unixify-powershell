@@ -29,7 +29,7 @@ A network uninstall can run:
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/uninstall.ps1 | iex
 
 Environment: UPWSH_HOME
-Unload first, then delete the install tree. Inverse of install.ps1.
+Unload first, then drop UPWSH_HOME and Path, then delete the install tree.
 --keep-custom leaves UPWSH_HOME\\custom in place.
 '@
 }
@@ -275,11 +275,11 @@ try {
     if (Test-Path -LiteralPath $upwsh -PathType Leaf) {
         & $upwsh unload
     } else {
-        if (Test-Path -LiteralPath $homeScript -PathType Leaf) {
-            . $homeScript
-            Remove-UpwshUserEnvironment
-        }
         Remove-ProfileHookFallback -Path $hookPath
+    }
+    if (Test-Path -LiteralPath $homeScript -PathType Leaf) {
+        . $homeScript
+        Remove-UpwshUserEnvironment
     }
 } finally {
     $env:UPWSH_PROFILE = $savedProfile

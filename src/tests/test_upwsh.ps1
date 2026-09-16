@@ -189,8 +189,9 @@ try {
         $result = Invoke-Upwsh -Tokens @('unload')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    removed'
-        Assert-Contains $result.Text 'home    removed'
-        Assert-Contains $result.Text 'path    removed'
+        Assert-True ($result.Text -notlike '*home    removed*') 'unload removed UPWSH_HOME'
+        Assert-True ($result.Text -notlike '*path    removed*') 'unload removed Path'
+        Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'unload deleted upwsh.cmd'
         $text = [IO.File]::ReadAllText($hook)
         Assert-True ($text -notlike '*unixify-powershell*') "unload left the marker:`n$text"
     }

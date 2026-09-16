@@ -265,6 +265,8 @@ try {
             $output = & $deployedUninstall --profile $hook 2>&1 | Out-String
             Assert-Equal $global:LASTEXITCODE 0
             Assert-Contains $output 'state    removed'
+            Assert-Contains $output 'home    removed'
+            Assert-Contains $output 'path    removed'
             Assert-Contains $output 'tree     removed'
             Assert-True (-not (Test-Path -LiteralPath $deployRoot)) (
                 'uninstall left the install tree'

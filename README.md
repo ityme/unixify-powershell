@@ -38,7 +38,7 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 | 命令 | 作用 |
 | --- | --- |
 | `upwsh load` | 挂钩当前这份运行时，并在当前 pwsh 里立刻生效 |
-| `upwsh unload` | 去掉挂钩，不删文件 |
+| `upwsh unload` | 去掉挂钩；`UPWSH_HOME` 和 Path 仍在 |
 | `upwsh install` | 安装本项目（转给 `install.ps1`） |
 | `upwsh uninstall` | 卸本项目（转给 `uninstall.ps1`） |
 | `upwsh update` | 更新本项目（转给 `update.ps1`） |
@@ -69,13 +69,13 @@ pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 load
 
 ## 卸载
 
-只去掉挂钩，保留安装目录：
+只去掉挂钩；`UPWSH_HOME` 和 Path 仍在：
 
 ```powershell
 upwsh unload
 ```
 
-`install` 的逆操作（先 `unload`，再删安装目录）：
+`install` 的逆操作（先 `unload`，再删 `UPWSH_HOME`、Path 和安装目录）：
 
 ```powershell
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/uninstall.ps1 | iex

@@ -20,7 +20,7 @@ These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
    load             Hook pwsh so it loads this runtime; set UPWSH_HOME, append bin paths, and load it now
-   unload           Remove the profile hook, UPWSH_HOME, and the Path entries
+   unload           Remove the profile hook; leave UPWSH_HOME and Path in place
 
 install this runtime
    install          Copy the runtime to UPWSH_HOME and load it
@@ -189,11 +189,10 @@ function Invoke-UpwshLoad {
         $installerArgs.Uninstall = $true
     }
     & $installer @installerArgs
-    . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
     if ($Parsed.Command -eq 'unload') {
-        Remove-UpwshUserEnvironment
         return
     }
+    . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
     Add-UpwshUserEnvironment
     if ($env:UPWSH_SKIP_SESSION_LOAD) {
         return
