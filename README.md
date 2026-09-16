@@ -37,7 +37,7 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 
 | 命令 | 作用 |
 | --- | --- |
-| `upwsh load` | 挂钩当前这份运行时 |
+| `upwsh load` | 挂钩当前这份运行时，并在当前 pwsh 里立刻生效 |
 | `upwsh unload` | 去掉挂钩，不删文件 |
 | `upwsh tool list` | 列出支持的 CLI，并看 shell 里有没有 |
 | `upwsh tool install` | 安装常用 CLI |

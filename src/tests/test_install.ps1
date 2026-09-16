@@ -65,12 +65,14 @@ function Invoke-Bootstrap {
     $savedHome = $env:UPWSH_HOME
     $savedSource = $env:UPWSH_SOURCE
     $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+    $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
     $savedPath = $env:PATH
     try {
         $env:UPWSH_REPO = $null
         $env:UPWSH_REF = $null
         $env:UPWSH_SOURCE = $null
         $env:UPWSH_SKIP_PERSIST_PATH = '1'
+        $env:UPWSH_SKIP_SESSION_LOAD = '1'
         $global:LASTEXITCODE = 0
         $output = & $bootstrap @Tokens 2>&1 | Out-String
         [pscustomobject]@{
@@ -84,6 +86,7 @@ function Invoke-Bootstrap {
         $env:UPWSH_HOME = $savedHome
         $env:UPWSH_SOURCE = $savedSource
         $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+        $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
         $env:PATH = $savedPath
     }
 }
@@ -136,9 +139,11 @@ try {
         $previous = $global:LASTEXITCODE
         $saved = $env:UPWSH_HOME
         $savedPath = $env:PATH
+        $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
         try {
             $env:UPWSH_HOME = $envDir
             $env:UPWSH_SKIP_PERSIST_PATH = '1'
+            $env:UPWSH_SKIP_SESSION_LOAD = '1'
             $global:LASTEXITCODE = 0
             $output = & $bootstrap --profile $envHook 2>&1 | Out-String
             Assert-Equal $global:LASTEXITCODE 0
@@ -151,6 +156,7 @@ try {
         } finally {
             $env:UPWSH_HOME = $saved
             $env:PATH = $savedPath
+            $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
             $global:LASTEXITCODE = $previous
         }
     }

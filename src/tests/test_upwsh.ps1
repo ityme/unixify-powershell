@@ -56,28 +56,39 @@ function Assert-Contains {
 }
 
 function Invoke-Upwsh {
-    param([string[]]$Tokens = @())
+    param(
+        [string[]]$Tokens = @(),
+        [switch]$LoadSession
+    )
 
     $previous = $global:LASTEXITCODE
     $savedHome = $env:UPWSH_HOME
     $savedProfile = $env:UPWSH_PROFILE
     $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+    $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
     $savedPath = $env:PATH
     try {
         $env:UPWSH_HOME = $root
         $env:UPWSH_PROFILE = Join-Path $root 'profile.ps1'
         $env:UPWSH_SKIP_PERSIST_PATH = '1'
+        if ($LoadSession) {
+            Remove-Item Env:\UPWSH_SKIP_SESSION_LOAD -ErrorAction SilentlyContinue
+        } else {
+            $env:UPWSH_SKIP_SESSION_LOAD = '1'
+        }
         $global:LASTEXITCODE = 0
         $output = & $upwsh @Tokens 2>&1 | Out-String
         [pscustomobject]@{
             Text = $output
             Code = $global:LASTEXITCODE
+            Path = $env:PATH
         }
     } finally {
         $global:LASTEXITCODE = $previous
         $env:UPWSH_HOME = $savedHome
         $env:UPWSH_PROFILE = $savedProfile
         $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+        $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
         $env:PATH = $savedPath
     }
 }
@@ -259,6 +270,15 @@ try {
         } finally {
             $env:PATH = $savedPath
         }
+    }
+
+    Invoke-UpwshTest 'load applies the runtime in this session' {
+        $result = Invoke-Upwsh -LoadSession -Tokens @('load')
+        Assert-Equal $result.Code 0
+        $command = Get-Command vim -ErrorAction Stop
+        Assert-Equal $command.CommandType.ToString() 'Alias'
+        Assert-Equal $command.Definition 'nvim'
+        Assert-True ($result.Path -like "*$bin*") 'load did not add bin to PATH'
     }
 
     Invoke-UpwshTest 'profile function forwards to the script' {
