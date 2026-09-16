@@ -10,7 +10,7 @@ PowerShell 7 的 Unix 风格命令、补全和 profile。仅 Windows，需要 `p
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-拷到 `~/.config/upwsh`，再执行 `upwsh load`。
+拷到 `~/.config/upwsh`，再加载进 pwsh。
 
 家目录：`$env:UPWSH_HOME`，否则用户环境变量 `UPWSH_HOME`，否则 `~/.config/upwsh`。
 
@@ -25,20 +25,20 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
 
 ## 命令
 
-加载后直接跑 `upwsh`。Path 上是 `%UPWSH_HOME%\bin\upwsh.cmd`。
+`load` 之后，当前这个 pwsh 里有 `ll`、`cd`、补全和 `upwsh`。以后新开的 pwsh 从 `$PROFILE` 同样加载。Path 上的 `upwsh` 是 `%UPWSH_HOME%\bin\upwsh.cmd`。
 
 | 命令 | 作用 |
 | --- | --- |
 | `upwsh install` | 拷到家目录，再 load |
 | `upwsh update` | 卸载但保留 `custom`，再安装 |
 | `upwsh uninstall` | unload，再删 `UPWSH_HOME`、Path 和安装目录 |
-| `upwsh load` | 加载 |
-| `upwsh unload` | 取消加载 |
+| `upwsh load` | 加载进当前 pwsh，并写入 `$PROFILE`，以后新开的 pwsh 也会加载 |
+| `upwsh unload` | `$PROFILE` 不再加载。文件、Path、`upwsh` 命令还在 |
 | `upwsh tool list` | 列出 CLI，并看 Path 上有没有 |
 | `upwsh tool install [names…]` | 把 CLI 装进 `tool\bin` |
 | `upwsh tool uninstall <names…>` | 删掉点名的 CLI |
 
-`load` 写入 `UPWSH_HOME`，把 `%UPWSH_HOME%\bin` 和 `%UPWSH_HOME%\tool\bin` 接到用户 Path 末尾，并挂钩 `$PROFILE.CurrentUserAllHosts`。`unload` 只去掉挂钩。Path 和 `UPWSH_HOME` 还在，`upwsh` 还能跑。
+`load` 还会写用户环境变量 `UPWSH_HOME`，并把 `%UPWSH_HOME%\bin`、`%UPWSH_HOME%\tool\bin` 接到用户 Path 末尾。
 
 个人文件：`$UPWSH_HOME\custom\*.ps1`（默认空）。`update` 会保留这个目录。
 
@@ -61,7 +61,7 @@ cd unixify-powershell
 pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 ```
 
-只加载这份源码、不拷文件：
+把这份源码加载进 pwsh，不拷文件：
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 load
@@ -79,7 +79,7 @@ upwsh update
 upwsh uninstall
 ```
 
-只取消加载（文件和 Path 留下）：
+`$PROFILE` 不再加载（文件和 Path 留下）：
 
 ```powershell
 upwsh unload

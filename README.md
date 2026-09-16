@@ -10,7 +10,7 @@ Unix-style commands, completion, and profile for PowerShell 7 on Windows.
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-Copies the runtime to `~/.config/upwsh` and runs `upwsh load`.
+Copies the runtime to `~/.config/upwsh`, then loads it into pwsh.
 
 Home: `$env:UPWSH_HOME`, else the user `UPWSH_HOME` variable, else `~/.config/upwsh`.
 
@@ -25,20 +25,20 @@ Open a new `pwsh`. `upwsh --help` should work.
 
 ## Commands
 
-After load, run `upwsh`. From Path: `%UPWSH_HOME%\bin\upwsh.cmd`.
+After `load`, this pwsh has `ll`, `cd`, completion, and `upwsh`. New pwsh windows get the same from `$PROFILE`. The `upwsh` command on Path is `%UPWSH_HOME%\bin\upwsh.cmd`.
 
 | Command | What it does |
 | --- | --- |
 | `upwsh install` | Copy the runtime to home, then load |
 | `upwsh update` | Uninstall, keep `custom`, then install |
-| `upwsh uninstall` | Unload, then remove `UPWSH_HOME`, Path, and the home tree |
-| `upwsh load` | Load the runtime into pwsh |
-| `upwsh unload` | Unload the runtime from pwsh |
+| `upwsh uninstall` | Unload, then delete `UPWSH_HOME`, Path entries, and the home tree |
+| `upwsh load` | Load into this pwsh, and into `$PROFILE` so later pwsh sessions load too |
+| `upwsh unload` | Stop `$PROFILE` from loading it. Files, Path, and `upwsh` stay |
 | `upwsh tool list` | List CLIs and whether they are on Path |
 | `upwsh tool install [names…]` | Install CLIs into `tool\bin` |
 | `upwsh tool uninstall <names…>` | Remove named CLIs |
 
-`load` writes `UPWSH_HOME`, appends `%UPWSH_HOME%\bin` and `%UPWSH_HOME%\tool\bin` to the user Path, and hooks `$PROFILE.CurrentUserAllHosts`. `unload` only removes that hook. Path and `UPWSH_HOME` stay, so `upwsh` still runs.
+`load` also sets user `UPWSH_HOME` and appends `%UPWSH_HOME%\bin` and `%UPWSH_HOME%\tool\bin` to the user Path.
 
 Personal files: `$UPWSH_HOME\custom\*.ps1` (empty by default). `update` keeps this folder.
 
@@ -61,7 +61,7 @@ cd unixify-powershell
 pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 ```
 
-Load this tree without copying:
+Load this tree into pwsh without copying:
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 load
@@ -79,7 +79,7 @@ upwsh update
 upwsh uninstall
 ```
 
-Unload only (keep files and Path):
+Stop `$PROFILE` from loading it (keep files and Path):
 
 ```powershell
 upwsh unload

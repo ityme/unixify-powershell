@@ -19,8 +19,8 @@ usage: upwsh [-h | --help] <command> [<args>]
 These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
-   load             Hook pwsh so it loads this runtime; set UPWSH_HOME, append bin paths, and load it now
-   unload           Remove the profile hook; leave UPWSH_HOME and Path in place
+   load             Load into this pwsh and into $PROFILE for later sessions
+   unload           Stop $PROFILE from loading it; leave files, Path, and upwsh
 
 install this runtime
    install          Copy the runtime to UPWSH_HOME and load it
