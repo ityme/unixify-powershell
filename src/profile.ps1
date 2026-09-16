@@ -11,18 +11,7 @@ function Import-ShellModule {
 }
 
 . (Join-Path $PSScriptRoot 'upwsh_home.ps1')
-$script:UpwshBin = Get-UpwshBin
-New-Item -ItemType Directory -Path $script:UpwshBin -Force | Out-Null
-if (
-    -not (
-        @($env:PATH -split ';') |
-            Where-Object {
-                $_ -and (Test-UpwshPathEntry $script:UpwshBin $_)
-            }
-    )
-) {
-    $env:PATH = $script:UpwshBin + ';' + $env:PATH
-}
+Add-UpwshSessionPath
 
 Import-ShellModule 'path.psm1'
 Import-ShellModule 'unix.psm1'

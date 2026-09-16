@@ -1,4 +1,5 @@
-# UPWSH_HOME：项目根。未设置时为 ~/.config/upwsh。CLI 在 $UPWSH_HOME\bin。
+# UPWSH_HOME：项目根。未设置时为 ~/.config/upwsh。
+# 命令垫片在 $UPWSH_HOME\bin\upwsh.cmd，CLI 在 $UPWSH_HOME\tool\bin。
 
 function ConvertTo-UpwshWindowsPath {
     param([string]$Path)
@@ -35,8 +36,25 @@ function Get-UpwshBin {
     Join-Path (Get-UpwshHome) 'bin'
 }
 
-function Get-UpwshBinPathLiteral {
-    '%UPWSH_HOME%\bin'
+function Get-UpwshToolBin {
+    Join-Path (Get-UpwshHome) 'tool\bin'
+}
+
+function Get-UpwshCommandShim {
+    Join-Path (Get-UpwshBin) 'upwsh.cmd'
+}
+
+function Get-UpwshManagedPathSpecs {
+    @(
+        [pscustomobject]@{
+            Literal = '%UPWSH_HOME%\bin'
+            Path    = Get-UpwshBin
+        }
+        [pscustomobject]@{
+            Literal = '%UPWSH_HOME%\tool\bin'
+            Path    = Get-UpwshToolBin
+        }
+    )
 }
 
 function Test-UpwshPathEntry {
@@ -50,6 +68,20 @@ function Test-UpwshPathEntry {
     } catch {
         return $false
     }
+}
+
+function Test-UpwshManagedPathEntry {
+    param([string]$Entry)
+
+    foreach ($spec in Get-UpwshManagedPathSpecs) {
+        if ($Entry -ieq $spec.Literal) {
+            return $true
+        }
+        if (Test-UpwshPathEntry $spec.Path $Entry) {
+            return $true
+        }
+    }
+    return $false
 }
 
 function Get-UpwshUserEnvironmentValue {
@@ -118,33 +150,41 @@ function Get-UpwshUserPathEntries {
     )
 }
 
-function Test-UpwshUserPathEntry {
-    param([string]$Bin, [string]$Entry)
+function Add-UpwshSessionPath {
+    foreach ($spec in Get-UpwshManagedPathSpecs) {
+        New-Item -ItemType Directory -Path $spec.Path -Force | Out-Null
+        $current = @($env:PATH -split ';' | Where-Object { $_ })
+        if (-not ($current | Where-Object { Test-UpwshPathEntry $spec.Path $_ })) {
+            $env:PATH = $env:PATH.TrimEnd(';') + ';' + $spec.Path
+        }
+    }
+}
 
-    if ([string]::IsNullOrWhiteSpace($Entry)) {
-        return $false
-    }
-    if ($Entry -ieq (Get-UpwshBinPathLiteral)) {
-        return $true
-    }
-    Test-UpwshPathEntry $Bin $Entry
+function Write-UpwshCommandShim {
+    $bin = Get-UpwshBin
+    New-Item -ItemType Directory -Path $bin -Force | Out-Null
+    $shim = Get-UpwshCommandShim
+    $text = @(
+        '@echo off'
+        'pwsh -NoLogo -NoProfile -File "%~dp0..\scripts\upwsh.ps1" %*'
+        ''
+    ) -join "`r`n"
+    [IO.File]::WriteAllText($shim, $text)
+    Write-Output "cmd     $shim"
 }
 
 function Add-UpwshUserEnvironment {
     $upwshHome = Get-UpwshHome
-    $bin = Get-UpwshBin
-    $literal = Get-UpwshBinPathLiteral
-    New-Item -ItemType Directory -Path $bin -Force | Out-Null
-
+    $specs = @(Get-UpwshManagedPathSpecs)
     $env:UPWSH_HOME = $upwshHome
-    $current = @($env:PATH -split ';' | Where-Object { $_ })
-    if (-not ($current | Where-Object { Test-UpwshPathEntry $bin $_ })) {
-        $env:PATH = $env:PATH.TrimEnd(';') + ';' + $bin
-    }
+    Add-UpwshSessionPath
+    Write-UpwshCommandShim
 
     if ($env:UPWSH_SKIP_PERSIST_PATH) {
         Write-Output "home    $upwshHome"
-        Write-Output "path    $literal"
+        foreach ($spec in $specs) {
+            Write-Output "path    $($spec.Literal)"
+        }
         return
     }
 
@@ -156,25 +196,24 @@ function Add-UpwshUserEnvironment {
 
     $entries = @(
         Get-UpwshUserPathEntries |
-            Where-Object { -not (Test-UpwshUserPathEntry $bin $_) }
+            Where-Object { -not (Test-UpwshManagedPathEntry $_) }
     )
-    $updated = (@($entries) + @($literal)) -join ';'
+    $updated = (@($entries) + @($specs.Literal)) -join ';'
     $previous = Get-UpwshUserEnvironmentValue 'Path'
     if ("$previous" -ne $updated) {
         Set-UpwshUserPath $updated
         [Environment]::SetEnvironmentVariable('UPWSH_HOME', $upwshHome, 'User')
-        Write-Output "path    $literal"
+        foreach ($spec in $specs) {
+            Write-Output "path    $($spec.Literal)"
+        }
     }
 }
 
 function Remove-UpwshUserEnvironment {
     $upwshHome = Get-UpwshHome
-    $bin = Get-UpwshBin
-    $literal = Get-UpwshBinPathLiteral
-
     $env:PATH = @(
         $env:PATH -split ';' |
-            Where-Object { $_ -and -not (Test-UpwshPathEntry $bin $_) }
+            Where-Object { $_ -and -not (Test-UpwshManagedPathEntry $_) }
     ) -join ';'
     if (-not [string]::IsNullOrWhiteSpace($env:UPWSH_HOME)) {
         try {
@@ -200,7 +239,7 @@ function Remove-UpwshUserEnvironment {
 
     $entries = @(
         Get-UpwshUserPathEntries |
-            Where-Object { -not (Test-UpwshUserPathEntry $bin $_) }
+            Where-Object { -not (Test-UpwshManagedPathEntry $_) }
     )
     $previous = Get-UpwshUserEnvironmentValue 'Path'
     $updated = $entries -join ';'

@@ -117,6 +117,10 @@ try {
         Assert-Contains $text (Join-Path $deployRoot 'profile.ps1')
         Assert-Contains $result.Text 'state    installed'
         Assert-Contains $result.Text '%UPWSH_HOME%\bin'
+        Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
+        Assert-True (Test-Path -LiteralPath (Join-Path $deployRoot 'bin\upwsh.cmd') -PathType Leaf) (
+            'install missed upwsh.cmd'
+        )
     }
 
     Invoke-InstallTest 'help flag prints usage' {
@@ -171,6 +175,10 @@ try {
             )
             Assert-Contains $output 'state    installed'
             Assert-Contains $output '%UPWSH_HOME%\bin'
+            Assert-Contains $output '%UPWSH_HOME%\tool\bin'
+            Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'bin\upwsh.cmd') -PathType Leaf) (
+                'UPWSH_HOME missed upwsh.cmd'
+            )
         } finally {
             $env:UPWSH_HOME = $saved
             $env:PATH = $savedPath

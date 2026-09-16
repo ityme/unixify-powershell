@@ -1,4 +1,4 @@
-# 由 tools / upwsh tool 调用。工具装到 $UPWSH_HOME\bin。
+# 由 tools / upwsh tool 调用。工具装到 $UPWSH_HOME\tool\bin。
 #   tools --help
 #   tools list
 #   tools install eza rg
@@ -13,7 +13,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
-$Dir = Get-UpwshBin
+$Dir = Get-UpwshToolBin
 
 $script:Tools = @(
     @{ Name = 'bat'; Repo = 'sharkdp/bat'; Exe = 'bat.exe' }

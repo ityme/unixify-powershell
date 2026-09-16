@@ -10,7 +10,7 @@ PowerShell 7 的 Unix 风格命令、补全和 profile。需要 `pwsh`。
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-指定项目根用 `UPWSH_HOME`（默认 `~/.config/upwsh`）。CLI 装在 `$UPWSH_HOME\bin`。`upwsh load` 写入用户环境变量 `UPWSH_HOME`，并把 `%UPWSH_HOME%\bin` 加到用户 Path 末尾（已在末尾则跳过）。`unload` 删这两项。`install.ps1` 装完会再跑一次 `load`。
+指定项目根用 `UPWSH_HOME`（默认 `~/.config/upwsh`）。`upwsh` 命令在 `$UPWSH_HOME\bin\upwsh.cmd`，CLI 在 `$UPWSH_HOME\tool\bin`。`upwsh load` 写入用户环境变量 `UPWSH_HOME`，并把这两个目录加到用户 Path 末尾。
 
 ```powershell
 $env:UPWSH_HOME = "$HOME\.config\upwsh"
@@ -39,6 +39,9 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 | --- | --- |
 | `upwsh load` | 挂钩当前这份运行时，并在当前 pwsh 里立刻生效 |
 | `upwsh unload` | 去掉挂钩，不删文件 |
+| `upwsh install` | 安装本项目（转给 `install.ps1`） |
+| `upwsh uninstall` | 卸本项目（转给 `uninstall.ps1`） |
+| `upwsh update` | 更新本项目（转给 `update.ps1`） |
 | `upwsh tool list` | 列出支持的 CLI，并看 shell 里有没有 |
 | `upwsh tool install` | 安装常用 CLI |
 | `upwsh tool install eza rg` | 只装点名的 CLI |

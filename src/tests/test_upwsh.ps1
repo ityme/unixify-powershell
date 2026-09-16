@@ -97,7 +97,9 @@ try {
     New-Item -ItemType Directory -Path $root -Force | Out-Null
     $hook = Join-Path $root 'profile.ps1'
     $bin = Join-Path $root 'bin'
-    New-Item -ItemType Directory -Path $bin -Force | Out-Null
+    $toolBin = Join-Path $root 'tool\bin'
+    New-Item -ItemType Directory -Path $bin, $toolBin -Force | Out-Null
+    $shim = Join-Path $bin 'upwsh.cmd'
 
     Invoke-UpwshTest 'no args prints usage' {
         $result = Invoke-Upwsh
@@ -108,6 +110,9 @@ try {
         Assert-Contains $result.Text 'tool install'
         Assert-Contains $result.Text 'tool uninstall'
         Assert-Contains $result.Text 'tool list'
+        Assert-Contains $result.Text '   install'
+        Assert-Contains $result.Text '   uninstall'
+        Assert-Contains $result.Text '   update'
         Assert-True ($result.Text -cnotmatch '--profile') 'help still lists --profile'
         Assert-True ($result.Text -cnotmatch '--check') 'help still lists --check'
         Assert-True ($result.Text -cnotmatch '--deploy') 'help still lists --deploy'
@@ -135,13 +140,13 @@ try {
     Invoke-UpwshTest 'load and tool together is an error' {
         $result = Invoke-Upwsh -Tokens @('-l', '-t')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use only one of load, unload, or tool'
+        Assert-Contains $result.Text 'use only one of load, unload, tool, install, uninstall, or update'
     }
 
     Invoke-UpwshTest 'load and unload together is an error' {
         $result = Invoke-Upwsh -Tokens @('load', 'unload')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use only one of load, unload, or tool'
+        Assert-Contains $result.Text 'use only one of load, unload, tool, install, uninstall, or update'
     }
 
     Invoke-UpwshTest 'load hooks the profile' {
@@ -154,6 +159,9 @@ try {
         Assert-Contains $result.Text $root
         Assert-Contains $result.Text 'path'
         Assert-Contains $result.Text '%UPWSH_HOME%\bin'
+        Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
+        Assert-Contains $result.Text 'cmd'
+        Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'load missed upwsh.cmd'
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text $sourceProfile
@@ -217,8 +225,26 @@ try {
         Assert-Contains $result.Text 'unknown tool command: --deploy'
     }
 
+    Invoke-UpwshTest 'install help is forwarded' {
+        $result = Invoke-Upwsh -Tokens @('install', '--help')
+        Assert-Equal $result.Code 0
+        Assert-Contains $result.Text 'install.ps1'
+    }
+
+    Invoke-UpwshTest 'uninstall help is forwarded' {
+        $result = Invoke-Upwsh -Tokens @('uninstall', '--help')
+        Assert-Equal $result.Code 0
+        Assert-Contains $result.Text 'uninstall.ps1'
+    }
+
+    Invoke-UpwshTest 'update help is forwarded' {
+        $result = Invoke-Upwsh -Tokens @('update', '--help')
+        Assert-Equal $result.Code 0
+        Assert-Contains $result.Text 'update.ps1'
+    }
+
     Invoke-UpwshTest 'tool uninstall removes a named exe' {
-        $exe = Join-Path $bin 'eza.exe'
+        $exe = Join-Path $toolBin 'eza.exe'
         [IO.File]::WriteAllText($exe, 'stub')
         $result = Invoke-Upwsh -Tokens @(
             'tool', 'uninstall', 'eza'
@@ -231,7 +257,7 @@ try {
     Invoke-UpwshTest 'tool list names limit the list' {
         $savedPath = $env:PATH
         try {
-            $env:PATH = $bin
+            $env:PATH = $toolBin
             $result = Invoke-Upwsh -Tokens @('tool', 'list', 'eza')
             Assert-Equal $result.Code 0
             Assert-Contains $result.Text 'eza'
@@ -244,11 +270,11 @@ try {
     }
 
     Invoke-UpwshTest 'tool list reports a command on PATH' {
-        $exe = Join-Path $bin 'eza.exe'
+        $exe = Join-Path $toolBin 'eza.exe'
         [IO.File]::WriteAllText($exe, 'stub')
         $savedPath = $env:PATH
         try {
-            $env:PATH = $bin
+            $env:PATH = $toolBin
             $result = Invoke-Upwsh -Tokens @('tool', 'list', 'eza')
             Assert-Equal $result.Code 0
             Assert-Contains $result.Text 'eza'
@@ -262,7 +288,7 @@ try {
     Invoke-UpwshTest 'tool short flags list the upwsh tools' {
         $savedPath = $env:PATH
         try {
-            $env:PATH = $bin
+            $env:PATH = $toolBin
             $result = Invoke-Upwsh -Tokens @('-t', 'list', 'rg')
             Assert-Equal $result.Code 0
             Assert-Contains $result.Text 'rg'
@@ -279,6 +305,8 @@ try {
         Assert-Equal $command.CommandType.ToString() 'Alias'
         Assert-Equal $command.Definition 'nvim'
         Assert-True ($result.Path -like "*$bin*") 'load did not add bin to PATH'
+        Assert-True ($result.Path -like "*$toolBin*") 'load did not add tool\\bin to PATH'
+        Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'session load missed upwsh.cmd'
     }
 
     Invoke-UpwshTest 'profile function forwards to the script' {

@@ -33,7 +33,9 @@ A network install can run:
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 
 Environment: UPWSH_HOME UPWSH_REF UPWSH_REPO UPWSH_SOURCE
-UPWSH_HOME is the project root, default ~/.config/upwsh. Tools go in UPWSH_HOME\\bin.
+UPWSH_HOME is the project root, default ~/.config/upwsh.
+The upwsh command is UPWSH_HOME\\bin\\upwsh.cmd.
+CLI tools go in UPWSH_HOME\\tool\\bin.
 '@
 }
 

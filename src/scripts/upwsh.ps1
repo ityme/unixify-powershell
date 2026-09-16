@@ -1,7 +1,10 @@
-# upwsh：统一入口。load / unload 挂钩 pwsh profile，tool 安装 CLI。
+# upwsh：统一入口。
 #   upwsh --help
 #   upwsh load
 #   upwsh unload
+#   upwsh install
+#   upwsh uninstall
+#   upwsh update
 #   upwsh tool list
 #   upwsh tool install eza rg
 #   upwsh tool uninstall eza
@@ -16,12 +19,17 @@ usage: upwsh [-h | --help] <command> [<args>]
 These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
-   load             Hook pwsh so it loads this runtime; set UPWSH_HOME, append %UPWSH_HOME%\\bin to Path, and load it now
-   unload           Remove the profile hook, UPWSH_HOME, and the Path entry
+   load             Hook pwsh so it loads this runtime; set UPWSH_HOME, append bin paths, and load it now
+   unload           Remove the profile hook, UPWSH_HOME, and the Path entries
+
+install this runtime
+   install          Copy the runtime to UPWSH_HOME and load it
+   uninstall        Unload, then delete the install tree
+   update           Uninstall --keep-custom, then install
 
 install a listed CLI tool
    tool install     Download listed CLI tools; names limit the list
-   tool uninstall   Remove the named tools from UPWSH_HOME\\bin
+   tool uninstall   Remove the named tools from UPWSH_HOME\\tool\\bin
    tool list        List supported tools and whether the shell has them
 
 'upwsh --help' prints this overview.
@@ -44,6 +52,7 @@ function New-UpwshParseResult {
         Command = $Command
         Action  = ''
         Only    = @()
+        Rest    = @()
     }
 }
 
@@ -78,6 +87,18 @@ function ConvertFrom-UpwshArguments {
         }
         '^(--tool|-t|tool)$' {
             $result.Command = 'tool'
+            $index = 1
+        }
+        '^install$' {
+            $result.Command = 'install'
+            $index = 1
+        }
+        '^uninstall$' {
+            $result.Command = 'uninstall'
+            $index = 1
+        }
+        '^update$' {
+            $result.Command = 'update'
             $index = 1
         }
         default {
@@ -117,6 +138,14 @@ function ConvertFrom-UpwshArguments {
         $index++
     }
 
+    if ($result.Command -in @('install', 'uninstall', 'update')) {
+        while ($index -lt $tokens.Count) {
+            $result.Rest = @($result.Rest + [string]$tokens[$index])
+            $index++
+        }
+        return $result
+    }
+
     while ($index -lt $tokens.Count) {
         $token = [string]$tokens[$index]
         switch -Regex ($token) {
@@ -124,9 +153,9 @@ function ConvertFrom-UpwshArguments {
                 $result.Help = $true
                 return $result
             }
-            '^(--load|-l|load|--unload|unload|--tool|-t|tool)$' {
+            '^(--load|-l|load|--unload|unload|--tool|-t|tool|install|uninstall|update)$' {
                 $result.Help = $true
-                $result.Error = 'use only one of load, unload, or tool'
+                $result.Error = 'use only one of load, unload, tool, install, uninstall, or update'
                 return $result
             }
             default {
@@ -194,6 +223,17 @@ function Invoke-UpwshTool {
     & $installer @installerArgs
 }
 
+function Invoke-UpwshSetup {
+    param($Parsed)
+
+    $script = Join-Path $PSScriptRoot "$($Parsed.Command).ps1"
+    if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+        throw "missing $($Parsed.Command) script: $script"
+    }
+    $setupArgs = @($Parsed.Rest)
+    & $script @setupArgs
+}
+
 function Complete-Upwsh {
     param(
         [int]$Code,
@@ -225,6 +265,12 @@ if ($parsed.Help -or -not $parsed.Command) {
 if ($parsed.Command -in @('load', 'unload')) {
     Invoke-UpwshLoad -Parsed $parsed
     Complete-Upwsh 0 $scriptInvocation
+    return
+}
+
+if ($parsed.Command -in @('install', 'uninstall', 'update')) {
+    Invoke-UpwshSetup -Parsed $parsed
+    Complete-Upwsh $global:LASTEXITCODE $scriptInvocation
     return
 }
 
