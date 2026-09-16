@@ -16,8 +16,8 @@ usage: upwsh [-h | --help] <command> [<args>]
 These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
-   load             Hook pwsh so it loads this runtime; add UPWSH_HOME\\bin to the user Path if missing
-   unload           Remove the profile hook without deleting files
+   load             Hook pwsh so it loads this runtime; set UPWSH_HOME and add %UPWSH_HOME%\\bin to Path
+   unload           Remove the profile hook, UPWSH_HOME, and the Path entry
 
 install a listed CLI tool
    tool install     Download listed CLI tools; names limit the list
@@ -160,9 +160,11 @@ function Invoke-UpwshLoad {
         $installerArgs.Uninstall = $true
     }
     & $installer @installerArgs
-    if ($Parsed.Command -eq 'load') {
-        . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
-        Add-UpwshBinToUserPath
+    . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
+    if ($Parsed.Command -eq 'unload') {
+        Remove-UpwshUserEnvironment
+    } else {
+        Add-UpwshUserEnvironment
     }
 }
 

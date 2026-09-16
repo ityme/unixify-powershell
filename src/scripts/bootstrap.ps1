@@ -396,6 +396,28 @@ try {
     Write-Output ("home     {0}" -f $directory)
     Write-Output ("source   {0}" -f $runtimeRoot)
     & $installer @installerArgs
+    if (-not $parsed.Check) {
+        $upwsh = Join-Path $directory 'scripts\upwsh.ps1'
+        if (-not (Test-Path -LiteralPath $upwsh -PathType Leaf)) {
+            $upwsh = Join-Path $runtimeRoot 'scripts\upwsh.ps1'
+        }
+        $savedProfile = $env:UPWSH_PROFILE
+        try {
+            if ($parsed.Profile) {
+                $env:UPWSH_PROFILE = [IO.Path]::GetFullPath(
+                    (ConvertTo-WindowsStyleDirectory $parsed.Profile)
+                )
+            } elseif ($parsed.CurrentHost) {
+                $env:UPWSH_PROFILE = $PROFILE.CurrentUserCurrentHost
+            } else {
+                $env:UPWSH_PROFILE = $PROFILE.CurrentUserAllHosts
+            }
+            $env:UPWSH_HOME = $directory
+            & $upwsh load
+        } finally {
+            $env:UPWSH_PROFILE = $savedProfile
+        }
+    }
     Complete-Install 0 $scriptInvocation
 } catch {
     Write-Output "unixify-powershell: $($_.Exception.Message)"

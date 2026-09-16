@@ -65,6 +65,7 @@ function Invoke-Bootstrap {
     $savedHome = $env:UPWSH_HOME
     $savedSource = $env:UPWSH_SOURCE
     $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+    $savedPath = $env:PATH
     try {
         $env:UPWSH_REPO = $null
         $env:UPWSH_REF = $null
@@ -83,6 +84,7 @@ function Invoke-Bootstrap {
         $env:UPWSH_HOME = $savedHome
         $env:UPWSH_SOURCE = $savedSource
         $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+        $env:PATH = $savedPath
     }
 }
 
@@ -108,6 +110,8 @@ try {
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text (Join-Path $deployRoot 'profile.ps1')
+        Assert-Contains $result.Text 'state    installed'
+        Assert-Contains $result.Text '%UPWSH_HOME%\bin'
     }
 
     Invoke-InstallTest 'help flag prints usage' {
@@ -131,6 +135,7 @@ try {
         $envHook = Join-Path $root 'env-profile.ps1'
         $previous = $global:LASTEXITCODE
         $saved = $env:UPWSH_HOME
+        $savedPath = $env:PATH
         try {
             $env:UPWSH_HOME = $envDir
             $env:UPWSH_SKIP_PERSIST_PATH = '1'
@@ -141,9 +146,11 @@ try {
             Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'profile.ps1')) (
                 'UPWSH_HOME missed profile.ps1'
             )
-            Assert-True ($output -notmatch '(?m)^path\s') 'bootstrap wrote PATH'
+            Assert-Contains $output 'state    installed'
+            Assert-Contains $output '%UPWSH_HOME%\bin'
         } finally {
             $env:UPWSH_HOME = $saved
+            $env:PATH = $savedPath
             $global:LASTEXITCODE = $previous
         }
     }

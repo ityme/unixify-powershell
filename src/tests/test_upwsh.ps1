@@ -62,6 +62,7 @@ function Invoke-Upwsh {
     $savedHome = $env:UPWSH_HOME
     $savedProfile = $env:UPWSH_PROFILE
     $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+    $savedPath = $env:PATH
     try {
         $env:UPWSH_HOME = $root
         $env:UPWSH_PROFILE = Join-Path $root 'profile.ps1'
@@ -77,6 +78,7 @@ function Invoke-Upwsh {
         $env:UPWSH_HOME = $savedHome
         $env:UPWSH_PROFILE = $savedProfile
         $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+        $env:PATH = $savedPath
     }
 }
 
@@ -137,8 +139,10 @@ try {
         Assert-Contains $result.Text 'state    installed'
         Assert-Contains $result.Text $hook
         Assert-Contains $result.Text $sourceProfile
+        Assert-Contains $result.Text 'home'
+        Assert-Contains $result.Text $root
         Assert-Contains $result.Text 'path'
-        Assert-Contains $result.Text $bin
+        Assert-Contains $result.Text '%UPWSH_HOME%\bin'
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text $sourceProfile
@@ -166,7 +170,8 @@ try {
         $result = Invoke-Upwsh -Tokens @('unload')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    removed'
-        Assert-True ($result.Text -notmatch '(?m)^path\s') 'unload wrote PATH'
+        Assert-Contains $result.Text 'home    removed'
+        Assert-Contains $result.Text 'path    removed'
         $text = [IO.File]::ReadAllText($hook)
         Assert-True ($text -notlike '*unixify-powershell*') "unload left the marker:`n$text"
     }
