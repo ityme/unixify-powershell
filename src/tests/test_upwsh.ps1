@@ -60,9 +60,11 @@ function Invoke-Upwsh {
 
     $previous = $global:LASTEXITCODE
     $savedHome = $env:UPWSH_HOME
+    $savedProfile = $env:UPWSH_PROFILE
     $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
     try {
         $env:UPWSH_HOME = $root
+        $env:UPWSH_PROFILE = Join-Path $root 'profile.ps1'
         $env:UPWSH_SKIP_PERSIST_PATH = '1'
         $global:LASTEXITCODE = 0
         $output = & $upwsh @Tokens 2>&1 | Out-String
@@ -73,6 +75,7 @@ function Invoke-Upwsh {
     } finally {
         $global:LASTEXITCODE = $previous
         $env:UPWSH_HOME = $savedHome
+        $env:UPWSH_PROFILE = $savedProfile
         $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
     }
 }
@@ -92,7 +95,7 @@ try {
         Assert-Contains $result.Text 'tool install'
         Assert-Contains $result.Text 'tool uninstall'
         Assert-Contains $result.Text 'tool list'
-        Assert-Contains $result.Text '--profile'
+        Assert-True ($result.Text -cnotmatch '--profile') 'help still lists --profile'
         Assert-True ($result.Text -cnotmatch '--check') 'help still lists --check'
         Assert-True ($result.Text -cnotmatch '--deploy') 'help still lists --deploy'
         Assert-True ($result.Text -cnotmatch '--force') 'help still lists --force'
@@ -128,8 +131,8 @@ try {
         Assert-Contains $result.Text 'use only one of load, unload, or tool'
     }
 
-    Invoke-UpwshTest 'load uses a custom profile path' {
-        $result = Invoke-Upwsh -Tokens @('load', '--profile', $hook)
+    Invoke-UpwshTest 'load hooks the profile' {
+        $result = Invoke-Upwsh -Tokens @('load')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    installed'
         Assert-Contains $result.Text $hook
@@ -139,26 +142,26 @@ try {
         Assert-Contains $text $sourceProfile
     }
 
-    Invoke-UpwshTest 'load short flag hooks the custom profile' {
-        $result = Invoke-Upwsh -Tokens @('-l', '-p', $hook)
+    Invoke-UpwshTest 'load short flag hooks the profile' {
+        $result = Invoke-Upwsh -Tokens @('-l')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    installed'
     }
 
     Invoke-UpwshTest 'load again reports installed' {
-        $result = Invoke-Upwsh -Tokens @('load', '--profile', $hook)
+        $result = Invoke-Upwsh -Tokens @('load')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    installed'
     }
 
     Invoke-UpwshTest 'load -u is unknown' {
-        $result = Invoke-Upwsh -Tokens @('load', '-u', '--profile', $hook)
+        $result = Invoke-Upwsh -Tokens @('load', '-u')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'unknown option: -u'
     }
 
     Invoke-UpwshTest 'unload removes the hook' {
-        $result = Invoke-Upwsh -Tokens @('unload', '--profile', $hook)
+        $result = Invoke-Upwsh -Tokens @('unload')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    removed'
         $text = [IO.File]::ReadAllText($hook)
@@ -166,9 +169,15 @@ try {
     }
 
     Invoke-UpwshTest 'tool options are rejected on load' {
-        $result = Invoke-Upwsh -Tokens @('load', '--force', '--profile', $hook)
+        $result = Invoke-Upwsh -Tokens @('load', '--force')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'unknown option: --force'
+    }
+
+    Invoke-UpwshTest 'load --profile is unknown' {
+        $result = Invoke-Upwsh -Tokens @('load', '--profile', $hook)
+        Assert-Equal $result.Code 2
+        Assert-Contains $result.Text 'unknown option: --profile'
     }
 
     Invoke-UpwshTest 'tool without a command prints usage' {
@@ -240,4 +249,4 @@ if ($script:Failures.Count -gt 0) {
 }
 
 Write-Output "$script:Passed upwsh tests passed."
-
+

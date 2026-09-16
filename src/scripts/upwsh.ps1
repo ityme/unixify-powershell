@@ -18,7 +18,6 @@ These are common upwsh commands used in various situations:
 hook the current user's pwsh
    load             Hook pwsh so it loads this runtime
    unload           Remove the profile hook without deleting files
-   --profile        pwsh profile to edit, default CurrentUserAllHosts
 
 install a listed CLI tool
    tool install     Download listed CLI tools; names limit the list
@@ -44,7 +43,6 @@ function New-UpwshParseResult {
         Error   = $Error
         Command = $Command
         Action  = ''
-        Profile = $null
         Only    = @()
     }
 }
@@ -131,21 +129,6 @@ function ConvertFrom-UpwshArguments {
                 $result.Error = 'use only one of load, unload, or tool'
                 return $result
             }
-            '^(--profile|-p)$' {
-                if ($result.Command -notin @('load', 'unload')) {
-                    $result.Help = $true
-                    $result.Error = '--profile is only valid with load or unload'
-                    return $result
-                }
-                $next = if ($index + 1 -lt $tokens.Count) { [string]$tokens[$index + 1] } else { '' }
-                if ([string]::IsNullOrWhiteSpace($next) -or $next.StartsWith('-')) {
-                    $result.Help = $true
-                    $result.Error = 'missing profile path'
-                    return $result
-                }
-                $result.Profile = $next
-                $index += 2
-            }
             default {
                 if ($result.Command -eq 'tool' -and -not $token.StartsWith('-')) {
                     $result.Only = @($result.Only + $token)
@@ -168,36 +151,11 @@ function ConvertFrom-UpwshArguments {
     return $result
 }
 
-function ConvertTo-WindowsStyleDirectory {
-    param([string]$Path)
-
-    if (Get-Command ConvertTo-WindowsStyleText -ErrorAction SilentlyContinue) {
-        return ConvertTo-WindowsStyleText $Path
-    }
-
-    $windows = $Path
-    $homePath = ($HOME.TrimEnd('\', '/') -replace '\\', '/')
-    $windows = [regex]::Replace($windows, '(?<=^|[\s=''"])~(?=/|$|\\)', $homePath)
-    $windows = [regex]::Replace(
-        $windows,
-        '/([A-Za-z]):',
-        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':' }
-    )
-    return [regex]::Replace(
-        $windows,
-        '(?<=^|[\s=''"])/([A-Za-z])(/|$)',
-        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':/' }
-    )
-}
-
 function Invoke-UpwshLoad {
     param($Parsed)
 
     $installer = Join-Path $PSScriptRoot 'install_profile.ps1'
     $installerArgs = @{}
-    if ($Parsed.Profile) {
-        $installerArgs.ProfilePath = ConvertTo-WindowsStyleDirectory $Parsed.Profile
-    }
     if ($Parsed.Command -eq 'unload') {
         $installerArgs.Uninstall = $true
     }
