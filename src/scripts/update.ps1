@@ -168,6 +168,29 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     return
 }
 
+$relaunch = Join-Path $PSScriptRoot '_relaunch.ps1'
+if (Test-Path -LiteralPath $relaunch -PathType Leaf) {
+    . $relaunch
+}
+if (Get-Command Wait-UpwshRelaunchParent -ErrorAction SilentlyContinue) {
+    Wait-UpwshRelaunchParent
+}
+$installHome = Get-UpdateHome
+if (
+    -not $parsed.Check -and
+    (Get-Command Start-UpwshRelaunchIfNeeded -ErrorAction SilentlyContinue)
+) {
+    if (
+        Start-UpwshRelaunchIfNeeded `
+            -InstallHome $installHome `
+            -EntryName 'update.ps1' `
+            -Arguments $script:Arguments
+    ) {
+        Complete-Update 0 $scriptInvocation
+        return
+    }
+}
+
 $here = Get-LocalScriptRoot
 $uninstall = $null
 $install = $null

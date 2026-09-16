@@ -225,29 +225,50 @@ $hookPath = Get-UninstallHookPath -Parsed $parsed
 $upwsh = Join-Path $directory 'scripts\upwsh.ps1'
 $homeScript = Join-Path $directory 'upwsh_home.ps1'
 $keepTree = Test-GitCheckout $directory
+$relaunch = Join-Path $PSScriptRoot '_relaunch.ps1'
+if (Test-Path -LiteralPath $relaunch -PathType Leaf) {
+    . $relaunch
+}
+if (Get-Command Wait-UpwshRelaunchParent -ErrorAction SilentlyContinue) {
+    Wait-UpwshRelaunchParent
+}
+
+if (
+    -not $parsed.Check -and
+    (Get-Command Start-UpwshRelaunchIfNeeded -ErrorAction SilentlyContinue)
+) {
+    if (
+        Start-UpwshRelaunchIfNeeded `
+            -InstallHome $directory `
+            -EntryName 'uninstall.ps1' `
+            -Arguments $script:Arguments
+    ) {
+        Complete-Uninstall 0 $scriptInvocation
+        return
+    }
+}
 
 if (
     -not $parsed.Check -and
     $PSCommandPath -and
-    -not $env:UPWSH_UNINSTALL_REEXEC
+    -not $env:UPWSH_UNINSTALL_REEXEC -and
+    -not $env:UPWSH_SKIP_RELAUNCH -and
+    (Get-Command Test-UpwshPathUnder -ErrorAction SilentlyContinue) -and
+    (Test-UpwshPathUnder -Path $PSCommandPath -Root $directory)
 ) {
-    $scriptFull = [IO.Path]::GetFullPath($PSCommandPath)
-    $prefix = $directory.TrimEnd('\', '/') + '\'
-    if ($scriptFull.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
-        $temp = Join-Path ([IO.Path]::GetTempPath()) (
-            'upwsh-uninstall-' + [Guid]::NewGuid().ToString('N') + '.ps1'
-        )
-        Copy-Item -LiteralPath $scriptFull -Destination $temp -Force
-        $savedReexec = $env:UPWSH_UNINSTALL_REEXEC
-        try {
-            $env:UPWSH_UNINSTALL_REEXEC = '1'
-            & $temp @script:Arguments
-            Complete-Uninstall $global:LASTEXITCODE $scriptInvocation
-            return
-        } finally {
-            $env:UPWSH_UNINSTALL_REEXEC = $savedReexec
-            Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
-        }
+    $temp = Join-Path ([IO.Path]::GetTempPath()) (
+        'upwsh-uninstall-' + [Guid]::NewGuid().ToString('N') + '.ps1'
+    )
+    Copy-Item -LiteralPath $PSCommandPath -Destination $temp -Force
+    $savedReexec = $env:UPWSH_UNINSTALL_REEXEC
+    try {
+        $env:UPWSH_UNINSTALL_REEXEC = '1'
+        & $temp @script:Arguments
+        Complete-Uninstall $global:LASTEXITCODE $scriptInvocation
+        return
+    } finally {
+        $env:UPWSH_UNINSTALL_REEXEC = $savedReexec
+        Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -300,7 +321,11 @@ if ($keepTree) {
         )
         Move-Item -LiteralPath $custom -Destination $savedCustom
     }
-    Remove-Item -LiteralPath $directory -Recurse -Force
+    if (Get-Command Remove-UpwshTree -ErrorAction SilentlyContinue) {
+        Remove-UpwshTree -Path $directory
+    } else {
+        Remove-Item -LiteralPath $directory -Recurse -Force
+    }
     Write-Output ("tree     removed {0}" -f $directory)
     if ($savedCustom) {
         New-Item -ItemType Directory -Path $directory -Force | Out-Null

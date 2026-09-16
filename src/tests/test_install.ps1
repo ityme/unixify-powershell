@@ -68,6 +68,7 @@ function Invoke-Bootstrap {
     $savedSource = $env:UPWSH_SOURCE
     $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
     $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+    $savedSkipRelaunch = $env:UPWSH_SKIP_RELAUNCH
     $savedPath = $env:PATH
     try {
         $env:UPWSH_REPO = $null
@@ -75,6 +76,7 @@ function Invoke-Bootstrap {
         $env:UPWSH_SOURCE = $null
         $env:UPWSH_SKIP_PERSIST_PATH = '1'
         $env:UPWSH_SKIP_SESSION_LOAD = '1'
+        $env:UPWSH_SKIP_RELAUNCH = '1'
         $global:LASTEXITCODE = 0
         $output = & $installer @Tokens 2>&1 | Out-String
         [pscustomobject]@{
@@ -89,6 +91,7 @@ function Invoke-Bootstrap {
         $env:UPWSH_SOURCE = $savedSource
         $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
         $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+        $env:UPWSH_SKIP_RELAUNCH = $savedSkipRelaunch
         $env:PATH = $savedPath
     }
 }
@@ -256,11 +259,13 @@ try {
         $savedHome = $env:UPWSH_HOME
         $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
         $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+        $savedSkipRelaunch = $env:UPWSH_SKIP_RELAUNCH
         $savedPath = $env:PATH
         try {
             $env:UPWSH_HOME = $deployRoot
             $env:UPWSH_SKIP_PERSIST_PATH = '1'
             $env:UPWSH_SKIP_SESSION_LOAD = '1'
+            $env:UPWSH_SKIP_RELAUNCH = '1'
             $global:LASTEXITCODE = 0
             $output = & $deployedUninstall --profile $hook 2>&1 | Out-String
             Assert-Equal $global:LASTEXITCODE 0
@@ -279,6 +284,7 @@ try {
             $env:UPWSH_HOME = $savedHome
             $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
             $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+            $env:UPWSH_SKIP_RELAUNCH = $savedSkipRelaunch
             $env:PATH = $savedPath
             $global:LASTEXITCODE = $previous
         }
@@ -328,11 +334,13 @@ try {
         $savedHome = $env:UPWSH_HOME
         $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
         $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+        $savedSkipRelaunch = $env:UPWSH_SKIP_RELAUNCH
         $savedPath = $env:PATH
         try {
             $env:UPWSH_HOME = $keepHome
             $env:UPWSH_SKIP_PERSIST_PATH = '1'
             $env:UPWSH_SKIP_SESSION_LOAD = '1'
+            $env:UPWSH_SKIP_RELAUNCH = '1'
             $global:LASTEXITCODE = 0
             $output = & $deployedUninstall --keep-custom --profile $keepHook 2>&1 | Out-String
             Assert-Equal $global:LASTEXITCODE 0
@@ -347,6 +355,7 @@ try {
             $env:UPWSH_HOME = $savedHome
             $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
             $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+            $env:UPWSH_SKIP_RELAUNCH = $savedSkipRelaunch
             $env:PATH = $savedPath
             $global:LASTEXITCODE = $previous
         }
@@ -364,11 +373,13 @@ try {
         $savedHome = $env:UPWSH_HOME
         $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
         $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+        $savedSkipRelaunch = $env:UPWSH_SKIP_RELAUNCH
         $savedPath = $env:PATH
         try {
             $env:UPWSH_HOME = $updateHome
             $env:UPWSH_SKIP_PERSIST_PATH = '1'
             $env:UPWSH_SKIP_SESSION_LOAD = '1'
+            $env:UPWSH_SKIP_RELAUNCH = '1'
             $global:LASTEXITCODE = 0
             $output = & $updater --source $sourceRoot --profile $updateHook 2>&1 | Out-String
             Assert-Equal $global:LASTEXITCODE 0
@@ -385,6 +396,51 @@ try {
             $env:UPWSH_HOME = $savedHome
             $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
             $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+            $env:UPWSH_SKIP_RELAUNCH = $savedSkipRelaunch
+            $env:PATH = $savedPath
+            $global:LASTEXITCODE = $previous
+        }
+    }
+
+    Invoke-InstallTest 'upwsh -File uninstall relaunches then deletes the tree' {
+        $fileHome = Join-Path $root 'file-uninstall'
+        $fileHook = Join-Path $root 'file-uninstall-profile.ps1'
+        $env:UPWSH_HOME = $fileHome
+        Invoke-Bootstrap -Tokens @('--profile', $fileHook) | Out-Null
+        $upwshFile = Join-Path $fileHome 'scripts\upwsh.ps1'
+        Assert-True (Test-Path -LiteralPath $upwshFile -PathType Leaf) 'deploy missed upwsh.ps1'
+        $previous = $global:LASTEXITCODE
+        $savedHome = $env:UPWSH_HOME
+        $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+        $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+        $savedSkipRelaunch = $env:UPWSH_SKIP_RELAUNCH
+        $savedPath = $env:PATH
+        try {
+            $env:UPWSH_HOME = $fileHome
+            $env:UPWSH_SKIP_PERSIST_PATH = '1'
+            $env:UPWSH_SKIP_SESSION_LOAD = '1'
+            Remove-Item Env:\UPWSH_SKIP_RELAUNCH -ErrorAction SilentlyContinue
+            $global:LASTEXITCODE = 0
+            $output = & (Get-Process -Id $PID).Path -NoLogo -NoProfile -File $upwshFile uninstall --profile $fileHook 2>&1 | Out-String
+            $deadline = [DateTime]::UtcNow.AddSeconds(20)
+            while (
+                (Test-Path -LiteralPath $fileHome) -and
+                [DateTime]::UtcNow -lt $deadline
+            ) {
+                Start-Sleep -Milliseconds 200
+            }
+            Assert-True (-not (Test-Path -LiteralPath $fileHome)) (
+                "-File uninstall left the install tree:`n$output"
+            )
+            $text = [IO.File]::ReadAllText($fileHook)
+            Assert-True ($text -notlike '*unixify-powershell*') (
+                "-File uninstall left the marker:`n$text"
+            )
+        } finally {
+            $env:UPWSH_HOME = $savedHome
+            $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+            $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+            $env:UPWSH_SKIP_RELAUNCH = $savedSkipRelaunch
             $env:PATH = $savedPath
             $global:LASTEXITCODE = $previous
         }
