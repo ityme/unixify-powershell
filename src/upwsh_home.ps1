@@ -118,19 +118,16 @@ function Get-UpwshUserPathEntries {
     )
 }
 
-function Test-UpwshUserPathHasBin {
-    param([string]$Bin)
+function Test-UpwshUserPathEntry {
+    param([string]$Bin, [string]$Entry)
 
-    $literal = Get-UpwshBinPathLiteral
-    foreach ($entry in Get-UpwshUserPathEntries) {
-        if ($entry -ieq $literal) {
-            return $true
-        }
-        if (Test-UpwshPathEntry $Bin $entry) {
-            return $true
-        }
+    if ([string]::IsNullOrWhiteSpace($Entry)) {
+        return $false
     }
-    return $false
+    if ($Entry -ieq (Get-UpwshBinPathLiteral)) {
+        return $true
+    }
+    Test-UpwshPathEntry $Bin $Entry
 }
 
 function Add-UpwshUserEnvironment {
@@ -142,7 +139,7 @@ function Add-UpwshUserEnvironment {
     $env:UPWSH_HOME = $upwshHome
     $current = @($env:PATH -split ';' | Where-Object { $_ })
     if (-not ($current | Where-Object { Test-UpwshPathEntry $bin $_ })) {
-        $env:PATH = $bin + ';' + $env:PATH
+        $env:PATH = $env:PATH.TrimEnd(';') + ';' + $bin
     }
 
     if ($env:UPWSH_SKIP_PERSIST_PATH) {
@@ -157,9 +154,14 @@ function Add-UpwshUserEnvironment {
         Write-Output "home    $upwshHome"
     }
 
-    if (-not (Test-UpwshUserPathHasBin $bin)) {
-        $updated = @($literal) + @(Get-UpwshUserPathEntries)
-        Set-UpwshUserPath ($updated -join ';')
+    $entries = @(
+        Get-UpwshUserPathEntries |
+            Where-Object { -not (Test-UpwshUserPathEntry $bin $_) }
+    )
+    $updated = (@($entries) + @($literal)) -join ';'
+    $previous = Get-UpwshUserEnvironmentValue 'Path'
+    if ("$previous" -ne $updated) {
+        Set-UpwshUserPath $updated
         [Environment]::SetEnvironmentVariable('UPWSH_HOME', $upwshHome, 'User')
         Write-Output "path    $literal"
     }
@@ -198,7 +200,7 @@ function Remove-UpwshUserEnvironment {
 
     $entries = @(
         Get-UpwshUserPathEntries |
-            Where-Object { $_ -ine $literal -and -not (Test-UpwshPathEntry $bin $_) }
+            Where-Object { -not (Test-UpwshUserPathEntry $bin $_) }
     )
     $previous = Get-UpwshUserEnvironmentValue 'Path'
     $updated = $entries -join ';'
