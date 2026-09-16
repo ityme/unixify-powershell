@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
-$bootstrap = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\bootstrap.ps1'))
+$installer = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\install.ps1'))
+$uninstaller = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\uninstall.ps1'))
 $sourceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $runtimeRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $root = Join-Path ([IO.Path]::GetTempPath()) (
@@ -74,7 +75,7 @@ function Invoke-Bootstrap {
         $env:UPWSH_SKIP_PERSIST_PATH = '1'
         $env:UPWSH_SKIP_SESSION_LOAD = '1'
         $global:LASTEXITCODE = 0
-        $output = & $bootstrap @Tokens 2>&1 | Out-String
+        $output = & $installer @Tokens 2>&1 | Out-String
         [pscustomobject]@{
             Text = $output
             Code = $global:LASTEXITCODE
@@ -124,6 +125,21 @@ try {
         Assert-Contains $result.Text 'UPWSH_HOME'
         Assert-Contains $result.Text '--source'
         Assert-Contains $result.Text 'irm'
+        Assert-Contains $result.Text 'install.ps1'
+        Assert-True ($result.Text -cnotmatch 'bootstrap.ps1') 'help still lists bootstrap.ps1'
+    }
+
+    Invoke-InstallTest 'uninstall help prints usage' {
+        $previous = $global:LASTEXITCODE
+        try {
+            $global:LASTEXITCODE = 0
+            $output = & $uninstaller --help 2>&1 | Out-String
+            Assert-Equal $global:LASTEXITCODE 0
+            Assert-Contains $output 'uninstall.ps1'
+            Assert-Contains $output 'Unload first'
+        } finally {
+            $global:LASTEXITCODE = $previous
+        }
     }
 
     Invoke-InstallTest 'unknown option prints usage and exits 2' {
@@ -145,7 +161,7 @@ try {
             $env:UPWSH_SKIP_PERSIST_PATH = '1'
             $env:UPWSH_SKIP_SESSION_LOAD = '1'
             $global:LASTEXITCODE = 0
-            $output = & $bootstrap --profile $envHook 2>&1 | Out-String
+            $output = & $installer --profile $envHook 2>&1 | Out-String
             Assert-Equal $global:LASTEXITCODE 0
             Assert-Contains $output 'state    deployed'
             Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'profile.ps1')) (
@@ -217,6 +233,74 @@ try {
         )
         Assert-Equal $result.Code 1
         Assert-Contains $result.Text 'missing profile.ps1'
+    }
+
+    Invoke-InstallTest 'uninstall unloads then deletes the install tree' {
+        $env:UPWSH_HOME = $deployRoot
+        Invoke-Bootstrap -Tokens @('--profile', $hook) | Out-Null
+        $deployedUninstall = Join-Path $deployRoot 'scripts\uninstall.ps1'
+        Assert-True (Test-Path -LiteralPath $deployedUninstall -PathType Leaf) (
+            'deploy missed uninstall.ps1'
+        )
+        $previous = $global:LASTEXITCODE
+        $savedHome = $env:UPWSH_HOME
+        $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+        $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+        $savedPath = $env:PATH
+        try {
+            $env:UPWSH_HOME = $deployRoot
+            $env:UPWSH_SKIP_PERSIST_PATH = '1'
+            $env:UPWSH_SKIP_SESSION_LOAD = '1'
+            $global:LASTEXITCODE = 0
+            $output = & $deployedUninstall --profile $hook 2>&1 | Out-String
+            Assert-Equal $global:LASTEXITCODE 0
+            Assert-Contains $output 'state    removed'
+            Assert-Contains $output 'tree     removed'
+            Assert-True (-not (Test-Path -LiteralPath $deployRoot)) (
+                'uninstall left the install tree'
+            )
+            $text = [IO.File]::ReadAllText($hook)
+            Assert-True ($text -notlike '*unixify-powershell*') (
+                "uninstall left the marker:`n$text"
+            )
+        } finally {
+            $env:UPWSH_HOME = $savedHome
+            $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+            $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+            $env:PATH = $savedPath
+            $global:LASTEXITCODE = $previous
+        }
+    }
+
+    Invoke-InstallTest 'uninstall --check does not delete files' {
+        $checkHome = Join-Path $root 'uninstall-check'
+        $checkHook = Join-Path $root 'uninstall-check-profile.ps1'
+        $env:UPWSH_HOME = $checkHome
+        Invoke-Bootstrap -Tokens @('--profile', $checkHook) | Out-Null
+        $deployedUninstall = Join-Path $checkHome 'scripts\uninstall.ps1'
+        $previous = $global:LASTEXITCODE
+        $savedHome = $env:UPWSH_HOME
+        $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+        $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+        $savedPath = $env:PATH
+        try {
+            $env:UPWSH_HOME = $checkHome
+            $env:UPWSH_SKIP_PERSIST_PATH = '1'
+            $env:UPWSH_SKIP_SESSION_LOAD = '1'
+            $global:LASTEXITCODE = 0
+            $output = & $deployedUninstall --check --profile $checkHook 2>&1 | Out-String
+            Assert-Equal $global:LASTEXITCODE 0
+            Assert-Contains $output 'hook     installed'
+            Assert-Contains $output 'tree     present'
+            Assert-True (Test-Path -LiteralPath $checkHome) 'check deleted the install tree'
+            Assert-True (Test-Path -LiteralPath $checkHook) 'check deleted the profile'
+        } finally {
+            $env:UPWSH_HOME = $savedHome
+            $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+            $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+            $env:PATH = $savedPath
+            $global:LASTEXITCODE = $previous
+        }
     }
 
 } finally {

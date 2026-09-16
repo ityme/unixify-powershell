@@ -7,14 +7,14 @@ PowerShell 7 的 Unix 风格命令、补全和 profile。需要 `pwsh`。
 下载运行时到 `~/.config/upwsh`，写入当前用户的 pwsh profile（`$PROFILE.CurrentUserAllHosts`）。Windows，需要 PowerShell 7。
 
 ```powershell
-irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-指定项目根用 `UPWSH_HOME`（默认 `~/.config/upwsh`）。CLI 装在 `$UPWSH_HOME\bin`。`upwsh load` 写入用户环境变量 `UPWSH_HOME`，并把 `%UPWSH_HOME%\bin` 加到用户 Path 末尾（已在末尾则跳过）。`unload` 删这两项。bootstrap 装完会再跑一次 `load`。
+指定项目根用 `UPWSH_HOME`（默认 `~/.config/upwsh`）。CLI 装在 `$UPWSH_HOME\bin`。`upwsh load` 写入用户环境变量 `UPWSH_HOME`，并把 `%UPWSH_HOME%\bin` 加到用户 Path 末尾（已在末尾则跳过）。`unload` 删这两项。`install.ps1` 装完会再跑一次 `load`。
 
 ```powershell
 $env:UPWSH_HOME = "$HOME\.config\upwsh"
-irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
 管道安装也可以用 `UPWSH_REF`、`UPWSH_REPO`。
@@ -25,7 +25,7 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
 upwsh --help
 ```
 
-选项见 `src/scripts/bootstrap.ps1 --help`。
+选项见 `src/scripts/install.ps1 --help`。
 
 ## 用
 
@@ -51,10 +51,10 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 ```powershell
 git clone https://github.com/ityme/unixify-powershell.git
 cd unixify-powershell
-pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1
+pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 ```
 
-旁边有源码时，`src/scripts/bootstrap.ps1` 不再下载，把 `src/` 拷到 `~/.config/upwsh`。
+旁边有源码时，`src/scripts/install.ps1` 不再下载，把 `src/` 拷到 `~/.config/upwsh`。
 
 只挂钩这份源码、不拷文件：
 
@@ -64,17 +64,23 @@ pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 load
 
 ## 卸载
 
+只去掉挂钩，保留安装目录：
+
 ```powershell
 upwsh unload
+```
+
+`install` 的逆操作（先 `unload`，再删安装目录）：
+
+```powershell
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/uninstall.ps1 | iex
 ```
 
 或：
 
 ```powershell
-pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 unload
+pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/uninstall.ps1
 ```
-
-`~/.config/upwsh` 还在，要删自己删。
 
 ## 开发
 

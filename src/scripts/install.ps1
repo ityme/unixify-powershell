@@ -1,7 +1,7 @@
 # 下载 unixify-powershell 并挂钩当前用户的 pwsh。
-#   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-#   $env:UPWSH_HOME = "$HOME\.config\upwsh"; irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1
+#   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
+#   $env:UPWSH_HOME = "$HOME\.config\upwsh"; irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
+#   pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -12,11 +12,11 @@ $script:UserAgent = 'unixify-powershell-installer'
 
 function Get-InstallUsage {
     @'
-usage: bootstrap.ps1 [-h | --help] [-c | --check]
-                     [-p | --profile <path>] [--current-host]
-                     [--ref <ref>] [--repo <owner/name>] [--source <dir>]
+usage: install.ps1 [-h | --help] [-c | --check]
+                   [-p | --profile <path>] [--current-host]
+                   [--ref <ref>] [--repo <owner/name>] [--source <dir>]
 
-These are common bootstrap.ps1 commands used in various situations:
+These are common install.ps1 commands used in various situations:
 
 install this runtime
    --profile        pwsh profile to edit, default CurrentUserAllHosts
@@ -30,7 +30,7 @@ inspect without writing
 
 A network install can run:
 
-  irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
+  irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 
 Environment: UPWSH_HOME UPWSH_REF UPWSH_REPO UPWSH_SOURCE
 UPWSH_HOME is the project root, default ~/.config/upwsh. Tools go in UPWSH_HOME\\bin.
