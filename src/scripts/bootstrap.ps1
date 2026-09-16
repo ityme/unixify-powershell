@@ -396,15 +396,6 @@ try {
     Write-Output ("home     {0}" -f $directory)
     Write-Output ("source   {0}" -f $runtimeRoot)
     & $installer @installerArgs
-    if (-not $parsed.Check) {
-        $homeScript = Join-Path $directory 'upwsh_home.ps1'
-        if (-not (Test-Path -LiteralPath $homeScript -PathType Leaf)) {
-            $homeScript = Join-Path $runtimeRoot 'upwsh_home.ps1'
-        }
-        . $homeScript
-        $env:UPWSH_HOME = $directory
-        Add-UpwshBinToUserPath
-    }
     Complete-Install 0 $scriptInvocation
 } catch {
     Write-Output "unixify-powershell: $($_.Exception.Message)"

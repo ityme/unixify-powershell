@@ -137,6 +137,8 @@ try {
         Assert-Contains $result.Text 'state    installed'
         Assert-Contains $result.Text $hook
         Assert-Contains $result.Text $sourceProfile
+        Assert-Contains $result.Text 'path'
+        Assert-Contains $result.Text $bin
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text $sourceProfile
@@ -164,6 +166,7 @@ try {
         $result = Invoke-Upwsh -Tokens @('unload')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    removed'
+        Assert-True ($result.Text -notmatch '(?m)^path\s') 'unload wrote PATH'
         $text = [IO.File]::ReadAllText($hook)
         Assert-True ($text -notlike '*unixify-powershell*') "unload left the marker:`n$text"
     }

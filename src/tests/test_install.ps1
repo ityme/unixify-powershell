@@ -141,9 +141,7 @@ try {
             Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'profile.ps1')) (
                 'UPWSH_HOME missed profile.ps1'
             )
-            Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'bin')) (
-                'UPWSH_HOME missed bin'
-            )
+            Assert-True ($output -notmatch '(?m)^path\s') 'bootstrap wrote PATH'
         } finally {
             $env:UPWSH_HOME = $saved
             $global:LASTEXITCODE = $previous

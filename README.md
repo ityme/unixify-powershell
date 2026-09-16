@@ -10,7 +10,7 @@ PowerShell 7 的 Unix 风格命令、补全和 profile。需要 `pwsh`。
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
 ```
 
-指定项目根用 `UPWSH_HOME`（默认 `~/.config/upwsh`）。CLI 装在 `$UPWSH_HOME\bin`，安装时写入用户 PATH。
+指定项目根用 `UPWSH_HOME`（默认 `~/.config/upwsh`）。CLI 装在 `$UPWSH_HOME\bin`。`upwsh load` 会把该目录写入用户 PATH（已有则跳过）。
 
 ```powershell
 $env:UPWSH_HOME = "$HOME\.config\upwsh"
