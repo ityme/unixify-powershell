@@ -40,7 +40,7 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
 
 `load` 还会写用户环境变量 `UPWSH_HOME`，并把 `%UPWSH_HOME%\bin`、`%UPWSH_HOME%\tool\bin` 接到用户 Path 末尾。
 
-个人文件：`$UPWSH_HOME\custom\*.ps1`（默认空）。`update` 会保留这个目录。
+个人文件：`$UPWSH_HOME\custom\*.ps1`。样板在 `custom\alias.ps1`（`w`、`t`、`i`、`d`、`gs`）。`update` 会保留这个目录。
 
 ## 目录
 
@@ -50,7 +50,7 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
   scripts/
   bin/upwsh.cmd      # upwsh 命令
   tool/bin/          # eza、rg 等
-  custom/            # 你的配置
+  custom/alias.ps1   # 样板快捷方式（w、t、i、d、gs）
 ```
 
 ## 从仓库装

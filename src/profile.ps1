@@ -28,6 +28,11 @@ Import-ShellModule 'term.psm1'
 # AllScope 别名必须在 dot-source 的入口里删除。
 Remove-Alias -Name @(
     'cd'
+    'w'
+    't'
+    'i'
+    'd'
+    'gs'
     'grep'
     'ps'
     'kill'

@@ -40,7 +40,7 @@ After `load`, this pwsh has `ll`, `cd`, completion, and `upwsh`. New pwsh window
 
 `load` also sets user `UPWSH_HOME` and appends `%UPWSH_HOME%\bin` and `%UPWSH_HOME%\tool\bin` to the user Path.
 
-Personal files: `$UPWSH_HOME\custom\*.ps1` (empty by default). `update` keeps this folder.
+Personal files: `$UPWSH_HOME\custom\*.ps1`. Sample shortcuts are in `custom\alias.ps1` (`w`, `t`, `i`, `d`, `gs`). `update` keeps this folder.
 
 ## Layout
 
@@ -50,7 +50,7 @@ Personal files: `$UPWSH_HOME\custom\*.ps1` (empty by default). `update` keeps th
   scripts/
   bin/upwsh.cmd      # the upwsh command
   tool/bin/          # eza, rg, …
-  custom/            # yours
+  custom/alias.ps1   # sample shortcuts (w, t, i, d, gs)
 ```
 
 ## From a clone

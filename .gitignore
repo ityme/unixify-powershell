@@ -47,6 +47,7 @@ desktop.ini
 src/custom/*
 !src/custom/.gitkeep
 !src/custom/README.md
+!src/custom/alias.ps1
 
 # =================================================================
 # 日志、测试与本地环境

@@ -209,11 +209,11 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
         Assert-Equal $command.CommandType.ToString() 'Alias'
         Assert-Equal $command.Definition 'nvim'
     }
-    Invoke-CompletionTest 'personal aliases are not in the stock map' {
-        Assert-True (-not (Get-Command w -ErrorAction SilentlyContinue)) 'stock runtime still defines w'
-        Assert-True (-not (Get-Command t -ErrorAction SilentlyContinue)) 'stock runtime still defines t'
-        Assert-True (-not (Get-Command i -ErrorAction SilentlyContinue)) 'stock runtime still defines i'
-        Assert-True (-not (Get-Command gs -ErrorAction SilentlyContinue)) 'stock runtime still defines gs'
+    Invoke-CompletionTest 'personal shortcuts come from custom' {
+        $command = Get-Command w -ErrorAction Stop
+        Assert-Equal $command.CommandType.ToString() 'Function'
+        $command = Get-Command gs -ErrorAction Stop
+        Assert-Equal $command.CommandType.ToString() 'Function'
     }
     Invoke-CompletionTest 'custom overlay is dotted after stock aliases' {
         $command = Get-Command zz -ErrorAction Stop

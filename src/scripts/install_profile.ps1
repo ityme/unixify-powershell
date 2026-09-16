@@ -124,11 +124,17 @@ function Copy-RuntimeTree {
 
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     Get-ChildItem -LiteralPath $Source -Force |
-        Where-Object { $_.Name -notin @('tests', 'custom') } |
+        Where-Object { $_.Name -ne 'tests' } |
         ForEach-Object {
-            Copy-Item -LiteralPath $_.FullName `
-                -Destination (Join-Path $Destination $_.Name) `
-                -Recurse -Force
+            $skipCustom = (
+                $_.Name -eq 'custom' -and
+                (Test-Path -LiteralPath (Join-Path $Destination 'custom'))
+            )
+            if (-not $skipCustom) {
+                Copy-Item -LiteralPath $_.FullName `
+                    -Destination (Join-Path $Destination $_.Name) `
+                    -Recurse -Force
+            }
         }
     $custom = Join-Path $Destination 'custom'
     if (-not (Test-Path -LiteralPath $custom)) {
