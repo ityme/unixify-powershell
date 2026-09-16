@@ -31,20 +31,21 @@ function global:du {
 }
 
 # 用途：安装常用 CLI。无参数、--help 或参数错误时显示用法。
-# 示例：tools -c -o eza rg -f
+# 示例：tools -c eza rg -f
 function Get-ToolsUsage {
     @'
 usage: tools [-h | --help] [-c | --check]
-             [-o | --only <name>...] [-f | --force]
+             [-u | --uninstall] [-f | --force] [<name>...]
 
 These are common tools commands used in various situations:
 
 install listed CLI tools
    --check          Show which listed tools are already installed
-   --only           Install only the named tools
+   --uninstall      Remove the named tools from UPWSH_HOME\\bin
    --force          Overwrite existing executables
 
-'tools --help' prints this overview.
+'tools --help' prints this overview. Names limit the list; with no
+names, install or check the full list. --uninstall requires names.
 
 Listed tools: bat btm delta dust eza fd fzf hyperfine jq lazygit procs
 rg shfmt starship tssh yazi yq zoxide
@@ -56,6 +57,7 @@ function ConvertFrom-ToolsArguments {
 
     $check = $false
     $force = $false
+    $uninstall = $false
     $only = [Collections.Generic.List[string]]::new()
     $index = 0
     $tokens = @($Tokens)
@@ -74,33 +76,37 @@ function ConvertFrom-ToolsArguments {
                 $force = $true
                 $index++
             }
-            '^(--only|-o)$' {
+            '^(--uninstall|-u)$' {
+                $uninstall = $true
                 $index++
-                $got = $false
-                while (
-                    $index -lt $tokens.Count -and
-                    -not ([string]$tokens[$index]).StartsWith('-')
-                ) {
-                    $only.Add([string]$tokens[$index])
-                    $got = $true
-                    $index++
-                }
-                if (-not $got) {
-                    return [pscustomobject]@{ Help = $true; Error = 'missing tool name' }
-                }
             }
             default {
-                return [pscustomobject]@{ Help = $true; Error = "unknown option: $token" }
+                if ($token.StartsWith('-')) {
+                    return [pscustomobject]@{ Help = $true; Error = "unknown option: $token" }
+                }
+                $only.Add($token)
+                $index++
             }
         }
     }
 
+    if ($check -and $uninstall) {
+        return [pscustomobject]@{ Help = $true; Error = 'use either --check or --uninstall' }
+    }
+    if ($uninstall -and $only.Count -eq 0) {
+        return [pscustomobject]@{ Help = $true; Error = 'missing tool name' }
+    }
+    if ($force -and $uninstall) {
+        return [pscustomobject]@{ Help = $true; Error = '--force is only valid when installing' }
+    }
+
     [pscustomobject]@{
-        Help  = $false
-        Error = $null
-        Check = $check
-        Force = $force
-        Only  = @($only)
+        Help      = $false
+        Error     = $null
+        Check     = $check
+        Force     = $force
+        Uninstall = $uninstall
+        Only      = @($only)
     }
 }
 
@@ -127,6 +133,9 @@ function global:tools {
     }
     if ($parsed.Force) {
         $installerArgs.Force = $true
+    }
+    if ($parsed.Uninstall) {
+        $installerArgs.Uninstall = $true
     }
     & $installer @installerArgs
 }

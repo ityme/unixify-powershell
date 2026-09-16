@@ -92,16 +92,15 @@ try {
         Assert-Contains $result.Text '--tool'
         Assert-Contains $result.Text '-t'
         Assert-Contains $result.Text '--check'
-        Assert-Contains $result.Text '--install'
-        Assert-Contains $result.Text '-i'
         Assert-Contains $result.Text '--uninstall'
         Assert-Contains $result.Text '--unload'
         Assert-Contains $result.Text '--deploy'
         Assert-Contains $result.Text '--current-host'
         Assert-Contains $result.Text '--profile'
-        Assert-Contains $result.Text '--only'
         Assert-Contains $result.Text '--force'
         Assert-True ($result.Text -cnotmatch '-Check') 'help still uses -Check'
+        Assert-True ($result.Text -cnotmatch '--install') 'help still lists --install'
+        Assert-True ($result.Text -cnotmatch '--only') 'help still lists --only'
     }
 
     Invoke-UpwshTest 'help flag prints usage' {
@@ -123,7 +122,13 @@ try {
     Invoke-UpwshTest 'load and tool together is an error' {
         $result = Invoke-Upwsh -Tokens @('-l', '-t')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use either --load or --tool'
+        Assert-Contains $result.Text 'use only one of --load, --unload, or --tool'
+    }
+
+    Invoke-UpwshTest 'load and unload together is an error' {
+        $result = Invoke-Upwsh -Tokens @('--load', '--unload')
+        Assert-Equal $result.Code 2
+        Assert-Contains $result.Text 'use only one of --load, --unload, or --tool'
     }
 
     Invoke-UpwshTest 'load check uses a custom profile path' {
@@ -150,18 +155,18 @@ try {
         Assert-Contains $result.Text 'state    installed'
     }
 
-    Invoke-UpwshTest 'load -u is not uninstall' {
+    Invoke-UpwshTest 'load -u is not unload' {
         $result = Invoke-Upwsh -Tokens @('--load', '-u', '--profile', $hook)
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text '--uninstall is only valid with --tool'
     }
 
-    Invoke-UpwshTest 'load unload removes the hook' {
-        $result = Invoke-Upwsh -Tokens @('--load', '--unload', '--profile', $hook)
+    Invoke-UpwshTest 'unload removes the hook' {
+        $result = Invoke-Upwsh -Tokens @('unload', '--profile', $hook)
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    removed'
         $text = [IO.File]::ReadAllText($hook)
-        Assert-True ($text -notlike '*unixify-powershell*') "load --unload left the marker:`n$text"
+        Assert-True ($text -notlike '*unixify-powershell*') "unload left the marker:`n$text"
     }
 
     Invoke-UpwshTest 'tool options are rejected on load' {
@@ -170,22 +175,16 @@ try {
         Assert-Contains $result.Text '--force is only valid with --tool'
     }
 
-    Invoke-UpwshTest 'tool missing tool name prints usage' {
-        $result = Invoke-Upwsh -Tokens @('-t', '--only')
-        Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'missing tool name'
-    }
-
     Invoke-UpwshTest 'tool uninstall without a name prints usage' {
         $result = Invoke-Upwsh -Tokens @('--tool', '--uninstall')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'missing tool name'
     }
 
-    Invoke-UpwshTest 'tool install and uninstall together is an error' {
-        $result = Invoke-Upwsh -Tokens @('--tool', '--install', '--uninstall')
+    Invoke-UpwshTest 'tool --install is unknown' {
+        $result = Invoke-Upwsh -Tokens @('--tool', '--install')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use either --install or --uninstall'
+        Assert-Contains $result.Text 'unknown option: --install'
     }
 
     Invoke-UpwshTest 'load options are rejected on tool' {
@@ -205,17 +204,17 @@ try {
         Assert-True (-not (Test-Path -LiteralPath $exe)) "uninstall left $exe"
     }
 
-    Invoke-UpwshTest 'tool check uses the requested directory' {
-        $result = Invoke-Upwsh -Tokens @('--tool', '--check', '--only', 'eza')
+    Invoke-UpwshTest 'tool check names limit the list' {
+        $result = Invoke-Upwsh -Tokens @('--tool', '--check', 'eza')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'dir'
         Assert-Contains $result.Text 'eza'
         Assert-Contains $result.Text 'missing'
-        Assert-True ($result.Text -notmatch 'bat') 'tool --only leaked extra tools'
+        Assert-True ($result.Text -notmatch 'bat') 'tool check leaked extra tools'
     }
 
     Invoke-UpwshTest 'tool short flags check the upwsh bin' {
-        $result = Invoke-Upwsh -Tokens @('-t', '-c', '-o', 'rg')
+        $result = Invoke-Upwsh -Tokens @('-t', '-c', 'rg')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'rg'
         Assert-Contains $result.Text 'dir'

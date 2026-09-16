@@ -189,6 +189,8 @@ try {
         Assert-True ($output -match '-c') 'tools help missing -c'
         Assert-True ($output -cnotmatch '-Check') 'tools help still uses -Check'
         Assert-True ($output -cnotmatch '--directory') 'tools help still lists --directory'
+        Assert-True ($output -cnotmatch '--only') 'tools help still lists --only'
+        Assert-True ($output -match '--uninstall') 'tools help missing --uninstall'
     }
     Invoke-CompletionTest 'tools unknown option prints usage' {
         $output = tools --nope | Out-String

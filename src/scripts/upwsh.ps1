@@ -1,10 +1,11 @@
-# upwsh：统一入口。load 挂钩 pwsh profile，tool 安装 CLI。
+# upwsh：统一入口。load / unload 挂钩 pwsh profile，tool 安装 CLI。
 #   upwsh --help
 #   upwsh load
-#   upwsh --load --check
-#   upwsh -t --check
-#   upwsh --tool --install eza rg
-#   upwsh --tool --uninstall eza
+#   upwsh load --check
+#   upwsh unload
+#   upwsh tool --check
+#   upwsh tool eza rg
+#   upwsh tool --uninstall eza
 
 $ErrorActionPreference = 'Stop'
 $script:Arguments = @($args)
@@ -12,32 +13,29 @@ $script:Arguments = @($args)
 function Get-UpwshUsage {
     @'
 usage: upwsh [-h | --help]
-             [-l | --load | load] [-t | --tool | tool]
-             [-c | --check] [-i | --install] [-u | --uninstall] [--unload] [--deploy]
-             [-p | --profile <path>]
-             [--current-host] [-o | --only <name>...] [-f | --force]
+             [-l | --load | load] [--unload | unload] [-t | --tool | tool]
+             [-c | --check] [-u | --uninstall] [--deploy]
+             [-p | --profile <path>] [--current-host] [-f | --force]
              [<args>]
 
 These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
    load             Hook pwsh so it loads this runtime
+   unload           Remove the profile hook without deleting files
    --check          Show hook status without writing files
-   --unload         Remove the profile hook without deleting files
    --deploy         Copy the runtime to UPWSH_HOME and hook that copy
    --profile        pwsh profile to edit, default CurrentUserAllHosts
    --current-host   Write $PROFILE.CurrentUserCurrentHost
 
 install a listed CLI tool
-   tool             Download or remove listed CLI tools
-   --install        Install the named tools; with no names, install the list
+   tool             Download listed CLI tools; names limit the list
    --uninstall      Remove the named tools from UPWSH_HOME\\bin
    --check          Show which listed tools are already installed
-   --only           Same as naming tools after --install
    --force          Overwrite existing executables
 
-'upwsh --help' prints this overview. load and tool cannot be used
-together.
+'upwsh --help' prints this overview. Use only one of load, unload, or
+tool.
 
 Listed tools: bat btm delta dust eza fd fzf hyperfine jq lazygit procs
 rg shfmt starship tssh yazi yq zoxide
@@ -57,12 +55,9 @@ function New-UpwshParseResult {
         Command     = $Command
         Check       = $false
         Uninstall   = $false
-        Unload      = $false
-        Install     = $false
         Deploy      = $false
         CurrentHost = $false
         Force       = $false
-        Directory   = $null
         Profile     = $null
         Only        = @()
     }
@@ -93,6 +88,10 @@ function ConvertFrom-UpwshArguments {
             $result.Command = 'load'
             $index = 1
         }
+        '^(--unload|unload)$' {
+            $result.Command = 'unload'
+            $index = 1
+        }
         '^(--tool|-t|tool)$' {
             $result.Command = 'tool'
             $index = 1
@@ -111,30 +110,19 @@ function ConvertFrom-UpwshArguments {
                 $result.Help = $true
                 return $result
             }
-            '^(--load|-l|load|--tool|-t|tool)$' {
+            '^(--load|-l|load|--unload|unload|--tool|-t|tool)$' {
                 $result.Help = $true
-                $result.Error = 'use either --load or --tool'
+                $result.Error = 'use only one of --load, --unload, or --tool'
                 return $result
             }
             '^(--check|-c)$' {
-                $result.Check = $true
-                $index++
-            }
-            '^(--install|-i)$' {
-                if ($result.Command -ne 'tool') {
+                if ($result.Command -eq 'unload') {
                     $result.Help = $true
-                    $result.Error = '--install is only valid with --tool'
+                    $result.Error = '--check is only valid with --load or --tool'
                     return $result
                 }
-                $result.Install = $true
+                $result.Check = $true
                 $index++
-                while (
-                    $index -lt $tokens.Count -and
-                    -not ([string]$tokens[$index]).StartsWith('-')
-                ) {
-                    $result.Only = @($result.Only + [string]$tokens[$index])
-                    $index++
-                }
             }
             '^(--uninstall|-u)$' {
                 if ($result.Command -ne 'tool') {
@@ -143,22 +131,6 @@ function ConvertFrom-UpwshArguments {
                     return $result
                 }
                 $result.Uninstall = $true
-                $index++
-                while (
-                    $index -lt $tokens.Count -and
-                    -not ([string]$tokens[$index]).StartsWith('-')
-                ) {
-                    $result.Only = @($result.Only + [string]$tokens[$index])
-                    $index++
-                }
-            }
-            '^--unload$' {
-                if ($result.Command -ne 'load') {
-                    $result.Help = $true
-                    $result.Error = '--unload is only valid with --load'
-                    return $result
-                }
-                $result.Unload = $true
                 $index++
             }
             '^--deploy$' {
@@ -171,9 +143,9 @@ function ConvertFrom-UpwshArguments {
                 $index++
             }
             '^--current-host$' {
-                if ($result.Command -ne 'load') {
+                if ($result.Command -notin @('load', 'unload')) {
                     $result.Help = $true
-                    $result.Error = '--current-host is only valid with --load'
+                    $result.Error = '--current-host is only valid with --load or --unload'
                     return $result
                 }
                 $result.CurrentHost = $true
@@ -189,9 +161,9 @@ function ConvertFrom-UpwshArguments {
                 $index++
             }
             '^(--profile|-p)$' {
-                if ($result.Command -ne 'load') {
+                if ($result.Command -notin @('load', 'unload')) {
                     $result.Help = $true
-                    $result.Error = '--profile is only valid with --load'
+                    $result.Error = '--profile is only valid with --load or --unload'
                     return $result
                 }
                 $next = if ($index + 1 -lt $tokens.Count) { [string]$tokens[$index + 1] } else { '' }
@@ -203,48 +175,23 @@ function ConvertFrom-UpwshArguments {
                 $result.Profile = $next
                 $index += 2
             }
-            '^(--only|-o)$' {
-                if ($result.Command -ne 'tool') {
-                    $result.Help = $true
-                    $result.Error = '--only is only valid with --tool'
-                    return $result
-                }
-                $index++
-                $got = $false
-                while (
-                    $index -lt $tokens.Count -and
-                    -not ([string]$tokens[$index]).StartsWith('-')
-                ) {
-                    $result.Only = @($result.Only + [string]$tokens[$index])
-                    $got = $true
-                    $index++
-                }
-                if (-not $got) {
-                    $result.Help = $true
-                    $result.Error = 'missing tool name'
-                    return $result
-                }
-            }
             default {
-                $result.Help = $true
-                $result.Error = "unknown option: $token"
-                return $result
+                if ($result.Command -eq 'tool' -and -not $token.StartsWith('-')) {
+                    $result.Only = @($result.Only + $token)
+                    $index++
+                } else {
+                    $result.Help = $true
+                    $result.Error = "unknown option: $token"
+                    return $result
+                }
             }
-        }
-    }
-
-    if ($result.Command -eq 'load') {
-        if ($result.Unload -and $result.Deploy) {
-            $result.Help = $true
-            $result.Error = 'use either --unload or --deploy'
-            return $result
         }
     }
 
     if ($result.Command -eq 'tool') {
-        if ($result.Install -and $result.Uninstall) {
+        if ($result.Check -and $result.Uninstall) {
             $result.Help = $true
-            $result.Error = 'use either --install or --uninstall'
+            $result.Error = 'use either --check or --uninstall'
             return $result
         }
         if ($result.Uninstall -and $result.Only.Count -eq 0) {
@@ -254,7 +201,7 @@ function ConvertFrom-UpwshArguments {
         }
         if ($result.Force -and $result.Uninstall) {
             $result.Help = $true
-            $result.Error = '--force is only valid with --install'
+            $result.Error = '--force is only valid when installing'
             return $result
         }
     }
@@ -295,7 +242,7 @@ function Invoke-UpwshLoad {
     if ($Parsed.Check) {
         $installerArgs.Check = $true
     }
-    if ($Parsed.Unload) {
+    if ($Parsed.Command -eq 'unload') {
         $installerArgs.Uninstall = $true
     }
     if ($Parsed.Deploy) {
@@ -359,7 +306,7 @@ if ($parsed.Help -or -not $parsed.Command) {
     return
 }
 
-if ($parsed.Command -eq 'load') {
+if ($parsed.Command -in @('load', 'unload')) {
     Invoke-UpwshLoad -Parsed $parsed
     Complete-Upwsh 0 $scriptInvocation
     return

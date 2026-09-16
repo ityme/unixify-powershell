@@ -1,7 +1,7 @@
 # 由 tools / upwsh tool 调用。工具装到 $UPWSH_HOME\bin。
 #   tools --help
 #   tools -c
-#   tools -o eza rg -f
+#   tools eza rg -f
 
 [CmdletBinding()]
 param(
