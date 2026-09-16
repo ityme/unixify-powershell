@@ -88,6 +88,24 @@ function Set-UpwshUserPath {
     }
 }
 
+function Remove-UpwshUserEnvironmentValue {
+    param([string]$Name)
+
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+    if (-not $key) {
+        return $false
+    }
+    try {
+        if ($null -eq $key.GetValue($Name)) {
+            return $false
+        }
+        $key.DeleteValue($Name, $false)
+        return $true
+    } finally {
+        $key.Close()
+    }
+}
+
 function Get-UpwshUserPathEntries {
     $raw = Get-UpwshUserEnvironmentValue 'Path'
     if ([string]::IsNullOrWhiteSpace($raw)) {
@@ -172,10 +190,10 @@ function Remove-UpwshUserEnvironment {
         return
     }
 
-    $userHome = [Environment]::GetEnvironmentVariable('UPWSH_HOME', 'User')
-    if ($userHome) {
-        [Environment]::SetEnvironmentVariable('UPWSH_HOME', $null, 'User')
-        Write-Output 'home    removed'
+    if ($null -ne (Get-UpwshUserEnvironmentValue 'UPWSH_HOME')) {
+        if (Remove-UpwshUserEnvironmentValue 'UPWSH_HOME') {
+            Write-Output 'home    removed'
+        }
     }
 
     $entries = @(
