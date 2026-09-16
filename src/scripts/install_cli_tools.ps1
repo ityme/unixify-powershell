@@ -1,20 +1,19 @@
 # 由 tools / upwsh tool 调用。工具装到 $UPWSH_HOME\bin。
 #   tools --help
-#   tools -c
-#   tools eza rg -f
+#   tools list
+#   tools install eza rg
+#   tools uninstall eza
 
 [CmdletBinding()]
 param(
     [string[]]$Only = @(),
-    [switch]$Check,
-    [switch]$Force,
+    [switch]$List,
     [switch]$Uninstall
 )
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
 $Dir = Get-UpwshBin
-New-Item -ItemType Directory -Path $Dir -Force | Out-Null
 
 $script:Tools = @(
     @{ Name = 'bat'; Repo = 'sharkdp/bat'; Exe = 'bat.exe' }
@@ -107,10 +106,10 @@ function Uninstall-CliTool {
 }
 
 function Install-CliTool {
-    param($Tool, [string]$Destination, [switch]$Force)
+    param($Tool, [string]$Destination)
 
     $target = Join-Path $Destination $Tool.Exe
-    if ((Test-Path -LiteralPath $target) -and -not $Force) {
+    if (Test-Path -LiteralPath $target) {
         Write-Output "skip  $($Tool.Name) (already $target)"
         return
     }
@@ -167,32 +166,31 @@ if ($names.Count -gt 0) {
     }
 }
 
-if ($Uninstall -and $Check) {
-    throw 'Use either -Uninstall or -Check, not both.'
-}
-if ($Uninstall -and $Force) {
-    throw '-Force is only valid when installing.'
+if ($List -and $Uninstall) {
+    throw 'Use either -List or -Uninstall, not both.'
 }
 if ($Uninstall -and $names.Count -eq 0) {
     throw 'missing tool name'
 }
 
+if ($List) {
+    foreach ($tool in $selected) {
+        Write-Output $tool.Name
+    }
+    return
+}
+
+New-Item -ItemType Directory -Path $Dir -Force | Out-Null
 Write-Output "dir   $Dir"
 foreach ($tool in $selected) {
-    if ($Check) {
-        $path = Join-Path $Dir $tool.Exe
-        $state = if (Test-Path -LiteralPath $path) { 'ok' } else { 'missing' }
-        Write-Output ("{0,-10} {1}" -f $tool.Name, $state)
-        continue
-    }
     if ($Uninstall) {
         Uninstall-CliTool -Tool $tool -Destination $Dir
         continue
     }
-    Install-CliTool -Tool $tool -Destination $Dir -Force:$Force
+    Install-CliTool -Tool $tool -Destination $Dir
 }
 
-if (-not $Check -and -not $Uninstall) {
+if (-not $Uninstall) {
     $resolvedDir = [IO.Path]::GetFullPath($Dir)
     $onPath = $false
     foreach ($entry in @($env:PATH -split ';')) {

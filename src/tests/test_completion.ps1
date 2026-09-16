@@ -185,17 +185,17 @@ try {
     Invoke-CompletionTest 'tools with no args prints usage' {
         $output = tools | Out-String
         Assert-True ($output -match 'tools') 'tools help missing command name'
-        Assert-True ($output -match '--check') 'tools help missing --check'
-        Assert-True ($output -match '-c') 'tools help missing -c'
-        Assert-True ($output -cnotmatch '-Check') 'tools help still uses -Check'
+        Assert-True ($output -match 'install') 'tools help missing install'
+        Assert-True ($output -match 'uninstall') 'tools help missing uninstall'
+        Assert-True ($output -match 'list') 'tools help missing list'
+        Assert-True ($output -cnotmatch '--check') 'tools help still lists --check'
         Assert-True ($output -cnotmatch '--directory') 'tools help still lists --directory'
         Assert-True ($output -cnotmatch '--only') 'tools help still lists --only'
-        Assert-True ($output -match '--uninstall') 'tools help missing --uninstall'
     }
     Invoke-CompletionTest 'tools unknown option prints usage' {
         $output = tools --nope | Out-String
         Assert-True ($output -match 'unknown option') 'bad option did not report an error'
-        Assert-True ($output -match '--check') 'bad option did not show usage'
+        Assert-True ($output -match 'install') 'bad option did not show usage'
     }
     Invoke-CompletionTest 'vim is an alias of nvim' {
         $command = Get-Command vim -ErrorAction Stop

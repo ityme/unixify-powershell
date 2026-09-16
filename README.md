@@ -22,7 +22,7 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
 装完开一个新的 `pwsh`。`upwsh --help` 能跑就对了。
 
 ```powershell
-upwsh load --check
+upwsh --help
 ```
 
 选项见 `src/scripts/bootstrap.ps1 --help`。
@@ -37,13 +37,12 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 
 | 命令 | 作用 |
 | --- | --- |
-| `upwsh load --check` | 看 profile 有没有挂钩 |
 | `upwsh load` | 挂钩当前这份运行时 |
-| `upwsh load --deploy` | 拷到 `~/.config/upwsh`，挂钩副本 |
 | `upwsh unload` | 去掉挂钩，不删文件 |
-| `upwsh tool --check` | 看 bat、eza、rg 等 CLI |
-| `upwsh tool` | 安装常用 CLI |
-| `upwsh tool eza rg` | 只装点名的 CLI |
+| `upwsh tool list` | 列出支持的 CLI |
+| `upwsh tool install` | 安装常用 CLI |
+| `upwsh tool install eza rg` | 只装点名的 CLI |
+| `upwsh tool uninstall eza` | 删掉点名的 CLI |
 
 二级选项见 `upwsh --help`。
 
