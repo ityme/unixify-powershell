@@ -31,17 +31,16 @@ function global:du {
 }
 
 # 用途：安装常用 CLI。无参数、--help 或参数错误时显示用法。
-# 示例：tools -c -d /d/bin -o eza rg -f
+# 示例：tools -c -o eza rg -f
 function Get-ToolsUsage {
     @'
-usage: tools [-h | --help] [-c | --check] [-d | --directory <dir>]
+usage: tools [-h | --help] [-c | --check]
              [-o | --only <name>...] [-f | --force]
 
 These are common tools commands used in various situations:
 
 install listed CLI tools
    --check          Show which listed tools are already installed
-   --directory      Install directory, default I:\ityme\bin
    --only           Install only the named tools
    --force          Overwrite existing executables
 
@@ -57,7 +56,6 @@ function ConvertFrom-ToolsArguments {
 
     $check = $false
     $force = $false
-    $dir = $null
     $only = [Collections.Generic.List[string]]::new()
     $index = 0
     $tokens = @($Tokens)
@@ -75,14 +73,6 @@ function ConvertFrom-ToolsArguments {
             '^(--force|-f)$' {
                 $force = $true
                 $index++
-            }
-            '^(--directory|-d)$' {
-                $next = if ($index + 1 -lt $tokens.Count) { [string]$tokens[$index + 1] } else { '' }
-                if ([string]::IsNullOrWhiteSpace($next) -or $next.StartsWith('-')) {
-                    return [pscustomobject]@{ Help = $true; Error = 'missing directory' }
-                }
-                $dir = $next
-                $index += 2
             }
             '^(--only|-o)$' {
                 $index++
@@ -110,7 +100,6 @@ function ConvertFrom-ToolsArguments {
         Error = $null
         Check = $check
         Force = $force
-        Dir   = $dir
         Only  = @($only)
     }
 }
@@ -130,9 +119,6 @@ function global:tools {
         (Join-Path $PSScriptRoot 'scripts\install_cli_tools.ps1')
     )
     $installerArgs = @{}
-    if ($parsed.Dir) {
-        $installerArgs.Dir = ConvertTo-WindowsStyleText $parsed.Dir
-    }
     if ($parsed.Only.Count -gt 0) {
         $installerArgs.Only = @($parsed.Only)
     }

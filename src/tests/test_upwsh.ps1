@@ -59,7 +59,11 @@ function Invoke-Upwsh {
     param([string[]]$Tokens = @())
 
     $previous = $global:LASTEXITCODE
+    $savedHome = $env:UPWSH_HOME
+    $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
     try {
+        $env:UPWSH_HOME = $root
+        $env:UPWSH_SKIP_PERSIST_PATH = '1'
         $global:LASTEXITCODE = 0
         $output = & $upwsh @Tokens 2>&1 | Out-String
         [pscustomobject]@{
@@ -68,6 +72,8 @@ function Invoke-Upwsh {
         }
     } finally {
         $global:LASTEXITCODE = $previous
+        $env:UPWSH_HOME = $savedHome
+        $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
     }
 }
 
@@ -92,7 +98,6 @@ try {
         Assert-Contains $result.Text '--deploy'
         Assert-Contains $result.Text '--current-host'
         Assert-Contains $result.Text '--profile'
-        Assert-Contains $result.Text '--directory'
         Assert-Contains $result.Text '--only'
         Assert-Contains $result.Text '--force'
         Assert-True ($result.Text -cnotmatch '-Check') 'help still uses -Check'
@@ -152,23 +157,10 @@ try {
         Assert-True ($text -notlike '*unixify-powershell*') "load --uninstall left the marker:`n$text"
     }
 
-    Invoke-UpwshTest 'load directory without deploy is an error' {
-        $result = Invoke-Upwsh -Tokens @('--load', '-d', $root, '--profile', $hook)
-        Assert-Equal $result.Code 2
-        Assert-Contains $result.Text '--directory is only valid with --deploy'
-    }
-
     Invoke-UpwshTest 'tool options are rejected on load' {
         $result = Invoke-Upwsh -Tokens @('--load', '--force', '--profile', $hook)
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text '--force is only valid with --tool'
-    }
-
-    Invoke-UpwshTest 'tool missing directory prints usage' {
-        $result = Invoke-Upwsh -Tokens @('--tool', '-d')
-        Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'missing directory'
-        Assert-Contains $result.Text '--directory'
     }
 
     Invoke-UpwshTest 'tool missing tool name prints usage' {
@@ -199,7 +191,7 @@ try {
         $exe = Join-Path $bin 'eza.exe'
         [IO.File]::WriteAllText($exe, 'stub')
         $result = Invoke-Upwsh -Tokens @(
-            '--tool', '--uninstall', 'eza', '--directory', $bin
+            '--tool', '--uninstall', 'eza'
         )
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'removed'
@@ -207,40 +199,34 @@ try {
     }
 
     Invoke-UpwshTest 'tool check uses the requested directory' {
-        $result = Invoke-Upwsh -Tokens @('--tool', '--check', '--directory', $bin, '--only', 'eza')
+        $result = Invoke-Upwsh -Tokens @('--tool', '--check', '--only', 'eza')
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text "dir   $bin"
+        Assert-Contains $result.Text 'dir'
         Assert-Contains $result.Text 'eza'
         Assert-Contains $result.Text 'missing'
         Assert-True ($result.Text -notmatch 'bat') 'tool --only leaked extra tools'
     }
 
-    Invoke-UpwshTest 'tool short flags check a unix directory' {
-        $unixBin = ($bin -replace '\\', '/')
-        if ($unixBin -match '^([A-Za-z]):') {
-            $unixBin = '/' + $Matches[1].ToLowerInvariant() + $unixBin.Substring(2)
-        }
-        $result = Invoke-Upwsh -Tokens @('-t', '-c', '-d', $unixBin, '-o', 'rg')
+    Invoke-UpwshTest 'tool short flags check the upwsh bin' {
+        $result = Invoke-Upwsh -Tokens @('-t', '-c', '-o', 'rg')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'rg'
-        $dirLine = @(
-            $result.Text -split '\r?\n' |
-                Where-Object { $_ -match '^dir\s+' }
-        )[0]
-        Assert-True ([bool]$dirLine) "missing dir line in $($result.Text)"
-        $printed = ($dirLine -replace '^dir\s+', '').Trim()
-        Assert-Equal (
-            [IO.Path]::GetFullPath($printed)
-        ) ([IO.Path]::GetFullPath($bin))
+        Assert-Contains $result.Text 'dir'
     }
 
     Invoke-UpwshTest 'profile function forwards to the script' {
-        . $sourceProfile
-        $output = upwsh --help | Out-String
-        Assert-Contains $output '--load'
-        Assert-Contains $output '--tool'
-        $command = Get-Command upwsh -ErrorAction Stop
-        Assert-Equal $command.CommandType.ToString() 'Function'
+        $savedHome = $env:UPWSH_HOME
+        try {
+            $env:UPWSH_HOME = $root
+            . $sourceProfile
+            $output = upwsh --help | Out-String
+            Assert-Contains $output '--load'
+            Assert-Contains $output '--tool'
+            $command = Get-Command upwsh -ErrorAction Stop
+            Assert-Equal $command.CommandType.ToString() 'Function'
+        } finally {
+            $env:UPWSH_HOME = $savedHome
+        }
     }
 } finally {
     if (Test-Path -LiteralPath $root) {

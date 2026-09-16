@@ -14,7 +14,7 @@ function Get-UpwshUsage {
 usage: upwsh [-h | --help]
              [-l | --load | load] [-t | --tool | tool]
              [-c | --check] [-i | --install] [-u | --uninstall] [--deploy]
-             [-d | --directory <dir>] [-p | --profile <path>]
+             [-p | --profile <path>]
              [--current-host] [-o | --only <name>...] [-f | --force]
              [<args>]
 
@@ -24,17 +24,15 @@ hook the current user's pwsh
    load             Hook pwsh so it loads this runtime
    --check          Show hook status without writing files
    --uninstall      Remove the profile hook without deleting files
-   --deploy         Copy the runtime to ~/.config/upwsh and hook that copy
-   --directory      Runtime directory, default ~/.config/upwsh
+   --deploy         Copy the runtime to UPWSH_HOME and hook that copy
    --profile        pwsh profile to edit, default CurrentUserAllHosts
    --current-host   Write $PROFILE.CurrentUserCurrentHost
 
 install a listed CLI tool
    tool             Download or remove listed CLI tools
    --install        Install the named tools; with no names, install the list
-   --uninstall      Remove the named tools from the directory
+   --uninstall      Remove the named tools from UPWSH_HOME\\bin
    --check          Show which listed tools are already installed
-   --directory      Install directory, default I:\ityme\bin
    --only           Same as naming tools after --install
    --force          Overwrite existing executables
 
@@ -182,16 +180,6 @@ function ConvertFrom-UpwshArguments {
                 $result.Force = $true
                 $index++
             }
-            '^(--directory|-d)$' {
-                $next = if ($index + 1 -lt $tokens.Count) { [string]$tokens[$index + 1] } else { '' }
-                if ([string]::IsNullOrWhiteSpace($next) -or $next.StartsWith('-')) {
-                    $result.Help = $true
-                    $result.Error = 'missing directory'
-                    return $result
-                }
-                $result.Directory = $next
-                $index += 2
-            }
             '^(--profile|-p)$' {
                 if ($result.Command -ne 'load') {
                     $result.Help = $true
@@ -241,11 +229,6 @@ function ConvertFrom-UpwshArguments {
         if ($result.Uninstall -and $result.Deploy) {
             $result.Help = $true
             $result.Error = 'use either --uninstall or --deploy'
-            return $result
-        }
-        if ($result.Directory -and -not $result.Deploy) {
-            $result.Help = $true
-            $result.Error = '--directory is only valid with --deploy'
             return $result
         }
     }
@@ -301,9 +284,6 @@ function Invoke-UpwshLoad {
     if ($Parsed.Profile) {
         $installerArgs.ProfilePath = ConvertTo-WindowsStyleDirectory $Parsed.Profile
     }
-    if ($Parsed.Directory) {
-        $installerArgs.Destination = ConvertTo-WindowsStyleDirectory $Parsed.Directory
-    }
     if ($Parsed.Check) {
         $installerArgs.Check = $true
     }
@@ -317,6 +297,10 @@ function Invoke-UpwshLoad {
         $installerArgs.CurrentHost = $true
     }
     & $installer @installerArgs
+    if ($Parsed.Deploy) {
+        . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
+        Add-UpwshBinToUserPath
+    }
 }
 
 function Invoke-UpwshTool {
@@ -324,9 +308,6 @@ function Invoke-UpwshTool {
 
     $installer = Join-Path $PSScriptRoot 'install_cli_tools.ps1'
     $installerArgs = @{}
-    if ($Parsed.Directory) {
-        $installerArgs.Dir = ConvertTo-WindowsStyleDirectory $Parsed.Directory
-    }
     if ($Parsed.Only.Count -gt 0) {
         $installerArgs.Only = @($Parsed.Only)
     }

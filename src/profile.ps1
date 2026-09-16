@@ -10,6 +10,20 @@ function Import-ShellModule {
     Import-Module (Join-Path $PSScriptRoot $Name) -Global -DisableNameChecking
 }
 
+. (Join-Path $PSScriptRoot 'upwsh_home.ps1')
+$script:UpwshBin = Get-UpwshBin
+New-Item -ItemType Directory -Path $script:UpwshBin -Force | Out-Null
+if (
+    -not (
+        @($env:PATH -split ';') |
+            Where-Object {
+                $_ -and (Test-UpwshPathEntry $script:UpwshBin $_)
+            }
+    )
+) {
+    $env:PATH = $script:UpwshBin + ';' + $env:PATH
+}
+
 Import-ShellModule 'path.psm1'
 Import-ShellModule 'unix.psm1'
 Import-ShellModule 'fs.psm1'

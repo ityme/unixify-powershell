@@ -1,7 +1,7 @@
 # 下载 unixify-powershell 并挂钩当前用户的 pwsh。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-#   $env:UPWSH_DIR = "$HOME\.config\upwsh"; irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
-#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1 --directory ~/.config/upwsh
+#   $env:UPWSH_HOME = "$HOME\.config\upwsh"; irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
+#   pwsh -NoLogo -NoProfile -File src/scripts/bootstrap.ps1
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -13,14 +13,12 @@ $script:UserAgent = 'unixify-powershell-installer'
 function Get-InstallUsage {
     @'
 usage: bootstrap.ps1 [-h | --help] [-c | --check]
-                     [-d | --directory <dir>] [-p | --profile <path>]
-                     [--current-host] [--ref <ref>] [--repo <owner/name>]
-                     [--source <dir>]
+                     [-p | --profile <path>] [--current-host]
+                     [--ref <ref>] [--repo <owner/name>] [--source <dir>]
 
 These are common bootstrap.ps1 commands used in various situations:
 
 install this runtime
-   --directory      Runtime directory, default ~/.config/upwsh
    --profile        pwsh profile to edit, default CurrentUserAllHosts
    --current-host   Write $PROFILE.CurrentUserCurrentHost
    --source         Local source tree, skip download
@@ -34,8 +32,8 @@ A network install can run:
 
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/bootstrap.ps1 | iex
 
-Environment: UPWSH_DIR UPWSH_REF UPWSH_REPO UPWSH_SOURCE
-Pipe installs pass options through environment variables.
+Environment: UPWSH_HOME UPWSH_REF UPWSH_REPO UPWSH_SOURCE
+UPWSH_HOME is the project root, default ~/.config/upwsh. Tools go in UPWSH_HOME\\bin.
 '@
 }
 
@@ -45,7 +43,6 @@ function New-InstallParseResult {
         Error       = $null
         Check       = $false
         CurrentHost = $false
-        Directory   = $null
         Profile     = $null
         Ref         = $null
         Repo        = $null
@@ -77,15 +74,6 @@ function ConvertFrom-InstallArguments {
             '^--current-host$' {
                 $result.CurrentHost = $true
                 $index++
-            }
-            '^(--directory|-d)$' {
-                if ($index + 1 -ge $tokens.Count) {
-                    $result.Help = $true
-                    $result.Error = 'missing directory'
-                    return $result
-                }
-                $result.Directory = [string]$tokens[$index + 1]
-                $index += 2
             }
             '^(--profile|-p)$' {
                 if ($index + 1 -ge $tokens.Count) {
@@ -153,7 +141,11 @@ function ConvertTo-WindowsStyleDirectory {
 }
 
 function Get-DefaultDestination {
-    Join-Path $HOME '.config\upwsh'
+    $raw = $env:UPWSH_HOME
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        return [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
+    }
+    [IO.Path]::GetFullPath((ConvertTo-WindowsStyleDirectory $raw))
 }
 
 function Test-RuntimeRoot {
@@ -365,14 +357,7 @@ $source = if ($parsed.Source) {
 } else {
     $null
 }
-$directory = if ($parsed.Directory) {
-    $parsed.Directory
-} elseif ($env:UPWSH_DIR) {
-    $env:UPWSH_DIR
-} else {
-    Get-DefaultDestination
-}
-$directory = [IO.Path]::GetFullPath((ConvertTo-WindowsStyleDirectory $directory))
+$directory = Get-DefaultDestination
 
 $workRoot = $null
 try {
@@ -408,9 +393,18 @@ try {
         $installerArgs.Destination = $directory
     }
 
-    Write-Output ("dir      {0}" -f $directory)
+    Write-Output ("home     {0}" -f $directory)
     Write-Output ("source   {0}" -f $runtimeRoot)
     & $installer @installerArgs
+    if (-not $parsed.Check) {
+        $homeScript = Join-Path $directory 'upwsh_home.ps1'
+        if (-not (Test-Path -LiteralPath $homeScript -PathType Leaf)) {
+            $homeScript = Join-Path $runtimeRoot 'upwsh_home.ps1'
+        }
+        . $homeScript
+        $env:UPWSH_HOME = $directory
+        Add-UpwshBinToUserPath
+    }
     Complete-Install 0 $scriptInvocation
 } catch {
     Write-Output "unixify-powershell: $($_.Exception.Message)"

@@ -62,13 +62,14 @@ function Invoke-Bootstrap {
     $previous = $global:LASTEXITCODE
     $savedRepo = $env:UPWSH_REPO
     $savedRef = $env:UPWSH_REF
-    $savedDir = $env:UPWSH_DIR
+    $savedHome = $env:UPWSH_HOME
     $savedSource = $env:UPWSH_SOURCE
+    $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
     try {
         $env:UPWSH_REPO = $null
         $env:UPWSH_REF = $null
-        $env:UPWSH_DIR = $null
         $env:UPWSH_SOURCE = $null
+        $env:UPWSH_SKIP_PERSIST_PATH = '1'
         $global:LASTEXITCODE = 0
         $output = & $bootstrap @Tokens 2>&1 | Out-String
         [pscustomobject]@{
@@ -79,8 +80,9 @@ function Invoke-Bootstrap {
         $global:LASTEXITCODE = $previous
         $env:UPWSH_REPO = $savedRepo
         $env:UPWSH_REF = $savedRef
-        $env:UPWSH_DIR = $savedDir
+        $env:UPWSH_HOME = $savedHome
         $env:UPWSH_SOURCE = $savedSource
+        $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
     }
 }
 
@@ -90,8 +92,8 @@ try {
     $deployRoot = Join-Path $root 'deploy'
 
     Invoke-InstallTest 'no args from this repo deploys sibling runtime' {
+        $env:UPWSH_HOME = $deployRoot
         $result = Invoke-Bootstrap -Tokens @(
-            '--directory', $deployRoot
             '--profile', $hook
         )
         Assert-Equal $result.Code 0
@@ -112,9 +114,8 @@ try {
         $result = Invoke-Bootstrap -Tokens @('--help')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'unixify-powershell'
-        Assert-Contains $result.Text '--directory'
+        Assert-Contains $result.Text 'UPWSH_HOME'
         Assert-Contains $result.Text '--source'
-        Assert-Contains $result.Text 'UPWSH_DIR'
         Assert-Contains $result.Text 'irm'
     }
 
@@ -122,31 +123,29 @@ try {
         $result = Invoke-Bootstrap -Tokens @('--nope')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'unknown option'
-        Assert-Contains $result.Text '--directory'
+        Assert-Contains $result.Text 'UPWSH_HOME'
     }
 
-    Invoke-InstallTest 'missing directory prints usage' {
-        $result = Invoke-Bootstrap -Tokens @('--directory')
-        Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'missing directory'
-    }
-
-    Invoke-InstallTest 'UPWSH_DIR deploys to the given path' {
+    Invoke-InstallTest 'UPWSH_HOME deploys to the given path' {
         $envDir = Join-Path $root 'from-env'
         $envHook = Join-Path $root 'env-profile.ps1'
         $previous = $global:LASTEXITCODE
-        $saved = $env:UPWSH_DIR
+        $saved = $env:UPWSH_HOME
         try {
-            $env:UPWSH_DIR = $envDir
+            $env:UPWSH_HOME = $envDir
+            $env:UPWSH_SKIP_PERSIST_PATH = '1'
             $global:LASTEXITCODE = 0
             $output = & $bootstrap --profile $envHook 2>&1 | Out-String
             Assert-Equal $global:LASTEXITCODE 0
             Assert-Contains $output 'state    deployed'
             Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'profile.ps1')) (
-                'UPWSH_DIR missed profile.ps1'
+                'UPWSH_HOME missed profile.ps1'
+            )
+            Assert-True (Test-Path -LiteralPath (Join-Path $envDir 'bin')) (
+                'UPWSH_HOME missed bin'
             )
         } finally {
-            $env:UPWSH_DIR = $saved
+            $env:UPWSH_HOME = $saved
             $global:LASTEXITCODE = $previous
         }
     }
@@ -154,9 +153,9 @@ try {
     Invoke-InstallTest 'source deploys from a local checkout' {
         $customHook = Join-Path $root 'source-profile.ps1'
         $customDir = Join-Path $root 'from-source'
+        $env:UPWSH_HOME = $customDir
         $result = Invoke-Bootstrap -Tokens @(
             '--source', $sourceRoot
-            '--directory', $customDir
             '--profile', $customHook
         )
         Assert-Equal $result.Code 0
@@ -173,9 +172,9 @@ try {
     Invoke-InstallTest 'source src directory also works' {
         $customHook = Join-Path $root 'src-profile.ps1'
         $customDir = Join-Path $root 'from-src'
+        $env:UPWSH_HOME = $customDir
         $result = Invoke-Bootstrap -Tokens @(
             '--source', $runtimeRoot
-            '--directory', $customDir
             '--profile', $customHook
         )
         Assert-Equal $result.Code 0
@@ -187,10 +186,10 @@ try {
     Invoke-InstallTest 'check does not copy runtime files' {
         $checkDir = Join-Path $root 'check-dir'
         $checkHook = Join-Path $root 'check-profile.ps1'
+        $env:UPWSH_HOME = $checkDir
         $result = Invoke-Bootstrap -Tokens @(
             '--source', $sourceRoot
             '--check'
-            '-d', $checkDir
             '--profile', $checkHook
         )
         Assert-Equal $result.Code 0
@@ -203,7 +202,6 @@ try {
         $missing = Join-Path $root 'no-such-src'
         $result = Invoke-Bootstrap -Tokens @(
             '--source', $missing
-            '--directory', (Join-Path $root 'unused')
             '--profile', (Join-Path $root 'unused.ps1')
         )
         Assert-Equal $result.Code 1

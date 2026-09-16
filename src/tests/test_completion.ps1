@@ -7,6 +7,7 @@ $root = Join-Path ([IO.Path]::GetTempPath()) (
 $work = Join-Path $root 'work'
 $fakeHome = Join-Path $root 'home'
 $originalHome = $HOME
+$originalUpwshHome = $env:UPWSH_HOME
 $locationPushed = $false
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
@@ -169,6 +170,7 @@ try {
     New-FixtureFile '.viminfo' -Hidden -BaseDirectory $fakeHome | Out-Null
     New-FixtureDirectory '.vim' -Hidden -BaseDirectory $fakeHome | Out-Null
 
+    $env:UPWSH_HOME = Join-Path $root 'upwsh-home'
     . (Resolve-Path $profilePath)
     Set-Variable -Name HOME -Value $fakeHome -Scope Global -Force
 
@@ -185,19 +187,13 @@ try {
         Assert-True ($output -match 'tools') 'tools help missing command name'
         Assert-True ($output -match '--check') 'tools help missing --check'
         Assert-True ($output -match '-c') 'tools help missing -c'
-        Assert-True ($output -match '--directory') 'tools help missing --directory'
         Assert-True ($output -cnotmatch '-Check') 'tools help still uses -Check'
-        Assert-True ($output -match 'ityme') 'tools help missing default directory'
+        Assert-True ($output -cnotmatch '--directory') 'tools help still lists --directory'
     }
     Invoke-CompletionTest 'tools unknown option prints usage' {
         $output = tools --nope | Out-String
         Assert-True ($output -match 'unknown option') 'bad option did not report an error'
         Assert-True ($output -match '--check') 'bad option did not show usage'
-    }
-    Invoke-CompletionTest 'tools missing directory prints usage' {
-        $output = tools -d | Out-String
-        Assert-True ($output -match 'missing directory') 'missing -d value was accepted'
-        Assert-True ($output -match '--directory') 'missing -d value did not show usage'
     }
     Invoke-CompletionTest 'vim is an alias of nvim' {
         $command = Get-Command vim -ErrorAction Stop
@@ -822,6 +818,7 @@ try {
         Pop-Location -ErrorAction SilentlyContinue
     }
     Set-Variable -Name HOME -Value $originalHome -Scope Global -Force
+    $env:UPWSH_HOME = $originalUpwshHome
     if (Test-Path -LiteralPath $root) {
         Remove-Item -LiteralPath $root -Recurse -Force
     }

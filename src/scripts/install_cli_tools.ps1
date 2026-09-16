@@ -1,11 +1,10 @@
-# 由 tools 命令调用。默认目录 I:\ityme\bin。
+# 由 tools / upwsh tool 调用。工具装到 $UPWSH_HOME\bin。
 #   tools --help
 #   tools -c
-#   tools -d /d/bin -o eza rg -f
+#   tools -o eza rg -f
 
 [CmdletBinding()]
 param(
-    [string]$Dir = 'I:\ityme\bin',
     [string[]]$Only = @(),
     [switch]$Check,
     [switch]$Force,
@@ -13,6 +12,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
+$Dir = Get-UpwshBin
+New-Item -ItemType Directory -Path $Dir -Force | Out-Null
 
 $script:Tools = @(
     @{ Name = 'bat'; Repo = 'sharkdp/bat'; Exe = 'bat.exe' }
