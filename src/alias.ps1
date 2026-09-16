@@ -8,11 +8,6 @@ $script:CommandMap = [ordered]@{
     lt   = 'eza --tree'
     tree = 'eza --tree'
     vim  = 'nvim'
-    w    = 'cd /i/workspace'
-    t    = 'cd /i/tmp'
-    i    = 'cd /i/ispace'
-    d    = 'cd ~/Desktop'
-    gs   = 'git status'
 }
 
 function Install-CommandMap {

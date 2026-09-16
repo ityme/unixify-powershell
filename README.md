@@ -44,6 +44,8 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 | `upwsh tool install eza rg` | 只装点名的 CLI |
 | `upwsh tool uninstall eza` | 删掉点名的 CLI |
 
+个人别名放 `$UPWSH_HOME\custom\*.ps1`（默认空）。`update.ps1` 会保留这个目录。
+
 二级选项见 `upwsh --help`。
 
 ## 从仓库装
@@ -80,6 +82,12 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
 
 ```powershell
 pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/uninstall.ps1
+```
+
+更新（先 `uninstall --keep-custom`，再 `install`）：
+
+```powershell
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/update.ps1 | iex
 ```
 
 ## 开发

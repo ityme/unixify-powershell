@@ -39,11 +39,6 @@ Import-ShellModule 'term.psm1'
 # AllScope 别名必须在 dot-source 的入口里删除。
 Remove-Alias -Name @(
     'cd'
-    'w'
-    't'
-    'i'
-    'd'
-    'gs'
     'grep'
     'ps'
     'kill'
@@ -54,6 +49,15 @@ Remove-Alias -Name @(
 ) -Scope Global -Force -ErrorAction Ignore
 if (Get-Command ls -CommandType Function -ErrorAction SilentlyContinue) {
     Remove-Alias -Name ls, tree -Scope Global -Force -ErrorAction Ignore
+}
+
+$script:CustomRoot = Join-Path $PSScriptRoot 'custom'
+if (Test-Path -LiteralPath $script:CustomRoot -PathType Container) {
+    Get-ChildItem -LiteralPath $script:CustomRoot -Filter '*.ps1' -File |
+        Sort-Object Name |
+        ForEach-Object {
+            . $_.FullName
+        }
 }
 
 Import-ShellModule 'hook.psm1'

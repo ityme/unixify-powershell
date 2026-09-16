@@ -170,6 +170,9 @@ try {
         Assert-True (
             -not (Test-Path -LiteralPath (Join-Path $deployRoot 'tests'))
         ) 'deploy copied tests'
+        Assert-True (
+            Test-Path -LiteralPath (Join-Path $deployRoot 'custom') -PathType Container
+        ) 'deploy missed custom'
         Assert-Contains $text $deployedProfile
         Assert-True ($text -notlike "*$sourceProfile*") "deploy still hooked the source tree:`n$text"
     }

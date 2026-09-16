@@ -12,12 +12,14 @@ function Get-UninstallUsage {
     @'
 usage: uninstall.ps1 [-h | --help] [-c | --check]
                      [-p | --profile <path>] [--current-host]
+                     [--keep-custom]
 
 These are common uninstall.ps1 commands used in various situations:
 
 remove this runtime
    --profile        pwsh profile to edit, default CurrentUserAllHosts
    --current-host   Write $PROFILE.CurrentUserCurrentHost
+   --keep-custom    Keep UPWSH_HOME\\custom when deleting the install tree
 
 inspect without writing
    --check          Show what would be removed
@@ -28,6 +30,7 @@ A network uninstall can run:
 
 Environment: UPWSH_HOME
 Unload first, then delete the install tree. Inverse of install.ps1.
+--keep-custom leaves UPWSH_HOME\\custom in place.
 '@
 }
 
@@ -37,6 +40,7 @@ function New-UninstallParseResult {
         Error       = $null
         Check       = $false
         CurrentHost = $false
+        KeepCustom  = $false
         Profile     = $null
     }
 }
@@ -64,6 +68,10 @@ function ConvertFrom-UninstallArguments {
             }
             '^--current-host$' {
                 $result.CurrentHost = $true
+                $index++
+            }
+            '^--keep-custom$' {
+                $result.KeepCustom = $true
                 $index++
             }
             '^(--profile|-p)$' {
@@ -253,6 +261,9 @@ if ($parsed.Check) {
         $treeState = 'kept'
     }
     Write-Output ("tree     {0}" -f $treeState)
+    if ($parsed.KeepCustom) {
+        Write-Output 'custom   keep'
+    }
     Complete-Uninstall 0 $scriptInvocation
     return
 }
@@ -281,8 +292,21 @@ if (Test-ProfileHook $hookPath) {
 if ($keepTree) {
     Write-Output ("tree     kept {0}" -f $directory)
 } elseif (Test-Path -LiteralPath $directory) {
+    $custom = Join-Path $directory 'custom'
+    $savedCustom = $null
+    if ($parsed.KeepCustom -and (Test-Path -LiteralPath $custom)) {
+        $savedCustom = Join-Path ([IO.Path]::GetTempPath()) (
+            'upwsh-custom-' + [Guid]::NewGuid().ToString('N')
+        )
+        Move-Item -LiteralPath $custom -Destination $savedCustom
+    }
     Remove-Item -LiteralPath $directory -Recurse -Force
     Write-Output ("tree     removed {0}" -f $directory)
+    if ($savedCustom) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        Move-Item -LiteralPath $savedCustom -Destination $custom
+        Write-Output ("custom   kept {0}" -f $custom)
+    }
 }
 
 Complete-Uninstall 0 $scriptInvocation

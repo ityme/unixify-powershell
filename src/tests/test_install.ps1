@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $installer = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\install.ps1'))
 $uninstaller = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\uninstall.ps1'))
+$updater = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\scripts\update.ps1'))
 $sourceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $runtimeRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $root = Join-Path ([IO.Path]::GetTempPath()) (
@@ -137,6 +138,7 @@ try {
             Assert-Equal $global:LASTEXITCODE 0
             Assert-Contains $output 'uninstall.ps1'
             Assert-Contains $output 'Unload first'
+            Assert-Contains $output '--keep-custom'
         } finally {
             $global:LASTEXITCODE = $previous
         }
@@ -294,6 +296,81 @@ try {
             Assert-Contains $output 'tree     present'
             Assert-True (Test-Path -LiteralPath $checkHome) 'check deleted the install tree'
             Assert-True (Test-Path -LiteralPath $checkHook) 'check deleted the profile'
+        } finally {
+            $env:UPWSH_HOME = $savedHome
+            $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+            $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+            $env:PATH = $savedPath
+            $global:LASTEXITCODE = $previous
+        }
+    }
+
+    Invoke-InstallTest 'uninstall --keep-custom leaves custom files' {
+        $keepHome = Join-Path $root 'keep-custom'
+        $keepHook = Join-Path $root 'keep-custom-profile.ps1'
+        $env:UPWSH_HOME = $keepHome
+        Invoke-Bootstrap -Tokens @('--profile', $keepHook) | Out-Null
+        $customFile = Join-Path $keepHome 'custom\local.ps1'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $customFile) -Force | Out-Null
+        [IO.File]::WriteAllText($customFile, "Set-Alias -Name zz -Value Get-Date -Scope Global -Force`r`n")
+        $deployedUninstall = Join-Path $keepHome 'scripts\uninstall.ps1'
+        $previous = $global:LASTEXITCODE
+        $savedHome = $env:UPWSH_HOME
+        $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+        $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+        $savedPath = $env:PATH
+        try {
+            $env:UPWSH_HOME = $keepHome
+            $env:UPWSH_SKIP_PERSIST_PATH = '1'
+            $env:UPWSH_SKIP_SESSION_LOAD = '1'
+            $global:LASTEXITCODE = 0
+            $output = & $deployedUninstall --keep-custom --profile $keepHook 2>&1 | Out-String
+            Assert-Equal $global:LASTEXITCODE 0
+            Assert-Contains $output 'custom   kept'
+            Assert-True (Test-Path -LiteralPath $customFile -PathType Leaf) (
+                'keep-custom deleted local.ps1'
+            )
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $keepHome 'profile.ps1'))) (
+                'keep-custom left the runtime files'
+            )
+        } finally {
+            $env:UPWSH_HOME = $savedHome
+            $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
+            $env:UPWSH_SKIP_SESSION_LOAD = $savedSkipSession
+            $env:PATH = $savedPath
+            $global:LASTEXITCODE = $previous
+        }
+    }
+
+    Invoke-InstallTest 'update keeps custom then reinstalls' {
+        $updateHome = Join-Path $root 'update-home'
+        $updateHook = Join-Path $root 'update-profile.ps1'
+        $env:UPWSH_HOME = $updateHome
+        Invoke-Bootstrap -Tokens @('--profile', $updateHook) | Out-Null
+        $customFile = Join-Path $updateHome 'custom\local.ps1'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $customFile) -Force | Out-Null
+        [IO.File]::WriteAllText($customFile, "# keep-me`r`n")
+        $previous = $global:LASTEXITCODE
+        $savedHome = $env:UPWSH_HOME
+        $savedSkip = $env:UPWSH_SKIP_PERSIST_PATH
+        $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
+        $savedPath = $env:PATH
+        try {
+            $env:UPWSH_HOME = $updateHome
+            $env:UPWSH_SKIP_PERSIST_PATH = '1'
+            $env:UPWSH_SKIP_SESSION_LOAD = '1'
+            $global:LASTEXITCODE = 0
+            $output = & $updater --source $sourceRoot --profile $updateHook 2>&1 | Out-String
+            Assert-Equal $global:LASTEXITCODE 0
+            Assert-Contains $output 'custom   kept'
+            Assert-Contains $output 'state    deployed'
+            Assert-True (Test-Path -LiteralPath (Join-Path $updateHome 'profile.ps1') -PathType Leaf) (
+                'update missed profile.ps1'
+            )
+            Assert-True (Test-Path -LiteralPath $customFile -PathType Leaf) (
+                'update deleted custom/local.ps1'
+            )
+            Assert-Contains ([IO.File]::ReadAllText($customFile)) 'keep-me'
         } finally {
             $env:UPWSH_HOME = $savedHome
             $env:UPWSH_SKIP_PERSIST_PATH = $savedSkip
