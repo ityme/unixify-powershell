@@ -93,6 +93,14 @@ function Get-ReleaseAsset {
     return $preferred[0]
 }
 
+function Test-CliToolCommand {
+    param([string]$Name)
+
+    $null -ne (
+        Get-Command -Name $Name -CommandType Application -ErrorAction SilentlyContinue
+    )
+}
+
 function Uninstall-CliTool {
     param($Tool, [string]$Destination)
 
@@ -175,7 +183,8 @@ if ($Uninstall -and $names.Count -eq 0) {
 
 if ($List) {
     foreach ($tool in $selected) {
-        Write-Output $tool.Name
+        $state = if (Test-CliToolCommand $tool.Name) { 'ok' } else { 'missing' }
+        Write-Output ("{0,-10} {1}" -f $tool.Name, $state)
     }
     return
 }

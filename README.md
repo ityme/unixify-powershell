@@ -39,7 +39,7 @@ pwsh -NoLogo -NoProfile -File $HOME/.config/upwsh/scripts/upwsh.ps1 --help
 | --- | --- |
 | `upwsh load` | 挂钩当前这份运行时 |
 | `upwsh unload` | 去掉挂钩，不删文件 |
-| `upwsh tool list` | 列出支持的 CLI |
+| `upwsh tool list` | 列出支持的 CLI，并看 shell 里有没有 |
 | `upwsh tool install` | 安装常用 CLI |
 | `upwsh tool install eza rg` | 只装点名的 CLI |
 | `upwsh tool uninstall eza` | 删掉点名的 CLI |

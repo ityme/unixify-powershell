@@ -43,7 +43,7 @@ These are common tools commands used in various situations:
 install listed CLI tools
    install          Download listed CLI tools; names limit the list
    uninstall        Remove the named tools from UPWSH_HOME\\bin
-   list             List supported tools
+   list             List supported tools and whether the shell has them
 
 'tools --help' prints this overview. uninstall requires names.
 

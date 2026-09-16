@@ -210,17 +210,47 @@ try {
     }
 
     Invoke-UpwshTest 'tool list names limit the list' {
-        $result = Invoke-Upwsh -Tokens @('tool', 'list', 'eza')
-        Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'eza'
-        Assert-True ($result.Text -notmatch 'bat') 'tool list leaked extra tools'
-        Assert-True ($result.Text -notmatch 'dir') 'tool list printed install dir'
+        $savedPath = $env:PATH
+        try {
+            $env:PATH = $bin
+            $result = Invoke-Upwsh -Tokens @('tool', 'list', 'eza')
+            Assert-Equal $result.Code 0
+            Assert-Contains $result.Text 'eza'
+            Assert-Contains $result.Text 'missing'
+            Assert-True ($result.Text -notmatch 'bat') 'tool list leaked extra tools'
+            Assert-True ($result.Text -notmatch 'dir') 'tool list printed install dir'
+        } finally {
+            $env:PATH = $savedPath
+        }
+    }
+
+    Invoke-UpwshTest 'tool list reports a command on PATH' {
+        $exe = Join-Path $bin 'eza.exe'
+        [IO.File]::WriteAllText($exe, 'stub')
+        $savedPath = $env:PATH
+        try {
+            $env:PATH = $bin
+            $result = Invoke-Upwsh -Tokens @('tool', 'list', 'eza')
+            Assert-Equal $result.Code 0
+            Assert-Contains $result.Text 'eza'
+            Assert-Contains $result.Text 'ok'
+            Assert-True ($result.Text -notmatch 'missing') 'tool list missed an on-PATH command'
+        } finally {
+            $env:PATH = $savedPath
+        }
     }
 
     Invoke-UpwshTest 'tool short flags list the upwsh tools' {
-        $result = Invoke-Upwsh -Tokens @('-t', 'list', 'rg')
-        Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'rg'
+        $savedPath = $env:PATH
+        try {
+            $env:PATH = $bin
+            $result = Invoke-Upwsh -Tokens @('-t', 'list', 'rg')
+            Assert-Equal $result.Code 0
+            Assert-Contains $result.Text 'rg'
+            Assert-Contains $result.Text 'missing'
+        } finally {
+            $env:PATH = $savedPath
+        }
     }
 
     Invoke-UpwshTest 'profile function forwards to the script' {

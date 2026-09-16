@@ -22,7 +22,7 @@ hook the current user's pwsh
 install a listed CLI tool
    tool install     Download listed CLI tools; names limit the list
    tool uninstall   Remove the named tools from UPWSH_HOME\\bin
-   tool list        List supported tools
+   tool list        List supported tools and whether the shell has them
 
 'upwsh --help' prints this overview.
 
