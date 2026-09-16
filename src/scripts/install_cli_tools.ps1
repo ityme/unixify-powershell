@@ -101,6 +101,20 @@ function Test-CliToolCommand {
     )
 }
 
+function Write-CliToolListLine {
+    param([string]$Name, [bool]$Installed)
+
+    $reset = $PSStyle.Reset
+    if ($Installed) {
+        $mark = "$($PSStyle.Foreground.Green)+$reset"
+        $state = "$($PSStyle.Foreground.Green)installed$reset"
+    } else {
+        $mark = "$($PSStyle.Foreground.Yellow)-$reset"
+        $state = "$($PSStyle.Foreground.Yellow)uninstalled$reset"
+    }
+    Write-Output ("{0} {1,-10} {2}" -f $mark, $Name, $state)
+}
+
 function Uninstall-CliTool {
     param($Tool, [string]$Destination)
 
@@ -183,8 +197,9 @@ if ($Uninstall -and $names.Count -eq 0) {
 
 if ($List) {
     foreach ($tool in $selected) {
-        $state = if (Test-CliToolCommand $tool.Name) { 'ok' } else { 'missing' }
-        Write-Output ("{0,-10} {1}" -f $tool.Name, $state)
+        Write-CliToolListLine `
+            -Name $tool.Name `
+            -Installed:(Test-CliToolCommand $tool.Name)
     }
     return
 }

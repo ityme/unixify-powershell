@@ -216,7 +216,7 @@ try {
             $result = Invoke-Upwsh -Tokens @('tool', 'list', 'eza')
             Assert-Equal $result.Code 0
             Assert-Contains $result.Text 'eza'
-            Assert-Contains $result.Text 'missing'
+            Assert-Contains $result.Text 'uninstalled'
             Assert-True ($result.Text -notmatch 'bat') 'tool list leaked extra tools'
             Assert-True ($result.Text -notmatch 'dir') 'tool list printed install dir'
         } finally {
@@ -233,8 +233,8 @@ try {
             $result = Invoke-Upwsh -Tokens @('tool', 'list', 'eza')
             Assert-Equal $result.Code 0
             Assert-Contains $result.Text 'eza'
-            Assert-Contains $result.Text 'ok'
-            Assert-True ($result.Text -notmatch 'missing') 'tool list missed an on-PATH command'
+            Assert-Contains $result.Text 'installed'
+            Assert-True ($result.Text -notmatch 'uninstalled') 'tool list missed an on-PATH command'
         } finally {
             $env:PATH = $savedPath
         }
@@ -247,7 +247,7 @@ try {
             $result = Invoke-Upwsh -Tokens @('-t', 'list', 'rg')
             Assert-Equal $result.Code 0
             Assert-Contains $result.Text 'rg'
-            Assert-Contains $result.Text 'missing'
+            Assert-Contains $result.Text 'uninstalled'
         } finally {
             $env:PATH = $savedPath
         }
