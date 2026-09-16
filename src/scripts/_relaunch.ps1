@@ -1,4 +1,4 @@
-# Shared helper: relaunch install/uninstall/update outside the install tree.
+# 从安装树用 pwsh -File 跑 uninstall / update 时，拷到临时目录另起进程再删。
 
 function Get-UpwshHostFile {
     $cli = [Environment]::GetCommandLineArgs()

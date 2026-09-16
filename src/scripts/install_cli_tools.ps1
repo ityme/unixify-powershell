@@ -1,4 +1,4 @@
-# 由 tools / upwsh tool 调用。工具装到 $UPWSH_HOME\tool\bin。
+# 由 tools / upwsh tool 调用。可执行文件装到 $UPWSH_HOME\tool\bin。
 #   tools --help
 #   tools list
 #   tools install eza rg

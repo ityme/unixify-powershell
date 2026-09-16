@@ -1,4 +1,4 @@
-# 更新 unixify-powershell：先 uninstall --keep-custom，再 install。
+# 更新 unixify-powershell：uninstall --keep-custom，再 install。custom 留下。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/update.ps1 | iex
 #   pwsh -NoLogo -NoProfile -File src/scripts/update.ps1
 

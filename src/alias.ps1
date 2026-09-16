@@ -1,5 +1,4 @@
-# 命令映射表。左边是输入，右边是实际要跑的命令。
-# tools 在 tools.psm1：无参数或 --help 显示安装用法。
+# 库存命令映射。个人别名放 custom\*.ps1。
 
 $script:CommandMap = [ordered]@{
     ls   = 'eza --icons=auto --group-directories-first'

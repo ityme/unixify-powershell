@@ -1,4 +1,4 @@
-# 卸掉 unixify-powershell：先 unload，再删安装目录。
+# 卸掉 unixify-powershell：unload，再删 UPWSH_HOME、Path 和安装目录。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/uninstall.ps1 | iex
 #   pwsh -NoLogo -NoProfile -File src/scripts/uninstall.ps1
 

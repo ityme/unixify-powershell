@@ -1,5 +1,5 @@
 # UPWSH_HOME：项目根。未设置时为 ~/.config/upwsh。
-# 命令垫片在 $UPWSH_HOME\bin\upwsh.cmd，CLI 在 $UPWSH_HOME\tool\bin。
+# upwsh 命令：$UPWSH_HOME\bin\upwsh.cmd。CLI：$UPWSH_HOME\tool\bin。
 
 function ConvertTo-UpwshWindowsPath {
     param([string]$Path)

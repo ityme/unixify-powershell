@@ -1,4 +1,4 @@
-# 下载 unixify-powershell 并挂钩当前用户的 pwsh。
+# 把运行时拷到 UPWSH_HOME（默认 ~/.config/upwsh），再 upwsh load。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 #   $env:UPWSH_HOME = "$HOME\.config\upwsh"; irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 #   pwsh -NoLogo -NoProfile -File src/scripts/install.ps1

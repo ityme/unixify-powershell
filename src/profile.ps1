@@ -1,4 +1,4 @@
-# PowerShell 7 入口：加载顺序和全局 Remove-Alias。
+# PowerShell 7 入口：模块、库存别名、custom\*.ps1、再挂钩终端。
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     return

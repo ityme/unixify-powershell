@@ -1,4 +1,4 @@
-# upwsh：统一入口。
+# upwsh：统一入口。load / unload 挂钩 profile；install / uninstall / update 管安装树。
 #   upwsh --help
 #   upwsh load
 #   upwsh unload
@@ -24,7 +24,7 @@ hook the current user's pwsh
 
 install this runtime
    install          Copy the runtime to UPWSH_HOME and load it
-   uninstall        Unload, then delete the install tree
+   uninstall        Unload, drop UPWSH_HOME and Path, then delete the install tree
    update           Uninstall --keep-custom, then install
 
 install a listed CLI tool
