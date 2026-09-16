@@ -13,7 +13,7 @@ function Get-UpwshUsage {
     @'
 usage: upwsh [-h | --help]
              [-l | --load | load] [-t | --tool | tool]
-             [-c | --check] [-i | --install] [-u | --uninstall] [--deploy]
+             [-c | --check] [-i | --install] [-u | --uninstall] [--unload] [--deploy]
              [-p | --profile <path>]
              [--current-host] [-o | --only <name>...] [-f | --force]
              [<args>]
@@ -23,7 +23,7 @@ These are common upwsh commands used in various situations:
 hook the current user's pwsh
    load             Hook pwsh so it loads this runtime
    --check          Show hook status without writing files
-   --uninstall      Remove the profile hook without deleting files
+   --unload         Remove the profile hook without deleting files
    --deploy         Copy the runtime to UPWSH_HOME and hook that copy
    --profile        pwsh profile to edit, default CurrentUserAllHosts
    --current-host   Write $PROFILE.CurrentUserCurrentHost
@@ -57,6 +57,7 @@ function New-UpwshParseResult {
         Command     = $Command
         Check       = $false
         Uninstall   = $false
+        Unload      = $false
         Install     = $false
         Deploy      = $false
         CurrentHost = $false
@@ -136,22 +137,29 @@ function ConvertFrom-UpwshArguments {
                 }
             }
             '^(--uninstall|-u)$' {
-                if ($result.Command -notin @('load', 'tool')) {
+                if ($result.Command -ne 'tool') {
                     $result.Help = $true
-                    $result.Error = '--uninstall is only valid with --load or --tool'
+                    $result.Error = '--uninstall is only valid with --tool'
                     return $result
                 }
                 $result.Uninstall = $true
                 $index++
-                if ($result.Command -eq 'tool') {
-                    while (
-                        $index -lt $tokens.Count -and
-                        -not ([string]$tokens[$index]).StartsWith('-')
-                    ) {
-                        $result.Only = @($result.Only + [string]$tokens[$index])
-                        $index++
-                    }
+                while (
+                    $index -lt $tokens.Count -and
+                    -not ([string]$tokens[$index]).StartsWith('-')
+                ) {
+                    $result.Only = @($result.Only + [string]$tokens[$index])
+                    $index++
                 }
+            }
+            '^--unload$' {
+                if ($result.Command -ne 'load') {
+                    $result.Help = $true
+                    $result.Error = '--unload is only valid with --load'
+                    return $result
+                }
+                $result.Unload = $true
+                $index++
             }
             '^--deploy$' {
                 if ($result.Command -ne 'load') {
@@ -226,9 +234,9 @@ function ConvertFrom-UpwshArguments {
     }
 
     if ($result.Command -eq 'load') {
-        if ($result.Uninstall -and $result.Deploy) {
+        if ($result.Unload -and $result.Deploy) {
             $result.Help = $true
-            $result.Error = 'use either --uninstall or --deploy'
+            $result.Error = 'use either --unload or --deploy'
             return $result
         }
     }
@@ -287,7 +295,7 @@ function Invoke-UpwshLoad {
     if ($Parsed.Check) {
         $installerArgs.Check = $true
     }
-    if ($Parsed.Uninstall) {
+    if ($Parsed.Unload) {
         $installerArgs.Uninstall = $true
     }
     if ($Parsed.Deploy) {

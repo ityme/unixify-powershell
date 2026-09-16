@@ -95,6 +95,7 @@ try {
         Assert-Contains $result.Text '--install'
         Assert-Contains $result.Text '-i'
         Assert-Contains $result.Text '--uninstall'
+        Assert-Contains $result.Text '--unload'
         Assert-Contains $result.Text '--deploy'
         Assert-Contains $result.Text '--current-host'
         Assert-Contains $result.Text '--profile'
@@ -149,12 +150,18 @@ try {
         Assert-Contains $result.Text 'state    installed'
     }
 
-    Invoke-UpwshTest 'load uninstall removes the hook' {
-        $result = Invoke-Upwsh -Tokens @('--load', '--uninstall', '--profile', $hook)
+    Invoke-UpwshTest 'load -u is not uninstall' {
+        $result = Invoke-Upwsh -Tokens @('--load', '-u', '--profile', $hook)
+        Assert-Equal $result.Code 2
+        Assert-Contains $result.Text '--uninstall is only valid with --tool'
+    }
+
+    Invoke-UpwshTest 'load unload removes the hook' {
+        $result = Invoke-Upwsh -Tokens @('--load', '--unload', '--profile', $hook)
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    removed'
         $text = [IO.File]::ReadAllText($hook)
-        Assert-True ($text -notlike '*unixify-powershell*') "load --uninstall left the marker:`n$text"
+        Assert-True ($text -notlike '*unixify-powershell*') "load --unload left the marker:`n$text"
     }
 
     Invoke-UpwshTest 'tool options are rejected on load' {
