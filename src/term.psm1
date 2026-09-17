@@ -33,7 +33,11 @@ $script:TermIdentity = $null
 $script:TermIdentitySequences = $null
 $script:TermCommandStarted = $null
 $script:TermLastLocation = $null
+$script:TermLastVenv = $null
+$script:TermLastHome = $null
 $script:TermLastLocationSequences = $null
+$script:TermIdlePrompt = $null
+$script:TermIdleReport = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 $script:TermUtf8 = [Text.Encoding]::UTF8
 $script:TermBuilder = [Text.StringBuilder]::new(2048)
 $script:TermCacheBuilder = [Text.StringBuilder]::new(1024)
@@ -282,7 +286,9 @@ function Get-TermLocationSequences {
 
     if (
         $script:TermLastLocationSequences -and
-        $script:TermLastLocation -ceq $Location
+        $script:TermLastLocation -ceq $Location -and
+        $script:TermLastVenv -ceq $env:VIRTUAL_ENV -and
+        $script:TermLastHome -ceq $HOME
     ) {
         return $script:TermLastLocationSequences
     }
@@ -317,6 +323,8 @@ function Get-TermLocationSequences {
         [void]$builder.Append('\')
     }
     $script:TermLastLocation = $Location
+    $script:TermLastVenv = $env:VIRTUAL_ENV
+    $script:TermLastHome = $HOME
     $script:TermLastLocationSequences = $builder.ToString()
     return $script:TermLastLocationSequences
 }
@@ -403,6 +411,23 @@ function Sync-TermPrompt {
         $script:TermCommandStarted = $null
     }
 
+    $location = Get-TermWorkingDirectory
+    $sameReport = $script:TermIdleReport.SetEquals($script:TermReport)
+    if (-not $sameReport) {
+        $script:TermIdentity = $null
+        $script:TermIdentitySequences = $null
+        $script:TermLastLocationSequences = $null
+        $script:TermIdlePrompt = $null
+    }
+    if ($elapsed -eq '' -and $null -ne $script:TermIdlePrompt -and $sameReport -and
+        $location -ceq $script:TermIdleLocation -and $HOME -ceq $script:TermIdleHome -and
+        $env:VIRTUAL_ENV -ceq $script:TermIdleVenv -and $Succeeded -eq $script:TermIdleSucceeded -and
+        [string]$ExitCode -ceq $script:TermIdleExitCode -and
+        $script:TermIdentitySequences -and $script:TermLastLocationSequences) {
+        try { [Console]::Write($script:TermIdlePrompt) } catch { }
+        return
+    }
+
     $needResult = Test-TermReportAny @('OK', 'EXIT', 'OSC133')
     $ok = '1'
     $exit = '0'
@@ -429,7 +454,7 @@ function Sync-TermPrompt {
         [void]$builder.Append([char]0x07)
     }
     Add-TermText $builder (Get-TermIdentitySequences)
-    Add-TermText $builder (Get-TermLocationSequences (Get-TermWorkingDirectory))
+    Add-TermText $builder (Get-TermLocationSequences $location)
     Add-TermUserVariable $builder 'COMMAND' ''
     Add-TermUserVariable $builder 'CMD' ''
     Add-TermUserVariable $builder 'BUSY' '0'
@@ -446,6 +471,16 @@ function Sync-TermPrompt {
         [void]$builder.Append([char]0x1b)
         [void]$builder.Append(']133;B')
         [void]$builder.Append([char]0x07)
+    }
+    if ($elapsed -eq '') {
+        $script:TermIdlePrompt = $builder.ToString()
+        $script:TermIdleLocation = $location
+        $script:TermIdleHome = $HOME
+        $script:TermIdleVenv = $env:VIRTUAL_ENV
+        $script:TermIdleSucceeded = $Succeeded
+        $script:TermIdleExitCode = [string]$ExitCode
+        $script:TermIdleReport.Clear()
+        $script:TermIdleReport.UnionWith($script:TermReport)
     }
     Write-TermBuilder $builder
 }

@@ -126,6 +126,14 @@ python src/tests/bench_console.py --enforce
 
 The first measures the prompt path; the second sends Enter through Windows ConPTY. Startup and first-prompt times are reported separately. These timings exclude the terminal application's screen painting.
 
+Measure terminal reports and file completion separately:
+
+```powershell
+pwsh -NoLogo -NoProfile -File src/tests/bench_interaction.ps1 -Files 1000 -Samples 10
+```
+
+Explicit path completion queries the filesystem first; candidate display reuses that keypress's results. Each subsequent Tab queries again to pick up filesystem changes. Idle terminal reports reuse encoded text until the directory, virtual environment, result, or enabled fields change.
+
 ## Development
 
 Path format conversion uses `winpath` and `unixpath` from `src/path_convert.ps1`. Interactive rewriting, completion, command output, and setup share these interfaces. Standalone installers embed generated copies so `irm | iex` also works before installation.
@@ -143,6 +151,7 @@ pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1 -Check
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_path_commands.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_interaction.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install.ps1

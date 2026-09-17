@@ -65,6 +65,7 @@ function New-HookState {
         ReplacementLength  = 0
         Matches            = @()
         LiteralPaths       = $false
+        MatchesNormalized  = $false
     }
 }
 
@@ -79,17 +80,36 @@ function Complete-HookLine {
     }
 
     $state = New-HookState -Line $Line -Cursor $Cursor
-    $state = Invoke-PowerShellCompletionHook -State $state
     $tokens = $null
     $errors = $null
     $ast = [Management.Automation.Language.Parser]::ParseInput($Line, [ref]$tokens, [ref]$errors)
     $commands = $ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] }, $true)
+    $pathElement = $null
     foreach ($command in $commands) {
         if ($command.Extent.StartOffset -le $Cursor -and $command.Extent.EndOffset -ge $Cursor) {
             $state.LiteralPaths = $command.GetCommandName() -in @('winpath', 'unixpath')
+            $pathElement = $null
+            foreach ($element in $command.CommandElements | Select-Object -Skip 1) {
+                if ($element -is [Management.Automation.Language.StringConstantExpressionAst] -and
+                    $element.Extent.StartOffset -lt $Cursor -and $element.Extent.EndOffset -ge $Cursor -and
+                    $element.Value -match '^(?:\.{1,2}[/\\]|~[/\\]|/[A-Za-z](?:/|$)|/?[A-Za-z]:[/\\])') {
+                    $pathElement = $element
+                }
+            }
         }
     }
+    if ($pathElement) {
+        $state.ReplacementIndex = $pathElement.Extent.StartOffset
+        $state.ReplacementLength = $pathElement.Extent.EndOffset - $pathElement.Extent.StartOffset
+        $state = Invoke-PathCompletionHook -State $state
+        if ($state.Matches.Count -gt 0) {
+            $state.MatchesNormalized = $true
+            return $state
+        }
+    }
+    $state = Invoke-PowerShellCompletionHook -State $state
     $state = Invoke-PathCompletionHook -State $state
+    $state.MatchesNormalized = $true
     return $state
 }
 
@@ -121,7 +141,11 @@ function global:TabExpansion2 {
         $cursorColumn = $positionOfCursor.Offset
     }
 
-    $state = Complete-HookLine -Line $inputScript -Cursor $cursorColumn
+    # PossibleCompletions calls TabExpansion2 again; reuse this keypress's candidates only.
+    $state = $script:CompletionDisplayState
+    if (-not $state -or $state.Line -cne $inputScript -or $state.Cursor -ne $cursorColumn) {
+        $state = Complete-HookLine -Line $inputScript -Cursor $cursorColumn
+    }
     $results = [System.Collections.ObjectModel.Collection[System.Management.Automation.CompletionResult]]::new()
     foreach ($match in @($state.Matches)) {
         $results.Add($match)
@@ -175,7 +199,8 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
         $decision = Get-CompletionDecision `
             -Matches $state.Matches `
             -CurrentText $currentText `
-            -LiteralPaths:$state.LiteralPaths
+            -LiteralPaths:$state.LiteralPaths `
+            -Normalized:$state.MatchesNormalized
 
         if ($decision.MatchCount -eq 1) {
             [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
@@ -209,7 +234,12 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
                 return
             }
 
-            [Microsoft.PowerShell.PSConsoleReadLine]::PossibleCompletions()
+            $script:CompletionDisplayState = $state
+            try {
+                [Microsoft.PowerShell.PSConsoleReadLine]::PossibleCompletions()
+            } finally {
+                $script:CompletionDisplayState = $null
+            }
         }
     }
 

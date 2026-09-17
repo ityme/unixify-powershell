@@ -126,6 +126,14 @@ python src/tests/bench_console.py --enforce
 
 第一条测提示符执行路径；第二条通过 Windows ConPTY 发送真实回车。启动和首次提示符耗时单独列出，不包含终端程序绘制到屏幕的时间。
 
+分别测量终端上报和文件补全：
+
+```powershell
+pwsh -NoLogo -NoProfile -File src/tests/bench_interaction.ps1 -Files 1000 -Samples 10
+```
+
+明确路径优先查询文件系统，展示候选时复用本次查询结果；下一次 Tab 仍重新查询，确保文件变化可见。空闲终端上报复用已编码文本，目录、虚拟环境、执行结果或启用字段变化后重新生成。
+
 ## 开发
 
 路径格式转换统一使用 `src/path_convert.ps1` 中的 `winpath`、`unixpath`。交互改写、补全、命令输出和安装管理共用这两个接口。独立安装脚本内嵌自动生成的副本，保证尚未安装时也能用 `irm | iex`。
@@ -143,6 +151,7 @@ pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1 -Check
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_path_commands.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_interaction.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install.ps1

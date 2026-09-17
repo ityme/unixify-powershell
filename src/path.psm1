@@ -162,13 +162,20 @@ function ConvertTo-QuotedText {
 }
 
 function ConvertTo-PathCompletionText {
-    param([string]$Text, [switch]$LiteralPaths)
+    param([string[]]$Text, [switch]$LiteralPaths)
 
-    $quoted = ConvertTo-QuotedText $Text
-    if (-not $LiteralPaths -and $quoted -cne $Text -and $Text -match '^(?:/[A-Za-z](?:/|$)|~(?:/|$))') {
-        return "(winpath $quoted)"
+    foreach ($item in $Text) {
+        if ($item -match '^[\p{L}\p{M}\p{N}._~/:+=%!-]+$' -and -not $item.StartsWith('-')) {
+            $item
+        } else {
+            $quoted = "'$($item.Replace("'", "''"))'"
+            if (-not $LiteralPaths -and $item -match '^(?:/[A-Za-z](?:/|$)|~(?:/|$))') {
+                "(winpath $quoted)"
+            } else {
+                $quoted
+            }
+        }
     }
-    return $quoted
 }
 
 function Get-UnixPathCompletion {
@@ -270,55 +277,44 @@ function Get-UnixPathCompletion {
             $leaf -ne '..'
         )
     )
-    Get-ChildItem `
-        -LiteralPath $lookupParent `
-        -Force:$includeHidden `
-        -ErrorAction SilentlyContinue |
-        Where-Object { -not $DirectoryOnly -or $_.PSIsContainer } |
-        Where-Object {
-            if ([string]::IsNullOrEmpty($leaf)) {
-                $true
-            } elseif (
-                $leaf.Contains('*') -or
-                $leaf.Contains('?')
-            ) {
-                $_.Name -like $leaf
-            } else {
-                $_.Name -like "$([WildcardPattern]::Escape($leaf))*"
-            }
-        } |
-        Sort-Object @{ Expression = 'PSIsContainer'; Descending = $true }, Name |
-        ForEach-Object {
-            $completion = if ($isHomePath) {
-                if ($relativeParent) {
-                    $relativeParent + $_.Name
-                } else {
-                    '~/' + $_.Name
-                }
-            } elseif ($isAbsolutePath) {
-                unixpath $_.FullName
-            } else {
-                $relativeParent + $_.Name
-            }
-
-            $completion = $completion -replace '\\', '/'
-            if ($_.PSIsContainer) {
-                $completion = $completion.TrimEnd('/') + '/'
-            }
-            $completion = ConvertTo-PathCompletionText $completion
-            $resultType = if ($_.PSIsContainer) {
-                'ProviderContainer'
-            } else {
-                'ProviderItem'
-            }
-
-            [System.Management.Automation.CompletionResult]::new(
-                $completion,
-                $_.Name,
-                $resultType,
-                $_.FullName
-            )
+    $directories = [Collections.Generic.SortedList[string, IO.FileSystemInfo]]::new([StringComparer]::Ordinal)
+    $files = [Collections.Generic.SortedList[string, IO.FileSystemInfo]]::new([StringComparer]::Ordinal)
+    $matcher = if ($leaf.Contains('*') -or $leaf.Contains('?')) {
+        [WildcardPattern]::new($leaf, [Management.Automation.WildcardOptions]::IgnoreCase)
+    } else { $null }
+    try {
+        foreach ($item in ([IO.DirectoryInfo]::new($lookupParent)).EnumerateFileSystemInfos()) {
+            $isDirectory = ($item.Attributes -band [IO.FileAttributes]::Directory) -ne 0
+            if ($DirectoryOnly -and -not $isDirectory) { continue }
+            if (-not $includeHidden -and ($item.Attributes -band ([IO.FileAttributes]::Hidden -bor [IO.FileAttributes]::System))) { continue }
+            if ($matcher) {
+                if (-not $matcher.IsMatch($item.Name)) { continue }
+            } elseif (-not $item.Name.StartsWith($leaf, [StringComparison]::OrdinalIgnoreCase)) { continue }
+            if ($isDirectory) { $directories[$item.Name] = $item } else { $files[$item.Name] = $item }
         }
+    } catch {
+        # Missing/inaccessible directories have no candidates, like Get-ChildItem -ErrorAction SilentlyContinue.
+    }
+    $items = @($directories.Values) + @($files.Values)
+    if ($items.Count -eq 0) { return }
+    $texts = @(if ($isAbsolutePath -and -not $isHomePath) {
+        @(unixpath -Path ([string[]]$items.FullName))
+    } else {
+        @(
+            foreach ($item in $items) {
+                if ($isHomePath -and -not $relativeParent) { '~/' + $item.Name }
+                else { $relativeParent + $item.Name }
+            }
+        )
+    })
+    for ($index = 0; $index -lt $directories.Count; $index++) {
+        $texts[$index] = $texts[$index].TrimEnd('/') + '/'
+    }
+    $texts = @(ConvertTo-PathCompletionText -Text $texts)
+    for ($index = 0; $index -lt $items.Count; $index++) {
+        $type = if ($index -lt $directories.Count) { 'ProviderContainer' } else { 'ProviderItem' }
+        [Management.Automation.CompletionResult]::new($texts[$index], $items[$index].Name, $type, $items[$index].FullName)
+    }
 }
 
 #endregion
@@ -450,8 +446,26 @@ function Get-CompletionDecision {
     param(
         [object[]]$Matches,
         [string]$CurrentText,
-        [switch]$LiteralPaths
+        [switch]$LiteralPaths,
+        [switch]$Normalized
     )
+
+    if ($Normalized -and $Matches.Count -gt 0) {
+        $texts = [string[]]$Matches.CompletionText
+        $types = [string[]]$Matches.ResultType
+        if (-not ($types -ne 'ProviderItem' -ne 'ProviderContainer') -and
+            -not [regex]::IsMatch(($texts -join ''), '[\s''"()]')) {
+            # Plain, normalized paths need no per-candidate parsing or PowerShell calls.
+            $unique = [Collections.Generic.HashSet[string]]::new($texts, [StringComparer]::OrdinalIgnoreCase)
+            [Array]::Sort($texts, [StringComparer]::OrdinalIgnoreCase)
+            $prefix = $texts[0]
+            $last = $texts[$texts.Length - 1]
+            while ($prefix.Length -gt 0 -and -not $last.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+                $prefix = $prefix.Substring(0, $prefix.Length - 1)
+            }
+            return [pscustomobject]@{ MatchCount = $unique.Count; Replacement = $prefix }
+        }
+    }
 
     $seen = [Collections.Generic.HashSet[string]]::new(
         [StringComparer]::OrdinalIgnoreCase
@@ -462,9 +476,11 @@ function Get-CompletionDecision {
     $allPathResults = $true
 
     foreach ($match in @($Matches)) {
-        $comparisonText = Get-CompletionComparisonText `
-            -Match $match `
-            -CurrentText $CurrentText
+        $comparisonText = if ($Normalized) {
+            [string]$match.CompletionText
+        } else {
+            Get-CompletionComparisonText -Match $match -CurrentText $CurrentText
+        }
         if (-not $seen.Add($comparisonText)) {
             continue
         }
@@ -501,19 +517,9 @@ function Get-CompletionDecision {
             continue
         }
 
-        $length = [Math]::Min($prefix.Length, $candidate.Length)
-        $index = 0
-        while (
-            $index -lt $length -and
-            [char]::ToUpperInvariant($prefix[$index]) -eq
-                [char]::ToUpperInvariant($candidate[$index])
-        ) {
-            $index++
-        }
-
-        $prefix = $prefix.Substring(0, $index)
-        if ($prefix.Length -eq 0) {
-            break
+        # Once the prefix is short, most candidates need one native string comparison.
+        while ($prefix.Length -gt 0 -and -not $candidate.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+            $prefix = $prefix.Substring(0, $prefix.Length - 1)
         }
     }
 
