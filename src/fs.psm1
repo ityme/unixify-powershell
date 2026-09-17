@@ -103,7 +103,7 @@ function global:find {
     $items |
         Where-Object Name -Like $Name |
         ForEach-Object {
-            ConvertTo-UnixStyleText $_.FullName
+            unixpath $_.FullName
         }
 
     if ($findErrors.Count -gt 0) {

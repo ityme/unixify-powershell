@@ -116,6 +116,21 @@ try {
     [IO.File]::WriteAllText((Join-Path $projectSrc 'local-source.txt'), 'from-cwd')
     $installedCommand = Join-Path $installHome 'scripts\upwsh.ps1'
 
+    Invoke-InstallTest 'install and uninstall accept the shared path syntax without a profile' {
+        $pathUser = Join-Path $root 'path-user'
+        $sourcePath = $project.Replace('\', '/')
+        $unixSource = '/' + $sourcePath.Substring(0, 1).ToLowerInvariant() + $sourcePath.Substring(2)
+        $profilePath = '~/nested profile/hook.ps1'
+        $result = Invoke-UpwshTestProcess -UserHome $pathUser -File $installer -Arguments @('--source', $unixSource, '--profile', $profilePath)
+        Assert-True ($result.Code -eq 0) $result.Text
+        $pathHook = Join-Path $pathUser 'nested profile\hook.ps1'
+        Assert-Contains ([IO.File]::ReadAllText($pathHook)) (Join-Path $pathUser '.config\upwsh\profile.ps1')
+        $result = Invoke-UpwshTestProcess -UserHome $pathUser -File $uninstaller -Arguments @('--profile', $profilePath)
+        Assert-True ($result.Code -eq 0) $result.Text
+        Assert-True (-not ([IO.File]::ReadAllText($pathHook)).Contains('# >>> unixify-powershell >>>')) 'converted profile hook remained'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $pathUser '.config\upwsh'))) 'installation remained'
+    }
+
     Invoke-InstallTest 'installed upwsh install detects the project in cwd' {
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('install') -WorkingDirectory $project
         Assert-Equal $result.Code 0

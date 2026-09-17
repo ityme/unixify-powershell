@@ -1,53 +1,6 @@
 # 路径转换与补全。显式转换处理单个路径；交互改写只处理顶层裸参数。
 
-function ConvertTo-UnixStyleText {
-    param([AllowEmptyString()][string]$Text)
-    if ([string]::IsNullOrEmpty($Text)) { return $Text }
-    $unix = [regex]::Replace(
-        $Text,
-        '^/?([A-Za-z]):[\\/]+',
-        { param($m) '/' + $m.Groups[1].Value.ToLowerInvariant() + '/' }
-    )
-    return $unix.Replace('\', '/')
-}
-
-function ConvertTo-WindowsStyleText {
-    param([AllowEmptyString()][string]$Text)
-    if ([string]::IsNullOrEmpty($Text)) { return $Text }
-    if ($Text -match '^~(?:[/\\]|$)') {
-        return $HOME.TrimEnd('\', '/').Replace('\', '/') + $Text.Substring(1).Replace('\', '/')
-    }
-    if ($Text -match '^/([A-Za-z]):(?=[/\\]|$)') {
-        return $Matches[1].ToUpperInvariant() + ':' + $Text.Substring(3)
-    }
-    # C: means the current directory on that drive, not C:/.
-    if ($Text -match '^/([A-Za-z])(?:/|$)') {
-        return $Matches[1].ToUpperInvariant() + ':/' + $Text.Substring([Math]::Min(3, $Text.Length))
-    }
-    return $Text
-}
-
-function winpath {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromRemainingArguments)]
-        [AllowEmptyString()][string[]]$Path
-    )
-    process {
-        foreach ($item in $Path) { ConvertTo-WindowsStyleText $item }
-    }
-}
-
-function unixpath {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromRemainingArguments)]
-        [AllowEmptyString()][string[]]$Path
-    )
-    process {
-        foreach ($item in $Path) { ConvertTo-UnixStyleText $item }
-    }
-}
+. ([IO.Path]::Combine($PSScriptRoot, 'path_convert.ps1'))
 
 function Resolve-ExpandedGlobPath {
     param(
@@ -56,7 +9,7 @@ function Resolve-ExpandedGlobPath {
     )
 
     $fullName = $Item.FullName.Replace('\', '/')
-    $windowsPattern = ConvertTo-WindowsStyleText $Pattern
+    $windowsPattern = winpath $Pattern
     if (
         [IO.Path]::IsPathRooted($windowsPattern) -or
         $windowsPattern -match '^[A-Za-z]:'
@@ -141,7 +94,7 @@ function ConvertTo-WindowsCommandLine {
                 $element.StringConstantType -eq 'BareWord' -and
                 $element.Extent.Text -ceq $element.Value -and
                 (Test-PathLikeToken $element.Value)) {
-                $directory = ConvertTo-WindowsStyleText $element.Value
+                $directory = winpath $element.Value
                 if (Test-Path -LiteralPath $directory -PathType Container) {
                     return 'cd ' + (ConvertTo-QuotedText $directory)
                 }
@@ -156,7 +109,7 @@ function ConvertTo-WindowsCommandLine {
                 $element.Value -notmatch '^(?:/[A-Za-z](?:/[^\s]*|$)|~(?:/[^\s]*|$))$') {
                 continue
             }
-            $converted = ConvertTo-WindowsStyleText $element.Value
+            $converted = winpath $element.Value
             $changes.Add([pscustomobject]@{
                 Start = $element.Extent.StartOffset
                 Length = $element.Extent.EndOffset - $element.Extent.StartOffset
@@ -175,7 +128,7 @@ function ConvertTo-WindowsCommandLine {
 function ConvertTo-WindowsArguments {
     param([object[]]$Arguments)
     foreach ($argument in $Arguments) {
-        if ($argument -is [string]) { ConvertTo-WindowsStyleText $argument } else { $argument }
+        if ($argument -is [string]) { winpath $argument } else { $argument }
     }
 }
 
@@ -264,7 +217,7 @@ function Get-UnixPathCompletion {
     } elseif ($word -match '^/([a-zA-Z])$') {
         $windowsWord = $Matches[1].ToUpper() + ':\'
     } else {
-        $windowsWord = ConvertTo-WindowsStyleText $word
+        $windowsWord = winpath $word
     }
 
     if ([string]::IsNullOrWhiteSpace($BaseDirectory)) {
@@ -274,7 +227,7 @@ function Get-UnixPathCompletion {
             $BaseDirectory = '.'
         }
     } else {
-        $BaseDirectory = ConvertTo-WindowsStyleText $BaseDirectory
+        $BaseDirectory = winpath $BaseDirectory
     }
 
     if ([string]::IsNullOrWhiteSpace($windowsWord)) {
@@ -343,7 +296,7 @@ function Get-UnixPathCompletion {
                     '~/' + $_.Name
                 }
             } elseif ($isAbsolutePath) {
-                ConvertTo-UnixStyleText $_.FullName
+                unixpath $_.FullName
             } else {
                 $relativeParent + $_.Name
             }
@@ -423,13 +376,13 @@ function ConvertTo-UnixCompletionResult {
     }
 
     $path = ConvertFrom-QuotedText $pathText
-    $normalizedPath = ConvertTo-UnixStyleText $path
+    $normalizedPath = unixpath $path
 
     # 用户已经输入 ~/... 时，保留波浪线前缀，不要把原生补全展开成
     # /c/Users/... 绝对路径。
     if ($currentPath -eq '~' -or $currentPath -match '^~[/\\]') {
         $windowsHome = $HOME.TrimEnd([char[]]@('\', '/'))
-        $unixHome = ConvertTo-UnixStyleText $windowsHome
+        $unixHome = unixpath $windowsHome
         $unquotedNormalized = ConvertFrom-QuotedText $normalizedPath
         if ($unquotedNormalized -eq $unixHome -or $unquotedNormalized.StartsWith("$unixHome/")) {
             $normalizedPath = '~' + $unquotedNormalized.Substring($unixHome.Length)
@@ -457,7 +410,7 @@ function ConvertTo-UnixCompletionResult {
 
     $normalizedText = if ($completionPrefix) {
         # Attached option values are not rewritten on Enter; return an executable path now.
-        $completionPrefix + (ConvertTo-QuotedText (ConvertTo-WindowsStyleText $normalizedPath))
+        $completionPrefix + (ConvertTo-QuotedText (winpath $normalizedPath))
     } else {
         ConvertTo-PathCompletionText $normalizedPath -LiteralPaths:$LiteralPaths
     }
@@ -646,8 +599,6 @@ function Invoke-PathCompletionHook {
 Export-ModuleMember -Function @(
     'winpath'
     'unixpath'
-    'ConvertTo-UnixStyleText'
-    'ConvertTo-WindowsStyleText'
     'ConvertTo-WindowsArguments'
     'ConvertTo-WindowsCommandLine'
     'ConvertTo-WindowsPathOperands'

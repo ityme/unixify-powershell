@@ -233,7 +233,7 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
     $driveRoot = [IO.Path]::GetPathRoot($work)
     $driveLetter = $driveRoot.Substring(0, 1).ToLowerInvariant()
     $driveLetterUpper = $driveLetter.ToUpperInvariant()
-    $unixWork = (ConvertTo-UnixStyleText $work).TrimEnd('/')
+    $unixWork = (unixpath $work).TrimEnd('/')
     $slashPrefixedWindowsWork = "/$driveLetterUpper`:" +
         $work.Substring(2).Replace('\', '/')
 
@@ -382,21 +382,21 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
     # Pure path conversion.
     $unixHome = $fakeHome.TrimEnd('\', '/') -replace '\\', '/'
     $conversionCases = @(
-        ,@('home', (ConvertTo-WindowsStyleText '~'), $unixHome)
-        ,@('home child', (ConvertTo-WindowsStyleText '~/alpha/beta'), "$unixHome/alpha/beta")
-        ,@('unix drive root', (ConvertTo-WindowsStyleText "/$driveLetter"), "$driveLetterUpper`:/")
-        ,@('unix drive root slash', (ConvertTo-WindowsStyleText "/$driveLetter/"), "$driveLetterUpper`:/")
-        ,@('unix absolute', (ConvertTo-WindowsStyleText "/$driveLetter/alpha/beta"), "$driveLetterUpper`:/alpha/beta")
-        ,@('relative unchanged', (ConvertTo-WindowsStyleText 'alpha/beta'), 'alpha/beta')
-        ,@('windows absolute', (ConvertTo-UnixStyleText "$driveLetterUpper`:\alpha\beta"), "/$driveLetter/alpha/beta")
-        ,@('slash-prefixed windows absolute', (ConvertTo-UnixStyleText "/$driveLetterUpper`:/alpha/beta"), "/$driveLetter/alpha/beta")
-        ,@('windows root', (ConvertTo-UnixStyleText "$driveLetterUpper`:\"), "/$driveLetter/")
-        ,@('slash-prefixed windows root', (ConvertTo-UnixStyleText "/$driveLetterUpper`:/"), "/$driveLetter/")
-        ,@('drive-relative path', (ConvertTo-UnixStyleText "$driveLetterUpper`:alpha"), "$driveLetterUpper`:alpha")
-        ,@('drive-relative value', (ConvertTo-UnixStyleText "$driveLetterUpper`:foo/bar"), "$driveLetterUpper`:foo/bar")
-        ,@('slash-prefixed windows input', (ConvertTo-WindowsStyleText "/$driveLetterUpper`:/alpha/beta"), "$driveLetterUpper`:/alpha/beta")
-        ,@('relative separator', (ConvertTo-UnixStyleText 'alpha\beta'), 'alpha/beta')
-        ,@('unc separator', (ConvertTo-UnixStyleText '\\server\share\dir'), '//server/share/dir')
+        ,@('home', (winpath '~'), $unixHome)
+        ,@('home child', (winpath '~/alpha/beta'), "$unixHome/alpha/beta")
+        ,@('unix drive root', (winpath "/$driveLetter"), "$driveLetterUpper`:/")
+        ,@('unix drive root slash', (winpath "/$driveLetter/"), "$driveLetterUpper`:/")
+        ,@('unix absolute', (winpath "/$driveLetter/alpha/beta"), "$driveLetterUpper`:/alpha/beta")
+        ,@('relative unchanged', (winpath 'alpha/beta'), 'alpha/beta')
+        ,@('windows absolute', (unixpath "$driveLetterUpper`:\alpha\beta"), "/$driveLetter/alpha/beta")
+        ,@('slash-prefixed windows absolute', (unixpath "/$driveLetterUpper`:/alpha/beta"), "/$driveLetter/alpha/beta")
+        ,@('windows root', (unixpath "$driveLetterUpper`:\"), "/$driveLetter/")
+        ,@('slash-prefixed windows root', (unixpath "/$driveLetterUpper`:/"), "/$driveLetter/")
+        ,@('drive-relative path', (unixpath "$driveLetterUpper`:alpha"), "$driveLetterUpper`:alpha")
+        ,@('drive-relative value', (unixpath "$driveLetterUpper`:foo/bar"), "$driveLetterUpper`:foo/bar")
+        ,@('slash-prefixed windows input', (winpath "/$driveLetterUpper`:/alpha/beta"), "$driveLetterUpper`:/alpha/beta")
+        ,@('relative separator', (unixpath 'alpha\beta'), 'alpha/beta')
+        ,@('unc separator', (unixpath '\\server\share\dir'), '//server/share/dir')
     )
     foreach ($case in $conversionCases) {
         Invoke-CompletionTest "convert: $($case[0])" {
@@ -783,7 +783,7 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
         Assert-True ($definition -notmatch 'nativeArguments') 'Invoke-Eza still splats renamed nativeArguments'
     }
     Invoke-CompletionTest 'eza: unix drive argument is converted' {
-        $expanded = @(Expand-PathGlob (ConvertTo-WindowsStyleText "/$driveLetter/"))
+        $expanded = @(Expand-PathGlob (winpath "/$driveLetter/"))
         Assert-Equal $expanded.Count 1
         Assert-Equal $expanded[0] "${driveLetterUpper}:/"
     }

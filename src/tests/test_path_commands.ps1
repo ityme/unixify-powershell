@@ -22,6 +22,28 @@ function Assert-Equal {
     if ([string]$Actual -cne [string]$Expected) { throw "expected <$Expected>, got <$Actual>" }
 }
 
+Test-Case 'standalone converter copies match the shared implementation' {
+    & (Join-Path $PSScriptRoot '..\scripts\sync_path_convert.ps1') -Check | Out-Null
+}
+foreach ($entry in @('path_convert.ps1', 'upwsh_home.ps1', 'scripts\install.ps1', 'scripts\uninstall.ps1')) {
+    Test-Case "shared converter contract without a loaded profile: $entry" {
+        $file = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\$entry"))
+        $code = @'
+$ErrorActionPreference = 'Stop'
+. ENTRY --help | Out-Null
+if ((winpath '/c/my work') -cne 'C:/my work') { throw 'drive conversion failed' }
+if ((unixpath 'C:\my work') -cne '/c/my work') { throw 'inverse conversion failed' }
+if ((winpath 'text /c/a') -cne 'text /c/a') { throw 'literal text changed' }
+if ((winpath '~/my work') -cne ($HOME.Replace('\', '/') + '/my work')) { throw 'home expansion failed' }
+if ((unixpath 'C:relative') -cne 'C:relative') { throw 'drive-relative path changed' }
+if (((@('/c/a', '/d/b') | winpath) -join '|') -cne 'C:/a|D:/b') { throw 'pipeline conversion failed' }
+if (Get-Command Set-HookPromptInput -ErrorAction SilentlyContinue) { throw 'converter loaded the interactive shell' }
+'@
+        $result = Invoke-UpwshTestProcess -UserHome $HOME -Command $code.Replace('ENTRY', (ConvertTo-TestLiteral $file))
+        if ($result.Code -ne 0) { throw $result.Text }
+    }
+}
+
 Test-Case 'winpath converts drive paths including spaces without requiring existence' {
     Assert-Equal (winpath '/c/my work/missing.txt') 'C:/my work/missing.txt'
     Assert-Equal (winpath '/d') 'D:/'

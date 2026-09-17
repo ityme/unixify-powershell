@@ -28,7 +28,7 @@ function global:df {
                 } else {
                     '?'
                 }
-                MountedOn  = ConvertTo-UnixStyleText $_.Root
+                MountedOn  = unixpath $_.Root
             }
         }
 }

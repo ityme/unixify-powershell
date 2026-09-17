@@ -38,7 +38,7 @@ function Get-HookProfilePath {
         return [IO.Path]::GetFullPath($ProfilePath)
     }
     if (-not [string]::IsNullOrWhiteSpace($env:UPWSH_PROFILE)) {
-        return [IO.Path]::GetFullPath((ConvertTo-UpwshWindowsPath $env:UPWSH_PROFILE))
+        return [IO.Path]::GetFullPath((winpath $env:UPWSH_PROFILE))
     }
     if ($CurrentHost) {
         return $PROFILE.CurrentUserCurrentHost

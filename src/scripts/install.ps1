@@ -124,23 +124,48 @@ function ConvertFrom-InstallArguments {
     return $result
 }
 
-function ConvertTo-WindowsStyleDirectory {
-    param([string]$Path)
-
-    $windows = $Path
-    $homePath = ($HOME.TrimEnd('\', '/') -replace '\\', '/')
-    $windows = [regex]::Replace($windows, '(?<=^|[\s=''"])~(?=/|$|\\)', $homePath)
-    $windows = [regex]::Replace(
-        $windows,
-        '/([A-Za-z]):',
-        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':' }
+# BEGIN GENERATED PATH CONVERTERS (src/path_convert.ps1)
+# Shared path conversion interfaces. No filesystem access or shell initialization.
+function winpath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromRemainingArguments)]
+        [AllowEmptyString()][string[]]$Path
     )
-    return [regex]::Replace(
-        $windows,
-        '(?<=^|[\s=''"])/([A-Za-z])(/|$)',
-        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':/' }
-    )
+    process {
+        foreach ($item in $Path) {
+            if ($item -match '^~(?:[/\\]|$)') {
+                $HOME.TrimEnd('\', '/').Replace('\', '/') + $item.Substring(1).Replace('\', '/')
+            } elseif ($item -match '^/([A-Za-z]):(?=[/\\]|$)') {
+                $Matches[1].ToUpperInvariant() + ':' + $item.Substring(3)
+            } elseif ($item -match '^/([A-Za-z])(?:/|$)') {
+                # C: is drive-relative; /c must become the drive root C:/.
+                $Matches[1].ToUpperInvariant() + ':/' + $item.Substring([Math]::Min(3, $item.Length))
+            } else {
+                $item
+            }
+        }
+    }
 }
+
+function unixpath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromRemainingArguments)]
+        [AllowEmptyString()][string[]]$Path
+    )
+    process {
+        foreach ($item in $Path) {
+            $unix = [regex]::Replace(
+                $item,
+                '^/?([A-Za-z]):[\\/]+',
+                { param($match) '/' + $match.Groups[1].Value.ToLowerInvariant() + '/' }
+            )
+            $unix.Replace('\', '/')
+        }
+    }
+}
+# END GENERATED PATH CONVERTERS
 
 function Get-DefaultDestination {
     [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
@@ -371,7 +396,7 @@ try {
         $sibling = Get-LocalProjectRuntimeRoot
     }
     if ($source) {
-        $runtimeRoot = Resolve-RuntimeRoot (ConvertTo-WindowsStyleDirectory $source)
+        $runtimeRoot = Resolve-RuntimeRoot (winpath $source)
     } elseif ($sibling) {
         $runtimeRoot = $sibling
     } else {
@@ -388,7 +413,7 @@ try {
     $installerArgs = @{}
     if ($parsed.Profile) {
         $installerArgs.ProfilePath = [IO.Path]::GetFullPath(
-            (ConvertTo-WindowsStyleDirectory $parsed.Profile)
+            (winpath $parsed.Profile)
         )
     }
     if ($parsed.CurrentHost) {
@@ -413,7 +438,7 @@ try {
         try {
             if ($parsed.Profile) {
                 $env:UPWSH_PROFILE = [IO.Path]::GetFullPath(
-                    (ConvertTo-WindowsStyleDirectory $parsed.Profile)
+                    (winpath $parsed.Profile)
                 )
             } elseif ($parsed.CurrentHost) {
                 $env:UPWSH_PROFILE = $PROFILE.CurrentUserCurrentHost

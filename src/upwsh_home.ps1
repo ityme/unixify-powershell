@@ -1,23 +1,7 @@
 # UPWSH_HOME：安装目录，固定为 ~/.config/upwsh，不用环境变量重定向。
 # upwsh 命令：$UPWSH_HOME\bin\upwsh.cmd。CLI：$UPWSH_HOME\tool\bin。
 
-function ConvertTo-UpwshWindowsPath {
-    param([string]$Path)
-
-    $windows = $Path
-    $homePath = ($HOME.TrimEnd('\', '/') -replace '\\', '/')
-    $windows = [regex]::Replace($windows, '(?<=^|[\s=''"])~(?=/|$|\\)', $homePath)
-    $windows = [regex]::Replace(
-        $windows,
-        '/([A-Za-z]):',
-        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':' }
-    )
-    return [regex]::Replace(
-        $windows,
-        '(?<=^|[\s=''"])/([A-Za-z])(/|$)',
-        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':/' }
-    )
-}
+. ([IO.Path]::Combine($PSScriptRoot, 'path_convert.ps1'))
 
 function Get-UpwshHome {
     [IO.Path]::GetFullPath([IO.Path]::Combine($HOME, '.config', 'upwsh'))
@@ -219,7 +203,7 @@ function Remove-UpwshUserEnvironment {
     ) -join ';'
     if (-not [string]::IsNullOrWhiteSpace($env:UPWSH_HOME)) {
         try {
-            if ([IO.Path]::GetFullPath((ConvertTo-UpwshWindowsPath $env:UPWSH_HOME)) -eq $upwshHome) {
+            if ([IO.Path]::GetFullPath((winpath $env:UPWSH_HOME)) -eq $upwshHome) {
                 Remove-Item Env:\UPWSH_HOME -ErrorAction SilentlyContinue
             }
         } catch {

@@ -126,6 +126,17 @@ python src/tests/bench_console.py --enforce
 
 第一条测提示符执行路径；第二条通过 Windows ConPTY 发送真实回车。启动和首次提示符耗时单独列出，不包含终端程序绘制到屏幕的时间。
 
+## 开发
+
+路径格式转换统一使用 `src/path_convert.ps1` 中的 `winpath`、`unixpath`。交互改写、补全、命令输出和安装管理共用这两个接口。独立安装脚本内嵌自动生成的副本，保证尚未安装时也能用 `irm | iex`。
+
+修改转换逻辑后，同步并检查副本：
+
+```powershell
+pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1
+pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1 -Check
+```
+
 ## 测试
 
 ```powershell

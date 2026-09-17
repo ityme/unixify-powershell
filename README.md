@@ -126,6 +126,17 @@ python src/tests/bench_console.py --enforce
 
 The first measures the prompt path; the second sends Enter through Windows ConPTY. Startup and first-prompt times are reported separately. These timings exclude the terminal application's screen painting.
 
+## Development
+
+Path format conversion uses `winpath` and `unixpath` from `src/path_convert.ps1`. Interactive rewriting, completion, command output, and setup share these interfaces. Standalone installers embed generated copies so `irm | iex` also works before installation.
+
+After changing the converter, refresh and check those copies:
+
+```powershell
+pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1
+pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1 -Check
+```
+
 ## Tests
 
 ```powershell
