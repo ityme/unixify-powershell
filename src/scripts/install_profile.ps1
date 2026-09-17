@@ -119,6 +119,19 @@ function Get-InstalledTarget {
     return $null
 }
 
+function Copy-CustomTree {
+    param([string]$Source, [string]$Destination)
+
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    Get-ChildItem -LiteralPath $Source -Force |
+        ForEach-Object {
+            $target = Join-Path $Destination $_.Name
+            if (-not (Test-Path -LiteralPath $target)) {
+                Copy-Item -LiteralPath $_.FullName -Destination $target -Recurse -Force
+            }
+        }
+}
+
 function Copy-RuntimeTree {
     param([string]$Source, [string]$Destination)
 
@@ -126,11 +139,11 @@ function Copy-RuntimeTree {
     Get-ChildItem -LiteralPath $Source -Force |
         Where-Object { $_.Name -ne 'tests' } |
         ForEach-Object {
-            $skipCustom = (
-                $_.Name -eq 'custom' -and
-                (Test-Path -LiteralPath (Join-Path $Destination 'custom'))
-            )
-            if (-not $skipCustom) {
+            if ($_.Name -eq 'custom') {
+                Copy-CustomTree -Source $_.FullName -Destination (
+                    Join-Path $Destination 'custom'
+                )
+            } else {
                 Copy-Item -LiteralPath $_.FullName `
                     -Destination (Join-Path $Destination $_.Name) `
                     -Recurse -Force

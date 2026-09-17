@@ -176,6 +176,31 @@ try {
         Assert-Contains $text $deployedProfile
         Assert-True ($text -notlike "*$sourceProfile*") "deploy still hooked the source tree:`n$text"
     }
+
+    Invoke-InstallProfileTest 'deploy fills missing custom sample files' {
+        $fillRoot = Join-Path $root 'fill-custom'
+        $fillCustom = Join-Path $fillRoot 'custom'
+        New-Item -ItemType Directory -Path $fillCustom -Force | Out-Null
+        $output = Invoke-Installer -ProfilePath $hook -Destination $fillRoot -Deploy
+        $sample = Join-Path $fillCustom 'alias.ps1'
+        Assert-Contains $output 'state    deployed'
+        Assert-True (Test-Path -LiteralPath $sample -PathType Leaf) (
+            'deploy left an empty custom without alias.ps1'
+        )
+        Assert-Contains ([IO.File]::ReadAllText($sample)) 'cd /i/workspace'
+    }
+
+    Invoke-InstallProfileTest 'deploy does not overwrite existing custom files' {
+        $keepRoot = Join-Path $root 'keep-custom-deploy'
+        $keepCustom = Join-Path $keepRoot 'custom'
+        New-Item -ItemType Directory -Path $keepCustom -Force | Out-Null
+        $customFile = Join-Path $keepCustom 'alias.ps1'
+        [IO.File]::WriteAllText($customFile, "# keep-me`r`n")
+        Invoke-Installer -ProfilePath $hook -Destination $keepRoot -Deploy | Out-Null
+        $text = [IO.File]::ReadAllText($customFile)
+        Assert-Contains $text 'keep-me'
+        Assert-True ($text -notlike '*workspace*') 'deploy overwrote custom/alias.ps1'
+    }
 } finally {
     if (Test-Path -LiteralPath $root) {
         Remove-Item -LiteralPath $root -Recurse -Force
