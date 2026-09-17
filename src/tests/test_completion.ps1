@@ -392,8 +392,8 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
         ,@('slash-prefixed windows absolute', (ConvertTo-UnixStyleText "/$driveLetterUpper`:/alpha/beta"), "/$driveLetter/alpha/beta")
         ,@('windows root', (ConvertTo-UnixStyleText "$driveLetterUpper`:\"), "/$driveLetter/")
         ,@('slash-prefixed windows root', (ConvertTo-UnixStyleText "/$driveLetterUpper`:/"), "/$driveLetter/")
-        ,@('drive-relative path', (ConvertTo-UnixStyleText "$driveLetterUpper`:alpha"), "/$driveLetter/alpha")
-        ,@('drive-relative value', (ConvertTo-UnixStyleText "$driveLetterUpper`:foo/bar"), "/$driveLetter/foo/bar")
+        ,@('drive-relative path', (ConvertTo-UnixStyleText "$driveLetterUpper`:alpha"), "$driveLetterUpper`:alpha")
+        ,@('drive-relative value', (ConvertTo-UnixStyleText "$driveLetterUpper`:foo/bar"), "$driveLetterUpper`:foo/bar")
         ,@('slash-prefixed windows input', (ConvertTo-WindowsStyleText "/$driveLetterUpper`:/alpha/beta"), "$driveLetterUpper`:/alpha/beta")
         ,@('relative separator', (ConvertTo-UnixStyleText 'alpha\beta'), 'alpha/beta')
         ,@('unc separator', (ConvertTo-UnixStyleText '\\server\share\dir'), '//server/share/dir')
@@ -813,14 +813,12 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
         Assert-Contains $values 'target-dir/child-dir/'
         Assert-NoBackslash $values
     }
-    Invoke-CompletionTest 'enter: function commands keep unix line' {
+    Invoke-CompletionTest 'enter: functions and applications share path rewriting' {
         Assert-True (
-            -not (
-                Test-WindowsCommandLineReplacement `
-                    -Original "ls /$driveLetter/" `
-                    -Converted "ls ${driveLetterUpper}:/"
-            )
-        ) 'ls unix path should not replace the command line'
+            Test-WindowsCommandLineReplacement `
+                -Original "ls /$driveLetter/" `
+                -Converted "ls ${driveLetterUpper}:/"
+        ) 'function arguments should use the same path rules'
         Assert-True (
             Test-WindowsCommandLineReplacement `
                 -Original 'vim /i/test/notes.txt' `

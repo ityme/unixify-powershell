@@ -22,6 +22,23 @@ Stock pwsh uses Windows paths and cmdlets. After `load`, you type Unix paths and
 | `Get-Command nvim` | `which nvim` |
 | Tab `I:\ispace\foo\` | `/i/ispace/foo/` |
 
+## Paths
+
+At the interactive prompt, standalone **unquoted** `/c/...` and `~/...` arguments are converted before execution. Quoted text, comments, embedded scripts, redirections, and combined option values such as `--output=/c/a` stay unchanged. Pipelines and command chains are handled argument by argument, without command-specific rules.
+
+Use explicit conversion for paths with spaces, variables, or paths inside scripts:
+
+```powershell
+winpath '/c/my work'          # C:/my work
+unixpath 'C:\my work'         # /c/my work
+cd (winpath '~/my work')
+'C:\one', 'D:\two' | unixpath
+```
+
+Both commands accept multiple paths or pipeline input. They do not require paths to exist or expand wildcards. `C:relative` keeps its drive-relative meaning. PowerShell and the called program retain their own argument semantics.
+
+Tab completion inserts `(winpath '…')` when an absolute Unix path needs quoting. In scripts and custom functions, use `winpath` explicitly; the Enter hook only rewrites interactive input.
+
 ## Install
 
 ```powershell
@@ -113,6 +130,7 @@ The first measures the prompt path; the second sends Enter through Windows ConPT
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_path_commands.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1

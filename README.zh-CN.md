@@ -22,6 +22,23 @@ Windows 上 Unix 风格的 PowerShell 7：路径、命令、补全。
 | `Get-Command nvim` | `which nvim` |
 | Tab `I:\ispace\foo\` | `/i/ispace/foo/` |
 
+## 路径
+
+交互输入中，独立且**未加引号**的 `/c/...`、`~/...` 参数会在执行前转换。带引号的文本、注释、内嵌脚本、重定向和 `--output=/c/a` 这类组合参数保持原文。管道和复合命令逐个参数处理，不按命令名特殊适配。
+
+含空格的路径、变量和脚本中的路径，用显式转换：
+
+```powershell
+winpath '/c/my work'          # C:/my work
+unixpath 'C:\my work'         # /c/my work
+cd (winpath '~/my work')
+'C:\one', 'D:\two' | unixpath
+```
+
+两条命令都支持多个路径和管道输入，不要求路径存在，不展开通配符。`C:relative` 保留盘符相对路径含义。PowerShell 和被调用程序自身的参数语义不变。
+
+Tab 补全遇到需要引号的 Unix 绝对路径时，会生成 `(winpath '…')`。脚本和 custom 函数内也应显式使用 `winpath`；回车转换只作用于交互输入。
+
 ## 安装
 
 ```powershell
@@ -113,6 +130,7 @@ python src/tests/bench_console.py --enforce
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_path_commands.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1

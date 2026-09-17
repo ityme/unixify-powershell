@@ -1,11 +1,11 @@
-# 路径库：展示把盘符和反斜杠收成 unix，执行只把 /盘符 倒回 Windows。
+# 路径转换与补全。显式转换处理单个路径；交互改写只处理顶层裸参数。
 
 function ConvertTo-UnixStyleText {
     param([AllowEmptyString()][string]$Text)
     if ([string]::IsNullOrEmpty($Text)) { return $Text }
     $unix = [regex]::Replace(
         $Text,
-        '(?<=^|[\s=''"])(?:/)?([A-Za-z]):[\\/]*',
+        '^/?([A-Za-z]):[\\/]+',
         { param($m) '/' + $m.Groups[1].Value.ToLowerInvariant() + '/' }
     )
     return $unix.Replace('\', '/')
@@ -14,19 +14,39 @@ function ConvertTo-UnixStyleText {
 function ConvertTo-WindowsStyleText {
     param([AllowEmptyString()][string]$Text)
     if ([string]::IsNullOrEmpty($Text)) { return $Text }
-    $home = ($HOME.TrimEnd('\', '/') -replace '\\', '/')
-    $windows = [regex]::Replace($Text, '(?<=^|[\s=''"])~(?=/|$|\\)', $home)
-    $windows = [regex]::Replace(
-        $windows,
-        '/([A-Za-z]):',
-        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':' }
+    if ($Text -match '^~(?:[/\\]|$)') {
+        return $HOME.TrimEnd('\', '/').Replace('\', '/') + $Text.Substring(1).Replace('\', '/')
+    }
+    if ($Text -match '^/([A-Za-z]):(?=[/\\]|$)') {
+        return $Matches[1].ToUpperInvariant() + ':' + $Text.Substring(3)
+    }
+    # C: means the current directory on that drive, not C:/.
+    if ($Text -match '^/([A-Za-z])(?:/|$)') {
+        return $Matches[1].ToUpperInvariant() + ':/' + $Text.Substring([Math]::Min(3, $Text.Length))
+    }
+    return $Text
+}
+
+function winpath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromRemainingArguments)]
+        [AllowEmptyString()][string[]]$Path
     )
-    # /c 和 /c/ 都是盘根 C:/。写成 C: 会变成该盘当前目录。
-    return [regex]::Replace(
-        $windows,
-        '(?<=^|[\s=''"])/([A-Za-z])(/|$)',
-        { param($m) $m.Groups[1].Value.ToUpperInvariant() + ':/' }
+    process {
+        foreach ($item in $Path) { ConvertTo-WindowsStyleText $item }
+    }
+}
+
+function unixpath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromRemainingArguments)]
+        [AllowEmptyString()][string[]]$Path
     )
+    process {
+        foreach ($item in $Path) { ConvertTo-UnixStyleText $item }
+    }
 }
 
 function Resolve-ExpandedGlobPath {
@@ -85,7 +105,7 @@ function ConvertTo-WindowsPathOperands {
 
     foreach ($argument in @($Arguments)) {
         if ($argument -is [string]) {
-            Expand-PathGlob (ConvertTo-WindowsStyleText $argument)
+            Expand-PathGlob $argument
         } else {
             $argument
         }
@@ -99,18 +119,56 @@ function ConvertTo-WindowsCommandLine {
         return $InputScript
     }
 
-    $windows = ConvertTo-WindowsStyleText $InputScript
-    $trimmedOriginal = $InputScript.Trim()
-    $trimmedWindows = $windows.Trim()
-    if (
-        $trimmedOriginal -notmatch '\s' -and
-        (Test-PathLikeToken $trimmedOriginal) -and
-        (Test-Path -LiteralPath $trimmedWindows -PathType Container)
-    ) {
-        return "cd $trimmedWindows"
+    $tokens = $null
+    $errors = $null
+    $ast = [Management.Automation.Language.Parser]::ParseInput($InputScript, [ref]$tokens, [ref]$errors)
+    if ($errors.Count) { return $InputScript }
+    $changes = [Collections.Generic.List[object]]::new()
+    $commands = $ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] }, $false)
+    foreach ($command in $commands) {
+        # Only top-level pipelines/chains; never descend into subexpressions or script bodies.
+        $parent = $command.Parent
+        while ($parent -is [Management.Automation.Language.PipelineAst] -or
+               $parent -is [Management.Automation.Language.PipelineChainAst]) {
+            $parent = $parent.Parent
+        }
+        if ($parent -ne $ast.EndBlock) { continue }
+        $elements = $command.CommandElements
+        if ($elements.Count -eq 1 -and $command.Redirections.Count -eq 0 -and
+            $command.InvocationOperator -eq 'Unknown' -and $command.Extent.Text -ceq $InputScript.Trim()) {
+            $element = $elements[0]
+            if ($element -is [Management.Automation.Language.StringConstantExpressionAst] -and
+                $element.StringConstantType -eq 'BareWord' -and
+                $element.Extent.Text -ceq $element.Value -and
+                (Test-PathLikeToken $element.Value)) {
+                $directory = ConvertTo-WindowsStyleText $element.Value
+                if (Test-Path -LiteralPath $directory -PathType Container) {
+                    return 'cd ' + (ConvertTo-QuotedText $directory)
+                }
+            }
+        }
+        for ($index = 1; $index -lt $elements.Count; $index++) {
+            $element = $elements[$index]
+            if ($element.Extent.Text -eq '--%') { break }
+            if ($element -isnot [Management.Automation.Language.StringConstantExpressionAst] -or
+                $element.StringConstantType -ne 'BareWord' -or
+                $element.Extent.Text -cne $element.Value -or
+                $element.Value -notmatch '^(?:/[A-Za-z](?:/[^\s]*|$)|~(?:/[^\s]*|$))$') {
+                continue
+            }
+            $converted = ConvertTo-WindowsStyleText $element.Value
+            $changes.Add([pscustomobject]@{
+                Start = $element.Extent.StartOffset
+                Length = $element.Extent.EndOffset - $element.Extent.StartOffset
+                Text = ConvertTo-QuotedText $converted
+            })
+        }
     }
-
-    return $windows
+    $result = $InputScript
+    foreach ($change in ($changes | Sort-Object Start -Descending)) {
+        $result = $result.Remove($change.Start, $change.Length).Insert($change.Start, $change.Text)
+    }
+    return $result
 }
 
 
@@ -123,7 +181,7 @@ function ConvertTo-WindowsArguments {
 
 function Resolve-WindowsPath {
     param([string]$Path)
-    $windowsPath = ConvertTo-WindowsStyleText $Path
+    $windowsPath = $Path
     if ([IO.Path]::IsPathRooted($windowsPath) -or $windowsPath -match '^[a-zA-Z]:[^\\/]') { return $windowsPath }
     try {
         return [IO.Path]::GetFullPath((Join-Path (Get-Location).ProviderPath $windowsPath))
@@ -132,6 +190,9 @@ function Resolve-WindowsPath {
 
 function ConvertFrom-QuotedText {
     param([string]$Text)
+    if ($Text -match '^\(winpath (''(?:[^'']|'''')*'')\)$') {
+        $Text = $Matches[1]
+    }
     if ($Text.Length -ge 2) {
         if ($Text[0] -eq "'" -and $Text[-1] -eq "'") { return $Text.Substring(1, $Text.Length - 2).Replace("''", "'") }
         if ($Text[0] -eq '"' -and $Text[-1] -eq '"') { return $Text.Substring(1, $Text.Length - 2) }
@@ -147,6 +208,16 @@ function ConvertTo-QuotedText {
     return $Text
 }
 
+function ConvertTo-PathCompletionText {
+    param([string]$Text, [switch]$LiteralPaths)
+
+    $quoted = ConvertTo-QuotedText $Text
+    if (-not $LiteralPaths -and $quoted -cne $Text -and $Text -match '^(?:/[A-Za-z](?:/|$)|~(?:/|$))') {
+        return "(winpath $quoted)"
+    }
+    return $quoted
+}
+
 function Get-UnixPathCompletion {
     param(
         [string]$WordToComplete,
@@ -154,7 +225,12 @@ function Get-UnixPathCompletion {
         [string]$BaseDirectory
     )
 
-    $word = $WordToComplete.Trim([char[]]@([char]39, [char]34))
+    $word = ConvertFrom-QuotedText $WordToComplete
+    if ($word.StartsWith("'")) {
+        $word = $word.Substring(1).Replace("''", "'")
+    } elseif ($word.StartsWith('"')) {
+        $word = $word.Substring(1)
+    }
     $isHomePath = $word -eq '~' -or $word -match '^~[\\\/]'
     $isAbsolutePath = $word -match '^(?:/[a-zA-Z](?:/|$)|/?[a-zA-Z]:[\\/])'
     $wordSeparatorIndex = [Math]::Max($word.LastIndexOf('\'), $word.LastIndexOf('/'))
@@ -276,7 +352,7 @@ function Get-UnixPathCompletion {
             if ($_.PSIsContainer) {
                 $completion = $completion.TrimEnd('/') + '/'
             }
-            $completion = ConvertTo-QuotedText $completion
+            $completion = ConvertTo-PathCompletionText $completion
             $resultType = if ($_.PSIsContainer) {
                 'ProviderContainer'
             } else {
@@ -325,7 +401,8 @@ function Test-PathCompletionResult {
 function ConvertTo-UnixCompletionResult {
     param(
         [object]$Match,
-        [string]$CurrentText
+        [string]$CurrentText,
+        [switch]$LiteralPaths
     )
 
     if (-not (Test-PathCompletionResult $Match)) {
@@ -378,9 +455,12 @@ function ConvertTo-UnixCompletionResult {
         $normalizedPath += '/'
     }
 
-    $normalizedText = $completionPrefix + (
-        ConvertTo-QuotedText $normalizedPath
-    )
+    $normalizedText = if ($completionPrefix) {
+        # Attached option values are not rewritten on Enter; return an executable path now.
+        $completionPrefix + (ConvertTo-QuotedText (ConvertTo-WindowsStyleText $normalizedPath))
+    } else {
+        ConvertTo-PathCompletionText $normalizedPath -LiteralPaths:$LiteralPaths
+    }
     if ($normalizedText -eq $completionText) {
         return $Match
     }
@@ -416,7 +496,8 @@ function Get-CompletionComparisonText {
 function Get-CompletionDecision {
     param(
         [object[]]$Matches,
-        [string]$CurrentText
+        [string]$CurrentText,
+        [switch]$LiteralPaths
     )
 
     $seen = [Collections.Generic.HashSet[string]]::new(
@@ -445,7 +526,11 @@ function Get-CompletionDecision {
             $allPathResults = $false
         }
 
-        $candidate = $comparisonText
+        $candidate = if ($comparisonText.StartsWith('(winpath ')) {
+            ConvertFrom-QuotedText $comparisonText
+        } else {
+            $comparisonText
+        }
         if ($candidate.Length -ge 2) {
             $first = $candidate[0]
             $last = $candidate[$candidate.Length - 1]
@@ -484,7 +569,8 @@ function Get-CompletionDecision {
         $replacement = [string](
             ConvertTo-UnixCompletionResult `
                 -Match $firstMatch `
-                -CurrentText $CurrentText
+                -CurrentText $CurrentText `
+                -LiteralPaths:$LiteralPaths
         ).CompletionText
     } elseif ($matchCount -gt 1 -and $prefix) {
         if ($allPathResults) {
@@ -497,7 +583,8 @@ function Get-CompletionDecision {
             $replacement = [string](
                 ConvertTo-UnixCompletionResult `
                     -Match $prefixResult `
-                    -CurrentText $CurrentText
+                    -CurrentText $CurrentText `
+                    -LiteralPaths:$LiteralPaths
             ).CompletionText
         } else {
             $replacement = ConvertTo-QuotedText $prefix
@@ -531,7 +618,15 @@ function Invoke-PathCompletionHook {
             Get-UnixPathCompletion -WordToComplete $currentText
         )
         if ($fileMatches.Count -gt 0) {
-            $State.Matches = $fileMatches
+            $State.Matches = if ($State.LiteralPaths) {
+                @(
+                    foreach ($match in $fileMatches) {
+                        ConvertTo-UnixCompletionResult -Match $match -CurrentText $currentText -LiteralPaths
+                    }
+                )
+            } else {
+                $fileMatches
+            }
             return $State
         }
     }
@@ -540,7 +635,8 @@ function Invoke-PathCompletionHook {
         foreach ($match in @($State.Matches)) {
             ConvertTo-UnixCompletionResult `
                 -Match $match `
-                -CurrentText $currentText
+                -CurrentText $currentText `
+                -LiteralPaths:([bool]$State.LiteralPaths)
         }
     )
     return $State
@@ -548,6 +644,8 @@ function Invoke-PathCompletionHook {
 
 
 Export-ModuleMember -Function @(
+    'winpath'
+    'unixpath'
     'ConvertTo-UnixStyleText'
     'ConvertTo-WindowsStyleText'
     'ConvertTo-WindowsArguments'
@@ -555,6 +653,7 @@ Export-ModuleMember -Function @(
     'ConvertTo-WindowsPathOperands'
     'ConvertFrom-QuotedText'
     'ConvertTo-QuotedText'
+    'ConvertTo-PathCompletionText'
     'ConvertTo-UnixCompletionResult'
     'Expand-PathGlob'
     'Get-CompletionDecision'

@@ -17,7 +17,7 @@ function global:cd {
 
         $target = $script:PreviousDirectory
     } else {
-        $target = ConvertTo-WindowsStyleText $Path
+        $target = $Path
     }
 
     $current = (Get-Location).Path

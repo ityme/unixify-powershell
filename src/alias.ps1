@@ -29,7 +29,7 @@ function Install-CommandMap {
         if ($head -eq 'cd' -and $rest.Count -eq 1) {
             $path = $rest[0]
             Set-Item -Path "function:global:$name" -Value {
-                cd $path
+                cd (winpath $path)
             }.GetNewClosure()
             continue
         }

@@ -39,25 +39,6 @@ function Test-CompleteCommandLine {
     ).Count
 }
 
-function Get-CommandLineName {
-    param([string]$Line)
-
-    $tokens = $null
-    $parseErrors = $null
-    [void][System.Management.Automation.Language.Parser]::ParseInput(
-        $Line,
-        [ref]$tokens,
-        [ref]$parseErrors
-    )
-    foreach ($token in $tokens) {
-        $kind = [string]$token.Kind
-        if ($kind -in @('Identifier', 'Generic', 'Command')) {
-            return $token.Text
-        }
-    }
-    return ''
-}
-
 function Test-WindowsCommandLineReplacement {
     param(
         [string]$Original,
@@ -68,27 +49,7 @@ function Test-WindowsCommandLineReplacement {
         return $false
     }
 
-    $trimmed = $Original.Trim()
-    if (
-        $trimmed -notmatch '\s' -and
-        (Test-PathLikeToken $trimmed)
-    ) {
-        return $true
-    }
-
-    $name = Get-CommandLineName $Original
-    if ([string]::IsNullOrWhiteSpace($name)) {
-        return $false
-    }
-
-    $command = Get-Command $name -ErrorAction SilentlyContinue
-    while ($command -and $command.CommandType -eq 'Alias') {
-        $command = Get-Command $command.Definition -ErrorAction SilentlyContinue
-    }
-    return [bool](
-        $command -and
-        $command.CommandType -eq 'Application'
-    )
+    return $true
 }
 
 function New-HookState {
@@ -103,6 +64,7 @@ function New-HookState {
         ReplacementIndex   = 0
         ReplacementLength  = 0
         Matches            = @()
+        LiteralPaths       = $false
     }
 }
 
@@ -118,6 +80,15 @@ function Complete-HookLine {
 
     $state = New-HookState -Line $Line -Cursor $Cursor
     $state = Invoke-PowerShellCompletionHook -State $state
+    $tokens = $null
+    $errors = $null
+    $ast = [Management.Automation.Language.Parser]::ParseInput($Line, [ref]$tokens, [ref]$errors)
+    $commands = $ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] }, $true)
+    foreach ($command in $commands) {
+        if ($command.Extent.StartOffset -le $Cursor -and $command.Extent.EndOffset -ge $Cursor) {
+            $state.LiteralPaths = $command.GetCommandName() -in @('winpath', 'unixpath')
+        }
+    }
     $state = Invoke-PathCompletionHook -State $state
     return $state
 }
@@ -203,7 +174,8 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
 
         $decision = Get-CompletionDecision `
             -Matches $state.Matches `
-            -CurrentText $currentText
+            -CurrentText $currentText `
+            -LiteralPaths:$state.LiteralPaths
 
         if ($decision.MatchCount -eq 1) {
             [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
