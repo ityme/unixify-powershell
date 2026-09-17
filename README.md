@@ -1,8 +1,26 @@
 # unixify-powershell
 
-Unix-style commands, completion, and profile for PowerShell 7 on Windows.
+Unix-style PowerShell 7 on Windows: paths, commands, and tab-complete.
 
 [English](README.md) | [简体中文](README.zh-CN.md)
+
+## Before / after
+
+Stock pwsh uses Windows paths and cmdlets. After `load`, you type Unix paths and Unix commands. Tab-complete stays Unix too. Execution still uses Windows paths.
+
+| Before | After |
+| --- | --- |
+| `Set-Location I:\ispace` | `cd /i/ispace` |
+| `cd $HOME\Desktop` | `cd ~/Desktop` |
+| `Get-ChildItem` | `ls` |
+| `Get-ChildItem -Force` | `ll` |
+| `Copy-Item -Recurse src backup` | `cp -r src backup` |
+| `Move-Item old.txt new.txt` | `mv old.txt new.txt` |
+| `New-Item -ItemType Directory -Force logs\archive` | `mkdir -p logs/archive` |
+| `Remove-Item -Recurse -Force build` | `rm -rf build` |
+| `Select-String error app.log` | `grep error app.log` |
+| `Get-Command nvim` | `which nvim` |
+| Tab `I:\ispace\foo\` | `/i/ispace/foo/` |
 
 ## Install
 

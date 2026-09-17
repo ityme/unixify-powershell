@@ -1,8 +1,26 @@
 # unixify-powershell
 
-PowerShell 7 的 Unix 风格命令、补全和 profile。仅 Windows，需要 `pwsh`。
+Windows 上 Unix 风格的 PowerShell 7：路径、命令、补全。
 
 [English](README.md) | [简体中文](README.zh-CN.md)
+
+## 使用前 / 使用后
+
+原生 pwsh 是 Windows 路径和 cmdlet。`load` 之后，路径和命令按 Unix 写，Tab 补全也是 Unix 形式。真正执行时才转回 Windows 路径。
+
+| 之前 | 之后 |
+| --- | --- |
+| `Set-Location I:\ispace` | `cd /i/ispace` |
+| `cd $HOME\Desktop` | `cd ~/Desktop` |
+| `Get-ChildItem` | `ls` |
+| `Get-ChildItem -Force` | `ll` |
+| `Copy-Item -Recurse src backup` | `cp -r src backup` |
+| `Move-Item old.txt new.txt` | `mv old.txt new.txt` |
+| `New-Item -ItemType Directory -Force logs\archive` | `mkdir -p logs/archive` |
+| `Remove-Item -Recurse -Force build` | `rm -rf build` |
+| `Select-String error app.log` | `grep error app.log` |
+| `Get-Command nvim` | `which nvim` |
+| Tab `I:\ispace\foo\` | `/i/ispace/foo/` |
 
 ## 安装
 
