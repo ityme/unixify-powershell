@@ -86,7 +86,12 @@ function Start-UpwshRelaunchIfNeeded {
     $start = [Diagnostics.ProcessStartInfo]::new()
     $start.FileName = $exe
     $start.UseShellExecute = $false
-    $start.WorkingDirectory = $tempDir
+    $workingDirectory = (Get-Location).ProviderPath
+    $start.WorkingDirectory = if (Test-UpwshPathUnder -Path $workingDirectory -Root $InstallHome) {
+        $tempDir
+    } else {
+        $workingDirectory
+    }
     foreach ($token in @('-NoLogo', '-NoProfile', '-File', $target) + @($Arguments)) {
         if ($null -ne $token -and [string]$token -ne '') {
             [void]$start.ArgumentList.Add([string]$token)

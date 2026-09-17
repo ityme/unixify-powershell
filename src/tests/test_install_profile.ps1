@@ -1,7 +1,13 @@
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot '_test_host.ps1')
+if ($env:UPWSH_TEST_ISOLATED -ne '1') {
+    Invoke-UpwshIsolatedTest -File $PSCommandPath
+    exit $LASTEXITCODE
+}
 
 $installer = Join-Path $PSScriptRoot '..\scripts\install_profile.ps1'
 $sourceProfile = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\profile.ps1'))
+$installedProfile = Join-Path $HOME '.config\upwsh\profile.ps1'
 $root = Join-Path ([IO.Path]::GetTempPath()) (
     'pwsh-install-profile-' + [Guid]::NewGuid().ToString('N')
 )
@@ -79,6 +85,9 @@ function Invoke-Installer {
     if ($Deploy) {
         $arguments.Deploy = $true
     }
+    if (-not $Deploy -and -not $Check -and -not $Uninstall -and -not (Test-Path -LiteralPath $installedProfile)) {
+        & $installer -ProfilePath $ProfilePath -Deploy | Out-Null
+    }
     & $installer @arguments | Out-String
 }
 
@@ -91,17 +100,17 @@ try {
         $output = Invoke-Installer -ProfilePath $hook -Check
         Assert-Contains $output 'state    missing'
         Assert-Contains $output $hook
-        Assert-Contains $output $sourceProfile
+        Assert-Contains $output $installedProfile
         Assert-True (-not (Test-Path -LiteralPath $hook)) 'check created a profile file'
     }
 
-    Invoke-InstallProfileTest 'install creates a marked hook to this repo' {
+    Invoke-InstallProfileTest 'install creates a marked hook to the installed runtime' {
         $output = Invoke-Installer -ProfilePath $hook
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $output 'state    installed'
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text '# <<< unixify-powershell <<<'
-        Assert-Contains $text $sourceProfile
+        Assert-Contains $text $installedProfile
         Assert-Contains $text 'Test-Path -LiteralPath'
     }
 
@@ -130,14 +139,14 @@ try {
         Invoke-Installer -ProfilePath $hook | Out-Null
         $text = [IO.File]::ReadAllText($hook)
         Assert-True ($text -notlike '*C:\old\profile.ps1*') "old target remained:`n$text"
-        Assert-Contains $text $sourceProfile
+        Assert-Contains $text $installedProfile
         Assert-Equal ([regex]::Matches($text, '# >>> unixify-powershell >>>').Count) 1
     }
 
     Invoke-InstallProfileTest 'check reports installed target' {
         $output = Invoke-Installer -ProfilePath $hook -Check
         Assert-Contains $output 'state    installed'
-        Assert-Contains $output $sourceProfile
+        Assert-Contains $output $installedProfile
     }
 
     Invoke-InstallProfileTest 'uninstall removes the marked block only' {

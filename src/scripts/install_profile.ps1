@@ -1,4 +1,4 @@
-# 让当前用户的 pwsh 加载本仓库。默认挂钩源码树里的 profile.ps1。
+# 让当前用户的 pwsh 加载 ~/.config/upwsh/profile.ps1。-Deploy 从源码复制到安装目录。
 #   install_profile.ps1
 #   install_profile.ps1 -Check
 #   install_profile.ps1 -Uninstall
@@ -172,13 +172,12 @@ if ($Uninstall -and $Deploy) {
 }
 
 $hookPath = Get-HookProfilePath
-$sourceProfile = Get-SourceProfilePath
-if (-not (Test-Path -LiteralPath $sourceProfile -PathType Leaf)) {
-    throw "missing profile: $sourceProfile"
-}
-
-$targetProfile = $sourceProfile
+$targetProfile = Join-Path (Get-UpwshHome) 'profile.ps1'
 if ($Deploy) {
+    $sourceProfile = Get-SourceProfilePath
+    if (-not (Test-Path -LiteralPath $sourceProfile -PathType Leaf)) {
+        throw "missing profile: $sourceProfile"
+    }
     if (-not $Destination) {
         $Destination = Get-DefaultDestination
     }
@@ -205,6 +204,10 @@ if ($Uninstall) {
     Write-ProfileText -Path $hookPath -Text (Remove-InstallBlock $existing)
     Write-InstallStatus -HookPath $hookPath -TargetPath $installedTarget -State 'removed'
     return
+}
+
+if (-not (Test-Path -LiteralPath $targetProfile -PathType Leaf)) {
+    throw "runtime is not installed at $targetProfile; run upwsh install first"
 }
 
 $updated = Set-InstallBlock -Text $existing -Block (Get-InstallBlock $targetProfile)

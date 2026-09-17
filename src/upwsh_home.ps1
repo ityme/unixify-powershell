@@ -1,4 +1,4 @@
-# UPWSH_HOME：项目根。未设置时为 ~/.config/upwsh。
+# UPWSH_HOME：安装目录，固定为 ~/.config/upwsh，不用环境变量重定向。
 # upwsh 命令：$UPWSH_HOME\bin\upwsh.cmd。CLI：$UPWSH_HOME\tool\bin。
 
 function ConvertTo-UpwshWindowsPath {
@@ -20,16 +20,7 @@ function ConvertTo-UpwshWindowsPath {
 }
 
 function Get-UpwshHome {
-    $raw = $env:UPWSH_HOME
-    if ([string]::IsNullOrWhiteSpace($raw)) {
-        $raw = [Environment]::GetEnvironmentVariable('UPWSH_HOME', 'User')
-    }
-    if ([string]::IsNullOrWhiteSpace($raw)) {
-        $raw = Join-Path $HOME '.config\upwsh'
-    } else {
-        $raw = ConvertTo-UpwshWindowsPath $raw
-    }
-    [IO.Path]::GetFullPath($raw)
+    [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
 }
 
 function Get-UpwshBin {

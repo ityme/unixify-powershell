@@ -1,4 +1,9 @@
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot '_test_host.ps1')
+if ($env:UPWSH_TEST_ISOLATED -ne '1') {
+    Invoke-UpwshIsolatedTest -File $PSCommandPath
+    exit $LASTEXITCODE
+}
 
 $profilePath = Join-Path $PSScriptRoot '..\profile.ps1'
 $root = Join-Path ([IO.Path]::GetTempPath()) (
@@ -171,7 +176,9 @@ try {
     New-FixtureFile '.viminfo' -Hidden -BaseDirectory $fakeHome | Out-Null
     New-FixtureDirectory '.vim' -Hidden -BaseDirectory $fakeHome | Out-Null
 
-    $env:UPWSH_HOME = Join-Path $root 'upwsh-home'
+    & (Join-Path $PSScriptRoot '..\scripts\install_profile.ps1') -Deploy | Out-Null
+    $profilePath = Join-Path $HOME '.config\upwsh\profile.ps1'
+    $env:UPWSH_HOME = Split-Path -Parent $profilePath
     $customDir = Join-Path (Split-Path -Parent $profilePath) 'custom'
     New-Item -ItemType Directory -Path $customDir -Force | Out-Null
     $customOverlay = Join-Path $customDir 'zz.ps1'

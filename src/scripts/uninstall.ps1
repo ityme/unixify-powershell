@@ -28,8 +28,7 @@ A network uninstall can run:
 
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/uninstall.ps1 | iex
 
-Environment: UPWSH_HOME
-Unload first, then drop UPWSH_HOME and Path, then delete the install tree.
+Unload first, then drop UPWSH_HOME and managed Path entries, then delete ~/.config/upwsh.
 --keep-custom leaves UPWSH_HOME\\custom in place.
 '@
 }
@@ -113,16 +112,44 @@ function ConvertTo-WindowsStyleDirectory {
 }
 
 function Get-UninstallHome {
-    $raw = $env:UPWSH_HOME
-    if ([string]::IsNullOrWhiteSpace($raw)) {
-        $raw = [Environment]::GetEnvironmentVariable('UPWSH_HOME', 'User')
+    [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
+}
+
+# The piped uninstaller must also work when the runtime files are already gone.
+function Remove-UninstallEnvironment {
+    param([string]$InstallHome)
+
+    $managed = @(
+        '%UPWSH_HOME%\bin'
+        '%UPWSH_HOME%\tool\bin'
+        (Join-Path $InstallHome 'bin')
+        (Join-Path $InstallHome 'tool\bin')
+    )
+    $filterPath = {
+        param([string]$Value)
+        @($Value -split ';' | Where-Object {
+            $entry = $_.Trim().TrimEnd('\', '/').Replace('/', '\')
+            $entry -and $entry -notin $managed
+        }) -join ';'
     }
-    if ([string]::IsNullOrWhiteSpace($raw)) {
-        $raw = Join-Path $HOME '.config\upwsh'
-    } else {
-        $raw = ConvertTo-WindowsStyleDirectory $raw
+    $env:PATH = & $filterPath $env:PATH
+    Remove-Item Env:\UPWSH_HOME -ErrorAction SilentlyContinue
+    if (-not $env:UPWSH_SKIP_PERSIST_PATH) {
+        $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+        if ($key) {
+            try {
+                $raw = $key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                if ($null -ne $raw) {
+                    $key.SetValue('Path', (& $filterPath $raw), [Microsoft.Win32.RegistryValueKind]::ExpandString)
+                }
+                $key.DeleteValue('UPWSH_HOME', $false)
+            } finally {
+                $key.Close()
+            }
+        }
     }
-    [IO.Path]::GetFullPath($raw)
+    Write-Output 'home    removed'
+    Write-Output 'path    removed'
 }
 
 function Get-UninstallHookPath {
@@ -222,12 +249,12 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 
 $directory = Get-UninstallHome
 $hookPath = Get-UninstallHookPath -Parsed $parsed
-$upwsh = Join-Path $directory 'scripts\upwsh.ps1'
-$homeScript = Join-Path $directory 'upwsh_home.ps1'
 $keepTree = Test-GitCheckout $directory
-$relaunch = Join-Path $PSScriptRoot '_relaunch.ps1'
-if (Test-Path -LiteralPath $relaunch -PathType Leaf) {
-    . $relaunch
+if ($PSScriptRoot) {
+    $relaunch = Join-Path $PSScriptRoot '_relaunch.ps1'
+    if (Test-Path -LiteralPath $relaunch -PathType Leaf) {
+        . $relaunch
+    }
 }
 if (Get-Command Wait-UpwshRelaunchParent -ErrorAction SilentlyContinue) {
     Wait-UpwshRelaunchParent
@@ -293,15 +320,8 @@ $savedProfile = $env:UPWSH_PROFILE
 try {
     $env:UPWSH_PROFILE = $hookPath
     $env:UPWSH_HOME = $directory
-    if (Test-Path -LiteralPath $upwsh -PathType Leaf) {
-        & $upwsh unload
-    } else {
-        Remove-ProfileHookFallback -Path $hookPath
-    }
-    if (Test-Path -LiteralPath $homeScript -PathType Leaf) {
-        . $homeScript
-        Remove-UpwshUserEnvironment
-    }
+    Remove-ProfileHookFallback -Path $hookPath
+    Remove-UninstallEnvironment -InstallHome $directory
 } finally {
     $env:UPWSH_PROFILE = $savedProfile
 }

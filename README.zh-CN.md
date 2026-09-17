@@ -30,14 +30,9 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
 
 拷到 `~/.config/upwsh`，再加载进 pwsh。
 
-家目录：`$env:UPWSH_HOME`，否则用户环境变量 `UPWSH_HOME`，否则 `~/.config/upwsh`。
+安装目录固定为 `~/.config/upwsh`。`UPWSH_HOME` 只记录这个路径，修改它不会改变安装位置。
 
-```powershell
-$env:UPWSH_HOME = "$HOME\.config\upwsh"
-irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
-```
-
-管道还可用 `UPWSH_REF`、`UPWSH_REPO`。旁边有这份仓库时，`install.ps1` 直接拷 `src/`，不下载。
+在本项目或其子目录中运行 `upwsh install`，使用本地 `src/`；在项目外运行则下载源码。可用 `--source`、`--ref`、`--repo` 指定来源；管道安装对应使用 `UPWSH_SOURCE`、`UPWSH_REF`、`UPWSH_REPO`。
 
 开一个新的 `pwsh`。`upwsh --help` 能跑即可。
 
@@ -47,16 +42,16 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
 
 | 命令 | 作用 |
 | --- | --- |
-| `upwsh install` | 拷到家目录，再 load |
-| `upwsh update` | 卸载但保留 `custom`，再安装 |
-| `upwsh uninstall` | unload，再删 `UPWSH_HOME`、Path 和安装目录 |
-| `upwsh load` | 加载进当前 pwsh，并写入 `$PROFILE`，以后新开的 pwsh 也会加载 |
+| `upwsh install` | 从本地项目或网络安装到 `~/.config/upwsh`，然后加载 |
+| `upwsh update` | 按相同来源规则重新安装到 `~/.config/upwsh`，保留 `custom/` |
+| `upwsh uninstall` | 删除自动加载配置、相关 Path 项、`UPWSH_HOME` 和 `~/.config/upwsh` |
+| `upwsh load` | 将 `~/.config/upwsh/profile.ps1` 加载进 pwsh，并设置启动时自动加载 |
 | `upwsh unload` | `$PROFILE` 不再加载。文件、Path、`upwsh` 命令还在 |
 | `upwsh tool list` | 列出 CLI，并看 Path 上有没有 |
 | `upwsh tool install [names…]` | 把 CLI 装进 `tool\bin` |
 | `upwsh tool uninstall <names…>` | 删掉点名的 CLI |
 
-`load` 还会写用户环境变量 `UPWSH_HOME`，并把 `%UPWSH_HOME%\bin`、`%UPWSH_HOME%\tool\bin` 接到用户 Path 末尾。
+`load` 还会写用户环境变量 `UPWSH_HOME`，并把 `%UPWSH_HOME%\bin`、`%UPWSH_HOME%\tool\bin` 接到用户 Path 末尾。必须先 `install`，`load` 不再加载源码目录。`unload` 停止以后自动加载，不撤销当前会话中已加载的功能。
 
 个人文件：`$UPWSH_HOME\custom\*.ps1`。样板在 `custom\alias.ps1`（`w`、`t`、`i`、`d`、`gs`）。`update` 会保留这个目录。
 
@@ -79,11 +74,7 @@ cd unixify-powershell
 pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 ```
 
-把这份源码加载进 pwsh，不拷文件：
-
-```powershell
-pwsh -NoLogo -NoProfile -File src/scripts/upwsh.ps1 load
-```
+如果已经装过 `upwsh`，在本仓库运行 `upwsh install` 即可安装本地改动。两种方式都会把 `src/` 拷到 `~/.config/upwsh`，不会把仓库当作安装目录。
 
 ## 更新
 

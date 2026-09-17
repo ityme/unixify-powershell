@@ -1,6 +1,5 @@
-# 把运行时拷到 UPWSH_HOME（默认 ~/.config/upwsh），再 upwsh load。
+# 从本地项目或网络安装到 ~/.config/upwsh，再 upwsh load。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
-#   $env:UPWSH_HOME = "$HOME\.config\upwsh"; irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 #   pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
@@ -32,8 +31,9 @@ A network install can run:
 
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 
-Environment: UPWSH_HOME UPWSH_REF UPWSH_REPO UPWSH_SOURCE
-UPWSH_HOME is the project root, default ~/.config/upwsh.
+Environment: UPWSH_REF UPWSH_REPO UPWSH_SOURCE
+Install into ~/.config/upwsh. UPWSH_HOME records this fixed location.
+Without source options, use the local project at the current directory or script location.
 The upwsh command is UPWSH_HOME\\bin\\upwsh.cmd.
 CLI tools go in UPWSH_HOME\\tool\\bin.
 '@
@@ -143,11 +143,7 @@ function ConvertTo-WindowsStyleDirectory {
 }
 
 function Get-DefaultDestination {
-    $raw = $env:UPWSH_HOME
-    if ([string]::IsNullOrWhiteSpace($raw)) {
-        return [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
-    }
-    [IO.Path]::GetFullPath((ConvertTo-WindowsStyleDirectory $raw))
+    [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
 }
 
 function Test-RuntimeRoot {
@@ -191,23 +187,29 @@ function Get-LocalScriptRoot {
     return $null
 }
 
-function Get-SiblingRuntimeRoot {
-    $here = Get-LocalScriptRoot
-    if (-not $here) {
-        return $null
+function Get-LocalProjectRuntimeRoot {
+    $starts = @()
+    if ((Get-Location).Provider.Name -eq 'FileSystem') {
+        $starts += (Get-Location).ProviderPath
     }
-
-    $current = $here
-    while ($current) {
-        try {
-            return Resolve-RuntimeRoot $current
-        } catch {
+    $starts += Get-LocalScriptRoot
+    foreach ($start in $starts) {
+        $current = $start
+        while ($current) {
+            $src = Join-Path $current 'src'
+            if (
+                (Test-RuntimeRoot $src) -and
+                (Test-Path -LiteralPath (Join-Path $src 'scripts\upwsh.ps1') -PathType Leaf) -and
+                (Test-Path -LiteralPath (Join-Path $current 'README.md') -PathType Leaf)
+            ) {
+                return [IO.Path]::GetFullPath($src)
+            }
+            $parent = Split-Path -Parent $current
+            if (-not $parent -or $parent -eq $current) {
+                break
+            }
+            $current = $parent
         }
-        $parent = Split-Path -Parent $current
-        if (-not $parent -or $parent -eq $current) {
-            break
-        }
-        $current = $parent
     }
     return $null
 }
@@ -363,10 +365,10 @@ $directory = Get-DefaultDestination
 
 $workRoot = $null
 try {
-    $forceRemote = [bool]$ref -or [bool]$parsed.Repo
+    $forceRemote = [bool]$ref -or [bool]$parsed.Repo -or [bool]$env:UPWSH_REPO
     $sibling = $null
     if (-not $source -and -not $forceRemote) {
-        $sibling = Get-SiblingRuntimeRoot
+        $sibling = Get-LocalProjectRuntimeRoot
     }
     if ($source) {
         $runtimeRoot = Resolve-RuntimeRoot (ConvertTo-WindowsStyleDirectory $source)
@@ -376,6 +378,10 @@ try {
         $downloaded = Get-DownloadedRuntime -Repo $repo -Ref $ref
         $runtimeRoot = $downloaded.Root
         $workRoot = $downloaded.Work
+    }
+
+    if ([IO.Path]::GetFullPath($runtimeRoot).TrimEnd('\', '/') -ieq $directory.TrimEnd('\', '/')) {
+        throw 'the installed runtime cannot be its own source; use a local project or a download'
     }
 
     $installer = Join-Path $runtimeRoot 'scripts\install_profile.ps1'

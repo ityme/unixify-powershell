@@ -29,8 +29,8 @@ A network update can run:
 
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/update.ps1 | iex
 
-Environment: UPWSH_HOME UPWSH_REF UPWSH_REPO UPWSH_SOURCE
-Uninstall with --keep-custom, then install. custom stays.
+Environment: UPWSH_REF UPWSH_REPO UPWSH_SOURCE
+Update ~/.config/upwsh from the local project or a download. custom stays.
 '@
 }
 
@@ -112,14 +112,7 @@ function Get-LocalScriptRoot {
 }
 
 function Get-UpdateHome {
-    $raw = $env:UPWSH_HOME
-    if ([string]::IsNullOrWhiteSpace($raw)) {
-        $raw = [Environment]::GetEnvironmentVariable('UPWSH_HOME', 'User')
-    }
-    if ([string]::IsNullOrWhiteSpace($raw)) {
-        $raw = Join-Path $HOME '.config\upwsh'
-    }
-    [IO.Path]::GetFullPath($raw)
+    [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
 }
 
 function Test-PathUnderHome {
@@ -168,9 +161,11 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     return
 }
 
-$relaunch = Join-Path $PSScriptRoot '_relaunch.ps1'
-if (Test-Path -LiteralPath $relaunch -PathType Leaf) {
-    . $relaunch
+if ($PSScriptRoot) {
+    $relaunch = Join-Path $PSScriptRoot '_relaunch.ps1'
+    if (Test-Path -LiteralPath $relaunch -PathType Leaf) {
+        . $relaunch
+    }
 }
 if (Get-Command Wait-UpwshRelaunchParent -ErrorAction SilentlyContinue) {
     Wait-UpwshRelaunchParent

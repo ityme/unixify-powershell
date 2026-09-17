@@ -1,10 +1,17 @@
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot '_test_host.ps1')
+if ($env:UPWSH_TEST_ISOLATED -ne '1') {
+    Invoke-UpwshIsolatedTest -File $PSCommandPath
+    exit $LASTEXITCODE
+}
 
 $upwsh = Join-Path $PSScriptRoot '..\scripts\upwsh.ps1'
 $sourceProfile = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\profile.ps1'))
 $root = Join-Path ([IO.Path]::GetTempPath()) (
     'pwsh-upwsh-' + [Guid]::NewGuid().ToString('N')
 )
+$installHome = Join-Path $HOME '.config\upwsh'
+$installedProfile = Join-Path $installHome 'profile.ps1'
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
 
@@ -68,7 +75,7 @@ function Invoke-Upwsh {
     $savedSkipSession = $env:UPWSH_SKIP_SESSION_LOAD
     $savedPath = $env:PATH
     try {
-        $env:UPWSH_HOME = $root
+        $env:UPWSH_HOME = Split-Path -Parent $sourceProfile
         $env:UPWSH_PROFILE = Join-Path $root 'profile.ps1'
         $env:UPWSH_SKIP_PERSIST_PATH = '1'
         if ($LoadSession) {
@@ -96,8 +103,8 @@ function Invoke-Upwsh {
 try {
     New-Item -ItemType Directory -Path $root -Force | Out-Null
     $hook = Join-Path $root 'profile.ps1'
-    $bin = Join-Path $root 'bin'
-    $toolBin = Join-Path $root 'tool\bin'
+    $bin = Join-Path $installHome 'bin'
+    $toolBin = Join-Path $installHome 'tool\bin'
     New-Item -ItemType Directory -Path $bin, $toolBin -Force | Out-Null
     $shim = Join-Path $bin 'upwsh.cmd'
 
@@ -149,14 +156,27 @@ try {
         Assert-Contains $result.Text 'use only one of load, unload, tool, install, uninstall, or update'
     }
 
-    Invoke-UpwshTest 'load hooks the profile' {
+    Invoke-UpwshTest 'load before install fails without writing a hook' {
+        $failed = $false
+        try { Invoke-Upwsh -Tokens @('load') | Out-Null } catch { $failed = $true }
+        Assert-True $failed 'load unexpectedly used the source tree'
+        Assert-True (-not (Test-Path -LiteralPath $hook)) 'failed load wrote a hook'
+    }
+
+    Invoke-UpwshTest 'install deploys before load' {
+        $result = Invoke-Upwsh -Tokens @('install')
+        Assert-Equal $result.Code 0
+        Assert-True (Test-Path -LiteralPath $installedProfile) 'install missed runtime'
+    }
+
+    Invoke-UpwshTest 'load hooks the installed profile' {
         $result = Invoke-Upwsh -Tokens @('load')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    installed'
         Assert-Contains $result.Text $hook
-        Assert-Contains $result.Text $sourceProfile
+        Assert-Contains $result.Text $installedProfile
         Assert-Contains $result.Text 'home'
-        Assert-Contains $result.Text $root
+        Assert-Contains $result.Text $installHome
         Assert-Contains $result.Text 'path'
         Assert-Contains $result.Text '%UPWSH_HOME%\bin'
         Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
@@ -164,7 +184,8 @@ try {
         Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'load missed upwsh.cmd'
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
-        Assert-Contains $text $sourceProfile
+        Assert-Contains $text $installedProfile
+        Assert-True (-not $text.Contains($sourceProfile)) 'load hooked source tree'
     }
 
     Invoke-UpwshTest 'load short flag hooks the profile' {
@@ -299,8 +320,11 @@ try {
         }
     }
 
-    Invoke-UpwshTest 'load applies the runtime in this session' {
+    Invoke-UpwshTest 'load applies only the installed runtime in this session' {
+        $sentinel = Join-Path $installHome 'custom\zz-installed.ps1'
+        [IO.File]::WriteAllText($sentinel, 'Set-Alias -Name installed_only -Value Get-Date -Scope Global -Force')
         $result = Invoke-Upwsh -LoadSession -Tokens @('load')
+        Assert-Equal (Get-Command installed_only -ErrorAction Stop).Definition 'Get-Date'
         Assert-Equal $result.Code 0
         $command = Get-Command vim -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Alias'
@@ -313,8 +337,8 @@ try {
     Invoke-UpwshTest 'profile function forwards to the script' {
         $savedHome = $env:UPWSH_HOME
         try {
-            $env:UPWSH_HOME = $root
-            . $sourceProfile
+            $env:UPWSH_HOME = $installHome
+            . $installedProfile
             $output = upwsh --help | Out-String
             Assert-Contains $output 'load'
             Assert-Contains $output 'tool install'
