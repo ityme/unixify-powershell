@@ -193,7 +193,7 @@ function Complete-Uninstall {
 
     $ErrorActionPreference = $script:SavedErrorActionPreference
     $global:LASTEXITCODE = $Code
-    if (-not $PSCommandPath -or $Invocation.CommandOrigin -eq 'Runspace') {
+    if ($PSCommandPath -and $Invocation.CommandOrigin -eq 'Runspace') {
         exit $Code
     }
 }

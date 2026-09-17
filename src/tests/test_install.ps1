@@ -402,6 +402,42 @@ try {
         }
     }
 
+    Invoke-InstallTest 'piped install does not exit the host pwsh' {
+        $pipeHome = Join-Path $root 'piped-home'
+        $pipeHook = Join-Path $root 'piped-profile.ps1'
+        $wrapper = Join-Path $root 'piped-wrapper.ps1'
+        $lines = @(
+            '$ErrorActionPreference = ''Stop'''
+            ('$env:UPWSH_HOME = {0}' -f ($pipeHome | ConvertTo-Json))
+            '$env:UPWSH_SKIP_PERSIST_PATH = ''1'''
+            '$env:UPWSH_SKIP_SESSION_LOAD = ''1'''
+            '$env:UPWSH_SKIP_RELAUNCH = ''1'''
+            ('$env:UPWSH_SOURCE = {0}' -f ($sourceRoot | ConvertTo-Json))
+            ('$env:UPWSH_PROFILE = {0}' -f ($pipeHook | ConvertTo-Json))
+            ('iex ([IO.File]::ReadAllText({0}))' -f ($installer | ConvertTo-Json))
+            'Write-Output ''AFTER_IEX'''
+        )
+        [IO.File]::WriteAllText($wrapper, ($lines -join "`r`n"))
+        $previous = $global:LASTEXITCODE
+        try {
+            $global:LASTEXITCODE = 0
+            $output = & (Get-Process -Id $PID).Path -NoLogo -NoProfile -File $wrapper 2>&1 | Out-String
+            Assert-Contains $output 'AFTER_IEX'
+            Assert-Contains $output 'state    deployed'
+            Assert-Contains $output $pipeHook
+            Assert-True (
+                Test-Path -LiteralPath (Join-Path $pipeHome 'profile.ps1') -PathType Leaf
+            ) 'piped install missed profile.ps1'
+            Assert-True (Test-Path -LiteralPath $pipeHook -PathType Leaf) (
+                'piped install missed the test profile'
+            )
+            $text = [IO.File]::ReadAllText($pipeHook)
+            Assert-Contains $text '# >>> unixify-powershell >>>'
+        } finally {
+            $global:LASTEXITCODE = $previous
+        }
+    }
+
     Invoke-InstallTest 'upwsh -File uninstall relaunches then deletes the tree' {
         $fileHome = Join-Path $root 'file-uninstall'
         $fileHook = Join-Path $root 'file-uninstall-profile.ps1'

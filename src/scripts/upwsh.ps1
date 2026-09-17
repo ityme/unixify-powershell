@@ -240,7 +240,7 @@ function Complete-Upwsh {
     )
 
     $global:LASTEXITCODE = $Code
-    if ($Invocation.CommandOrigin -eq 'Runspace') {
+    if ($PSCommandPath -and $Invocation.CommandOrigin -eq 'Runspace') {
         exit $Code
     }
 }

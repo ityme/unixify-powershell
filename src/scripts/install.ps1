@@ -317,7 +317,7 @@ function Complete-Install {
 
     $ErrorActionPreference = $script:SavedErrorActionPreference
     $global:LASTEXITCODE = $Code
-    if (-not $PSCommandPath -or $Invocation.CommandOrigin -eq 'Runspace') {
+    if ($PSCommandPath -and $Invocation.CommandOrigin -eq 'Runspace') {
         exit $Code
     }
 }
@@ -411,7 +411,7 @@ try {
                 )
             } elseif ($parsed.CurrentHost) {
                 $env:UPWSH_PROFILE = $PROFILE.CurrentUserCurrentHost
-            } else {
+            } elseif ([string]::IsNullOrWhiteSpace($env:UPWSH_PROFILE)) {
                 $env:UPWSH_PROFILE = $PROFILE.CurrentUserAllHosts
             }
             $env:UPWSH_HOME = $directory
