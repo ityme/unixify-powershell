@@ -7,10 +7,10 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 function Import-ShellModule {
     param([Parameter(Mandatory)][string]$Name)
 
-    Import-Module (Join-Path $PSScriptRoot $Name) -Global -DisableNameChecking
+    Import-Module ([IO.Path]::Combine($PSScriptRoot, $Name)) -Global -DisableNameChecking
 }
 
-. (Join-Path $PSScriptRoot 'upwsh_home.ps1')
+. ([IO.Path]::Combine($PSScriptRoot, 'upwsh_home.ps1'))
 Add-UpwshSessionPath
 
 Import-ShellModule 'path.psm1'
@@ -21,7 +21,7 @@ Import-ShellModule 'text.psm1'
 Import-ShellModule 'sys.psm1'
 Import-ShellModule 'tools.psm1'
 Import-ShellModule 'upwsh.psm1'
-. (Join-Path $PSScriptRoot 'alias.ps1')
+. ([IO.Path]::Combine($PSScriptRoot, 'alias.ps1'))
 Import-ShellModule 'completion.psm1'
 Import-ShellModule 'term.psm1'
 

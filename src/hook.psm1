@@ -5,6 +5,16 @@
 # prompt: starship -> term
 
 $script:SkipConvertedHistory = $false
+$script:ReusePrompt = $false
+$script:CachedPrompt = $null
+$script:CachedPromptLocation = $null
+$script:CachedPromptWidth = 0
+
+function Set-HookPromptInput {
+    param([AllowEmptyString()][string]$Line = '')
+
+    $script:ReusePrompt = [string]::IsNullOrWhiteSpace($Line)
+}
 
 function Test-CompleteCommandLine {
     param(
@@ -154,8 +164,10 @@ function global:TabExpansion2 {
     )
 }
 
-if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine -ListAvailable)) {
-    Import-Module PSReadLine
+if ($Host.Name -eq 'ConsoleHost' -and -not (Get-Module PSReadLine)) {
+    Import-Module PSReadLine -ErrorAction SilentlyContinue
+}
+if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
     Set-PSReadLineOption -CompletionQueryItems 60
     Set-PSReadLineOption -AddToHistoryHandler {
         param($lineToBeAdded)
@@ -263,6 +275,7 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine -ListAvailable)) {
                     [ref]$line,
                     [ref]$cursor
                 )
+                Set-HookPromptInput -Line $line
                 if (Test-CompleteCommandLine -InputScript $line) {
                     Sync-TermCommand -Command $line
                     $rewritten = ConvertTo-WindowsCommandLine -InputScript $line
@@ -289,7 +302,7 @@ $starshipCommand = Get-Command starship -ErrorAction SilentlyContinue
 if ($starshipCommand) {
     $promptCommand = Get-Command prompt -ErrorAction SilentlyContinue
     if (-not $promptCommand -or $promptCommand.Source -ne 'starship') {
-        Invoke-Expression (& $starshipCommand.Source init powershell)
+        Invoke-Expression (& $starshipCommand.Source init powershell --print-full-init | Out-String)
     }
     if (Get-Module PSReadLine) {
         $psReadLineOptions = Get-PSReadLineOption
@@ -306,9 +319,25 @@ if (-not (Test-Path Variable:script:BasePrompt)) {
 function global:prompt {
     $succeeded = $?
     $exitCode = $global:LASTEXITCODE
-    $promptText = & $script:BasePrompt
-    Sync-TermPrompt -Succeeded $succeeded -ExitCode $exitCode
-    return $promptText
+    $location = $ExecutionContext.SessionState.Path.CurrentLocation.Path
+    $width = $Host.UI.RawUI.WindowSize.Width
+    $reuse = $script:ReusePrompt -and
+        $null -ne $script:CachedPrompt -and
+        $location -ceq $script:CachedPromptLocation -and
+        $width -eq $script:CachedPromptWidth
+    $script:ReusePrompt = $false
+    try {
+        # No command ran on an empty Enter; keep Starship and its subprocesses off this path.
+        if (-not $reuse) {
+            $script:CachedPrompt = & $script:BasePrompt
+            $script:CachedPromptLocation = $location
+            $script:CachedPromptWidth = $width
+        }
+        Sync-TermPrompt -Succeeded $succeeded -ExitCode $exitCode
+        return $script:CachedPrompt
+    } finally {
+        $global:LASTEXITCODE = $exitCode
+    }
 }
 
-Export-ModuleMember -Function Complete-HookLine, Test-CompleteCommandLine, Test-WindowsCommandLineReplacement
+Export-ModuleMember -Function Complete-HookLine, Test-CompleteCommandLine, Test-WindowsCommandLineReplacement, Set-HookPromptInput

@@ -96,10 +96,24 @@ upwsh unload
 
 Does not delete a git checkout.
 
+## Prompt performance
+
+Empty Enter reuses the previous prompt. Commands, directory changes, and window width changes refresh it. Starship remains available; its Git, clock, and other dynamic segments refresh after a command, not on empty Enter.
+
+Measure on Windows (p95 target: 30ms for empty Enter):
+
+```powershell
+pwsh -NoLogo -NoProfile -File src/tests/bench_prompt.ps1 -Enforce
+python src/tests/bench_console.py --enforce
+```
+
+The first measures the prompt path; the second sends Enter through Windows ConPTY. Startup and first-prompt times are reported separately. These timings exclude the terminal application's screen painting.
+
 ## Tests
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install.ps1

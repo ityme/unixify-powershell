@@ -20,15 +20,15 @@ function ConvertTo-UpwshWindowsPath {
 }
 
 function Get-UpwshHome {
-    [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
+    [IO.Path]::GetFullPath([IO.Path]::Combine($HOME, '.config', 'upwsh'))
 }
 
 function Get-UpwshBin {
-    Join-Path (Get-UpwshHome) 'bin'
+    [IO.Path]::Combine((Get-UpwshHome), 'bin')
 }
 
 function Get-UpwshToolBin {
-    Join-Path (Get-UpwshHome) 'tool\bin'
+    [IO.Path]::Combine((Get-UpwshHome), 'tool', 'bin')
 }
 
 function Get-UpwshCommandShim {
@@ -142,11 +142,22 @@ function Get-UpwshUserPathEntries {
 }
 
 function Add-UpwshSessionPath {
-    foreach ($spec in Get-UpwshManagedPathSpecs) {
-        New-Item -ItemType Directory -Path $spec.Path -Force | Out-Null
-        $current = @($env:PATH -split ';' | Where-Object { $_ })
-        if (-not ($current | Where-Object { Test-UpwshPathEntry $spec.Path $_ })) {
-            $env:PATH = $env:PATH.TrimEnd(';') + ';' + $spec.Path
+    $current = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($entry in ($env:PATH -split ';')) {
+        if (-not [string]::IsNullOrWhiteSpace($entry)) {
+            try {
+                [void]$current.Add([IO.Path]::GetFullPath($entry).TrimEnd('\', '/'))
+            } catch {
+                # Keep malformed Path entries unchanged; only deduplicate managed paths.
+            }
+        }
+    }
+    foreach ($path in @((Get-UpwshBin), (Get-UpwshToolBin))) {
+        if (-not [IO.Directory]::Exists($path)) {
+            [void][IO.Directory]::CreateDirectory($path)
+        }
+        if ($current.Add($path.TrimEnd('\', '/'))) {
+            $env:PATH = $env:PATH.TrimEnd(';') + ';' + $path
         }
     }
 }

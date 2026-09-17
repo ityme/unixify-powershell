@@ -96,10 +96,24 @@ upwsh unload
 
 不会删 git 仓库。
 
+## 提示符性能
+
+空回车复用上一次提示符；执行命令、切换目录或改变窗口宽度后刷新。保留 Starship 样式，Git 状态、时间等动态内容在执行命令后刷新，空回车不重新计算。
+
+在 Windows 上测量空回车耗时（p95 目标：30ms）：
+
+```powershell
+pwsh -NoLogo -NoProfile -File src/tests/bench_prompt.ps1 -Enforce
+python src/tests/bench_console.py --enforce
+```
+
+第一条测提示符执行路径；第二条通过 Windows ConPTY 发送真实回车。启动和首次提示符耗时单独列出，不包含终端程序绘制到屏幕的时间。
+
 ## 测试
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install.ps1
