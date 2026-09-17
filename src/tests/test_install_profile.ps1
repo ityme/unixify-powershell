@@ -167,7 +167,8 @@ try {
         Assert-True (-not (Test-Path -LiteralPath $missing)) 'uninstall created a file'
     }
 
-    Invoke-InstallProfileTest 'deploy copies runtime files and skips tests' {
+    Invoke-InstallProfileTest 'deploy only copies runtime files and skips tests' {
+        $beforeHook = [IO.File]::ReadAllText($hook)
         $output = Invoke-Installer -ProfilePath $hook -Destination $deployRoot -Deploy
         $deployedProfile = Join-Path $deployRoot 'profile.ps1'
         $text = [IO.File]::ReadAllText($hook)
@@ -182,8 +183,7 @@ try {
         Assert-True (
             Test-Path -LiteralPath (Join-Path $deployRoot 'custom\alias.ps1') -PathType Leaf
         ) 'deploy missed custom/alias.ps1'
-        Assert-Contains $text $deployedProfile
-        Assert-True ($text -notlike "*$sourceProfile*") "deploy still hooked the source tree:`n$text"
+        Assert-Equal $text $beforeHook
     }
 
     Invoke-InstallProfileTest 'deploy fills missing custom sample files' {

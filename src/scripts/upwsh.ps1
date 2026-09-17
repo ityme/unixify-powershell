@@ -19,13 +19,13 @@ usage: upwsh [-h | --help] <command> [<args>]
 These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
-   load             Load ~/.config/upwsh into this pwsh and via $PROFILE at startup
+   load             Enable startup loading; load this pwsh when called in-process
    unload           Stop $PROFILE from loading it; leave files, Path, and upwsh
 
 install this runtime
-   install          Install from the local project or download to ~/.config/upwsh
+   install          Install or repair ~/.config/upwsh; first install enables loading
    uninstall        Unload, drop UPWSH_HOME and Path, then delete the install tree
-   update           Update ~/.config/upwsh; keep custom
+   update           Update installed files; keep custom, tools, and startup loading state
 
 install a listed CLI tool
    tool install     Download listed CLI tools; names limit the list
@@ -193,8 +193,8 @@ function Invoke-UpwshLoad {
         return
     }
     . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
-    Add-UpwshUserEnvironment
-    if ($env:UPWSH_SKIP_SESSION_LOAD) {
+    if ($env:UPWSH_SKIP_SESSION_LOAD -or $scriptInvocation.CommandOrigin -eq 'Runspace') {
+        Write-Output 'Open a new pwsh to load the runtime.'
         return
     }
     $runtimeProfile = Join-Path (Get-UpwshHome) 'profile.ps1'

@@ -45,7 +45,7 @@ Tab completion inserts `(winpath '…')` when an absolute Unix path needs quotin
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-Copies the runtime to `~/.config/upwsh`, then loads it into pwsh.
+Installs into `~/.config/upwsh` and enables startup loading on first install. Open a new pwsh to use it.
 
 The install directory is fixed at `~/.config/upwsh`. `UPWSH_HOME` records this path; changing it does not move the installation.
 
@@ -55,22 +55,22 @@ Open a new `pwsh`. `upwsh --help` should work.
 
 ## Commands
 
-After `load`, this pwsh has `ll`, `cd`, completion, and `upwsh`. New pwsh windows get the same from `$PROFILE`. The `upwsh` command on Path is `%UPWSH_HOME%\bin\upwsh.cmd`.
+The enabled profile provides `ll`, `cd`, completion, and `upwsh` when pwsh starts. The command on Path is `%UPWSH_HOME%\bin\upwsh.cmd`.
 
 | Command | What it does |
 | --- | --- |
-| `upwsh install` | Install from the local project or a download into `~/.config/upwsh`, then load |
-| `upwsh update` | Reinstall `~/.config/upwsh` using the same source rules; preserve `custom/` |
+| `upwsh install` | Install or repair `~/.config/upwsh`; first install enables startup loading |
+| `upwsh update` | Update an existing installation; preserve custom, tools, and enabled/disabled state |
 | `upwsh uninstall` | Remove the startup hook, managed Path entries, `UPWSH_HOME`, and `~/.config/upwsh` |
-| `upwsh load` | Load `~/.config/upwsh/profile.ps1` into pwsh and configure it to load at startup |
+| `upwsh load` | Enable startup loading; also load the current session when called through the pwsh function |
 | `upwsh unload` | Stop `$PROFILE` from loading it. Files, Path, and `upwsh` stay |
 | `upwsh tool list` | List CLIs and whether they are on Path |
 | `upwsh tool install [names…]` | Install CLIs into `tool\bin` |
 | `upwsh tool uninstall <names…>` | Remove named CLIs |
 
-`load` also sets user `UPWSH_HOME` and appends `%UPWSH_HOME%\bin` and `%UPWSH_HOME%\tool\bin` to the user Path. Run `install` first; `load` does not load the source tree. `unload` stops future automatic loading but leaves the current session unchanged.
+`install` manages `UPWSH_HOME`, user Path entries `%UPWSH_HOME%\bin` / `%UPWSH_HOME%\tool\bin`, and the command shim. `load` / `unload` only change startup loading. When called through `upwsh.cmd` or `pwsh -File`, `load` cannot change the parent shell; open a new pwsh. `unload` leaves already-loaded functions in the current session.
 
-Personal files: `$UPWSH_HOME\custom\*.ps1`. Sample shortcuts are in `custom\alias.ps1` (`w`, `t`, `i`, `d`, `gs`). `update` keeps this folder.
+Personal files: `$UPWSH_HOME\custom\*.ps1`. Sample shortcuts are in `custom\alias.ps1` (`w`, `t`, `i`, `d`, `gs`). Reinstall and update keep this folder and installed tools.
 
 ## Layout
 
@@ -98,6 +98,8 @@ If `upwsh` is already installed, run `upwsh install` from this clone to install 
 ```powershell
 upwsh update
 ```
+
+Install and update prepare and validate the replacement before changing the live installation. Deployment errors restore the previous files and configuration. Update requires an installation and keeps a disabled profile disabled. Open a new pwsh after either command to use the new code.
 
 ## Uninstall
 

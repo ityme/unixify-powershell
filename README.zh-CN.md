@@ -45,7 +45,7 @@ Tab 补全遇到需要引号的 Unix 绝对路径时，会生成 `(winpath '…'
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-拷到 `~/.config/upwsh`，再加载进 pwsh。
+安装到 `~/.config/upwsh`，首次安装自动启用。新开 pwsh 后生效。
 
 安装目录固定为 `~/.config/upwsh`。`UPWSH_HOME` 只记录这个路径，修改它不会改变安装位置。
 
@@ -55,22 +55,22 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/
 
 ## 命令
 
-`load` 之后，当前这个 pwsh 里有 `ll`、`cd`、补全和 `upwsh`。以后新开的 pwsh 从 `$PROFILE` 同样加载。Path 上的 `upwsh` 是 `%UPWSH_HOME%\bin\upwsh.cmd`。
+启用后，pwsh 启动时加载 `ll`、`cd`、补全和 `upwsh`。Path 上的命令是 `%UPWSH_HOME%\bin\upwsh.cmd`。
 
 | 命令 | 作用 |
 | --- | --- |
-| `upwsh install` | 从本地项目或网络安装到 `~/.config/upwsh`，然后加载 |
-| `upwsh update` | 按相同来源规则重新安装到 `~/.config/upwsh`，保留 `custom/` |
+| `upwsh install` | 安装或修复 `~/.config/upwsh`；首次安装自动启用 |
+| `upwsh update` | 更新已有安装，保留个人配置、工具和启用/停用状态 |
 | `upwsh uninstall` | 删除自动加载配置、相关 Path 项、`UPWSH_HOME` 和 `~/.config/upwsh` |
-| `upwsh load` | 将 `~/.config/upwsh/profile.ps1` 加载进 pwsh，并设置启动时自动加载 |
+| `upwsh load` | 启用启动时自动加载；通过 pwsh 函数调用时，也加载当前会话 |
 | `upwsh unload` | `$PROFILE` 不再加载。文件、Path、`upwsh` 命令还在 |
 | `upwsh tool list` | 列出 CLI，并看 Path 上有没有 |
 | `upwsh tool install [names…]` | 把 CLI 装进 `tool\bin` |
 | `upwsh tool uninstall <names…>` | 删掉点名的 CLI |
 
-`load` 还会写用户环境变量 `UPWSH_HOME`，并把 `%UPWSH_HOME%\bin`、`%UPWSH_HOME%\tool\bin` 接到用户 Path 末尾。必须先 `install`，`load` 不再加载源码目录。`unload` 停止以后自动加载，不撤销当前会话中已加载的功能。
+`install` 管理 `UPWSH_HOME`、用户 Path 中的 `%UPWSH_HOME%\bin` / `%UPWSH_HOME%\tool\bin` 和命令垫片。`load` / `unload` 只管理自动加载。通过 `upwsh.cmd` 或 `pwsh -File` 调用时，`load` 无法修改父会话，需要新开 pwsh；`unload` 不撤销当前会话中已加载的功能。
 
-个人文件：`$UPWSH_HOME\custom\*.ps1`。样板在 `custom\alias.ps1`（`w`、`t`、`i`、`d`、`gs`）。`update` 会保留这个目录。
+个人文件：`$UPWSH_HOME\custom\*.ps1`。样板在 `custom\alias.ps1`（`w`、`t`、`i`、`d`、`gs`）。重复安装和更新都会保留这个目录及已安装的工具。
 
 ## 目录
 
@@ -98,6 +98,8 @@ pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 ```powershell
 upwsh update
 ```
+
+安装和更新先准备并校验新版本，再替换程序；部署失败会恢复原来的文件和配置。`update` 要求已经安装，停用状态也会保留。安装或更新后，新开 pwsh 使用新代码。
 
 ## 卸载
 

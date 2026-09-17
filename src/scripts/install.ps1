@@ -1,4 +1,4 @@
-# 从本地项目或网络安装到 ~/.config/upwsh，再 upwsh load。
+# 安装或修复 ~/.config/upwsh。首次启用，重复安装保留启用状态和用户数据。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 #   pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 
@@ -8,6 +8,7 @@ $script:Arguments = @($args)
 $script:DefaultRepo = 'ityme/unixify-powershell'
 $script:DefaultRef = 'main'
 $script:UserAgent = 'unixify-powershell-installer'
+$script:UpdateOnly = $UpwshSetupMode -eq 'update'
 
 function Get-InstallUsage {
     @'
@@ -32,7 +33,9 @@ A network install can run:
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 
 Environment: UPWSH_REF UPWSH_REPO UPWSH_SOURCE
-Install into ~/.config/upwsh. UPWSH_HOME records this fixed location.
+Install or repair ~/.config/upwsh. UPWSH_HOME records this fixed location.
+First install enables startup loading; reinstall preserves its state, custom, and tools.
+Open a new pwsh after installation.
 Without source options, use the local project at the current directory or script location.
 The upwsh command is UPWSH_HOME\\bin\\upwsh.cmd.
 CLI tools go in UPWSH_HOME\\tool\\bin.
@@ -387,9 +390,45 @@ $source = if ($parsed.Source) {
     $null
 }
 $directory = Get-DefaultDestination
-
+$hookPath = if ($parsed.Profile) {
+    [IO.Path]::GetFullPath((winpath $parsed.Profile))
+} elseif ($parsed.CurrentHost) {
+    $PROFILE.CurrentUserCurrentHost
+} elseif ($env:UPWSH_PROFILE) {
+    [IO.Path]::GetFullPath((winpath $env:UPWSH_PROFILE))
+} else {
+    $PROFILE.CurrentUserAllHosts
+}
+$installed = [IO.File]::Exists((Join-Path $directory 'profile.ps1')) -or
+    [IO.File]::Exists((Join-Path $directory 'scripts\upwsh.ps1'))
+$hookText = if ([IO.File]::Exists($hookPath)) { [IO.File]::ReadAllText($hookPath) } else { '' }
+$enabled = $hookText.Contains('# >>> unixify-powershell >>>')
 $workRoot = $null
 try {
+    if ($script:UpdateOnly -and -not $installed) {
+        throw 'runtime is not installed; run upwsh install first'
+    }
+    if ($parsed.Check) {
+        Write-Output "home     $directory"
+        Write-Output "profile  $hookPath"
+        Write-Output ('state    ' + $(if ($installed) { 'installed' } else { 'missing' }))
+        Write-Output ('enabled  ' + $enabled.ToString().ToLowerInvariant())
+        Complete-Install 0 $scriptInvocation
+        return
+    }
+    $helper = if ($PSScriptRoot) { Join-Path $PSScriptRoot '_relaunch.ps1' } else { $null }
+    if (-not $helper -or -not [IO.File]::Exists($helper)) {
+        $helper = Join-Path $directory 'scripts\_relaunch.ps1'
+    }
+    if ([IO.File]::Exists($helper)) {
+        . $helper
+        Wait-UpwshRelaunchParent
+        $entry = if ($script:UpdateOnly) { 'update.ps1' } else { 'install.ps1' }
+        if (Start-UpwshRelaunchIfNeeded -InstallHome $directory -EntryName $entry -Arguments $script:Arguments) {
+            Complete-Install $global:LASTEXITCODE $scriptInvocation
+            return
+        }
+    }
     $forceRemote = [bool]$ref -or [bool]$parsed.Repo -or [bool]$env:UPWSH_REPO
     $sibling = $null
     if (-not $source -and -not $forceRemote) {
@@ -409,48 +448,11 @@ try {
         throw 'the installed runtime cannot be its own source; use a local project or a download'
     }
 
-    $installer = Join-Path $runtimeRoot 'scripts\install_profile.ps1'
-    $installerArgs = @{}
-    if ($parsed.Profile) {
-        $installerArgs.ProfilePath = [IO.Path]::GetFullPath(
-            (winpath $parsed.Profile)
-        )
-    }
-    if ($parsed.CurrentHost) {
-        $installerArgs.CurrentHost = $true
-    }
-    if ($parsed.Check) {
-        $installerArgs.Check = $true
-    } else {
-        $installerArgs.Deploy = $true
-        $installerArgs.Destination = $directory
-    }
-
-    Write-Output ("home     {0}" -f $directory)
-    Write-Output ("source   {0}" -f $runtimeRoot)
-    & $installer @installerArgs
-    if (-not $parsed.Check) {
-        $upwsh = Join-Path $directory 'scripts\upwsh.ps1'
-        if (-not (Test-Path -LiteralPath $upwsh -PathType Leaf)) {
-            $upwsh = Join-Path $runtimeRoot 'scripts\upwsh.ps1'
-        }
-        $savedProfile = $env:UPWSH_PROFILE
-        try {
-            if ($parsed.Profile) {
-                $env:UPWSH_PROFILE = [IO.Path]::GetFullPath(
-                    (winpath $parsed.Profile)
-                )
-            } elseif ($parsed.CurrentHost) {
-                $env:UPWSH_PROFILE = $PROFILE.CurrentUserCurrentHost
-            } elseif ([string]::IsNullOrWhiteSpace($env:UPWSH_PROFILE)) {
-                $env:UPWSH_PROFILE = $PROFILE.CurrentUserAllHosts
-            }
-            $env:UPWSH_HOME = $directory
-            & $upwsh load
-        } finally {
-            $env:UPWSH_PROFILE = $savedProfile
-        }
-    }
+    # Use the implementation bundled with the chosen source, including standalone downloads.
+    $deploy = Join-Path $runtimeRoot 'scripts\_deploy.ps1'
+    if (-not [IO.File]::Exists($deploy)) { throw 'invalid runtime: missing scripts\_deploy.ps1' }
+    . $deploy
+    Install-UpwshRuntime -Source $runtimeRoot -Destination $directory -ProfilePath $hookPath -Enable:($enabled -or -not $installed)
     Complete-Install 0 $scriptInvocation
 } catch {
     Write-Output "unixify-powershell: $($_.Exception.Message)"

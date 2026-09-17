@@ -175,17 +175,23 @@ try {
         Assert-Contains $result.Text 'state    installed'
         Assert-Contains $result.Text $hook
         Assert-Contains $result.Text $installedProfile
-        Assert-Contains $result.Text 'home'
-        Assert-Contains $result.Text $installHome
-        Assert-Contains $result.Text 'path'
-        Assert-Contains $result.Text '%UPWSH_HOME%\bin'
-        Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
-        Assert-Contains $result.Text 'cmd'
-        Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'load missed upwsh.cmd'
+        Assert-True (-not $result.Text.Contains('path    ')) 'load wrote persistent Path'
+        Assert-True (-not $result.Text.Contains('cmd     ')) 'load rewrote shim'
+        Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'load removed installed shim'
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text $installedProfile
         Assert-True (-not $text.Contains($sourceProfile)) 'load hooked source tree'
+    }
+
+    Invoke-UpwshTest 'load does not recreate a missing shim or change the user environment' {
+        $beforeShim = [IO.File]::ReadAllBytes($shim)
+        [IO.File]::Delete($shim)
+        try {
+            $result = Invoke-Upwsh -Tokens @('load')
+            Assert-Equal $result.Code 0
+            Assert-True (-not (Test-Path -LiteralPath $shim)) 'load repaired shim instead of only enabling'
+        } finally { [IO.File]::WriteAllBytes($shim, $beforeShim) }
     }
 
     Invoke-UpwshTest 'load short flag hooks the profile' {

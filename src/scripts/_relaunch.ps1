@@ -1,4 +1,4 @@
-# 从安装树用 pwsh -File 跑 uninstall / update 时，拷到临时目录另起进程再删。
+# 从安装树运行时使用临时入口。install/update 等待结果，uninstall 等父进程退出后删除。
 
 function Get-UpwshHostFile {
     $cli = [Environment]::GetCommandLineArgs()
@@ -80,12 +80,17 @@ function Start-UpwshRelaunchIfNeeded {
         throw "missing relaunch script: $target"
     }
 
-    $env:UPWSH_UNINSTALL_REEXEC = '1'
-    $env:UPWSH_UNINSTALL_WAIT_PID = "$PID"
+    $waitForResult = $EntryName -in @('install.ps1', 'update.ps1')
     $exe = (Get-Process -Id $PID).Path
     $start = [Diagnostics.ProcessStartInfo]::new()
     $start.FileName = $exe
     $start.UseShellExecute = $false
+    $start.Environment['UPWSH_UNINSTALL_REEXEC'] = '1'
+    if ($waitForResult) {
+        [void]$start.Environment.Remove('UPWSH_UNINSTALL_WAIT_PID')
+    } else {
+        $start.Environment['UPWSH_UNINSTALL_WAIT_PID'] = "$PID"
+    }
     $workingDirectory = (Get-Location).ProviderPath
     $start.WorkingDirectory = if (Test-UpwshPathUnder -Path $workingDirectory -Root $InstallHome) {
         $tempDir
@@ -97,8 +102,17 @@ function Start-UpwshRelaunchIfNeeded {
             [void]$start.ArgumentList.Add([string]$token)
         }
     }
-    [void][Diagnostics.Process]::Start($start)
-    Write-Output ("relaunch {0}" -f $target)
+    $process = [Diagnostics.Process]::Start($start)
+    try {
+        if ($waitForResult) {
+            $process.WaitForExit()
+            $global:LASTEXITCODE = $process.ExitCode
+        }
+    } finally {
+        $process.Dispose()
+        if ($waitForResult) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    Write-Host ("relaunch {0}" -f $target)
     return $true
 }
 

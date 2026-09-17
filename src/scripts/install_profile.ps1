@@ -1,4 +1,4 @@
-# 让当前用户的 pwsh 加载 ~/.config/upwsh/profile.ps1。-Deploy 从源码复制到安装目录。
+# 管理 ~/.config/upwsh/profile.ps1 的自动加载。-Deploy 仅用于文件部署，不写 profile。
 #   install_profile.ps1
 #   install_profile.ps1 -Check
 #   install_profile.ps1 -Uninstall
@@ -119,42 +119,6 @@ function Get-InstalledTarget {
     return $null
 }
 
-function Copy-CustomTree {
-    param([string]$Source, [string]$Destination)
-
-    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    Get-ChildItem -LiteralPath $Source -Force |
-        ForEach-Object {
-            $target = Join-Path $Destination $_.Name
-            if (-not (Test-Path -LiteralPath $target)) {
-                Copy-Item -LiteralPath $_.FullName -Destination $target -Recurse -Force
-            }
-        }
-}
-
-function Copy-RuntimeTree {
-    param([string]$Source, [string]$Destination)
-
-    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-    Get-ChildItem -LiteralPath $Source -Force |
-        Where-Object { $_.Name -ne 'tests' } |
-        ForEach-Object {
-            if ($_.Name -eq 'custom') {
-                Copy-CustomTree -Source $_.FullName -Destination (
-                    Join-Path $Destination 'custom'
-                )
-            } else {
-                Copy-Item -LiteralPath $_.FullName `
-                    -Destination (Join-Path $Destination $_.Name) `
-                    -Recurse -Force
-            }
-        }
-    $custom = Join-Path $Destination 'custom'
-    if (-not (Test-Path -LiteralPath $custom)) {
-        New-Item -ItemType Directory -Path $custom -Force | Out-Null
-    }
-}
-
 function Write-InstallStatus {
     param(
         [string]$HookPath,
@@ -167,8 +131,8 @@ function Write-InstallStatus {
     Write-Output ("state    {0}" -f $State)
 }
 
-if ($Uninstall -and $Deploy) {
-    throw 'Use either -Uninstall or -Deploy, not both.'
+if ($Deploy -and ($Uninstall -or $Check)) {
+    throw 'Use -Deploy separately from -Uninstall or -Check.'
 }
 
 $hookPath = Get-HookProfilePath
@@ -182,8 +146,12 @@ if ($Deploy) {
         $Destination = Get-DefaultDestination
     }
     $Destination = [IO.Path]::GetFullPath($Destination)
-    Copy-RuntimeTree -Source (Get-SourceRoot) -Destination $Destination
+    . (Join-Path $PSScriptRoot '_deploy.ps1')
+    Copy-UpwshRuntime -Source (Get-SourceRoot) -Destination $Destination
+    Copy-UpwshCustomDefaults -Source (Join-Path (Get-SourceRoot) 'custom') -Destination (Join-Path $Destination 'custom')
     $targetProfile = Join-Path $Destination 'profile.ps1'
+    Write-InstallStatus -HookPath $hookPath -TargetPath $targetProfile -State 'deployed'
+    return
 }
 
 $existing = Read-ProfileText $hookPath
@@ -211,6 +179,7 @@ if (-not (Test-Path -LiteralPath $targetProfile -PathType Leaf)) {
 }
 
 $updated = Set-InstallBlock -Text $existing -Block (Get-InstallBlock $targetProfile)
-Write-ProfileText -Path $hookPath -Text $updated
-$state = if ($Deploy) { 'deployed' } else { 'installed' }
-Write-InstallStatus -HookPath $hookPath -TargetPath $targetProfile -State $state
+if ($updated -cne $existing) {
+    Write-ProfileText -Path $hookPath -Text $updated
+}
+Write-InstallStatus -HookPath $hookPath -TargetPath $targetProfile -State 'installed'

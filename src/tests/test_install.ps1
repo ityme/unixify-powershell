@@ -47,6 +47,8 @@ try {
     $userHome = Join-Path $root 'user'
     $installHome = Join-Path $userHome '.config\upwsh'
     $hook = Join-Path $userHome 'test-profile.ps1'
+    $custom = Join-Path $installHome 'custom\alias.ps1'
+    $tool = Join-Path $installHome 'tool\bin\fixture.exe'
 
     Invoke-InstallTest 'source script installs into the fixed user home' {
         $result = Install-Fixture $userHome
@@ -61,6 +63,9 @@ try {
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text (Join-Path $installHome 'profile.ps1')
         Assert-True (-not $text.Contains($runtimeRoot)) 'hook points at the source tree'
+        Assert-Equal ([regex]::Matches($result.Text, '(?m)^profile  ').Count) 1
+        Assert-Contains $result.Text 'enabled  true'
+        Assert-Contains $result.Text 'Open a new pwsh'
     }
 
     Invoke-InstallTest 'UPWSH_HOME cannot redirect installation to a source tree' {
@@ -188,15 +193,102 @@ exit $LASTEXITCODE
         Assert-True (-not ([IO.File]::ReadAllText($hook)).Contains($projectSrc)) 'load hooked source'
     }
 
-    Invoke-InstallTest 'update uses local project and preserves custom' {
-        $custom = Join-Path $installHome 'custom\alias.ps1'
+    Invoke-InstallTest 'update uses local project and preserves custom and tools' {
         [IO.File]::WriteAllText($custom, '# personal aliases')
+        [IO.File]::WriteAllText($tool, 'keep installed tool')
+        [IO.File]::WriteAllText((Join-Path $installHome 'obsolete.ps1'), '# old managed file')
         [IO.File]::WriteAllText((Join-Path $projectSrc 'local-source.txt'), 'updated')
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('update') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
         Assert-Equal $result.Code 0
         Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
+        Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'obsolete.ps1'))) 'obsolete program file remained'
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'local-source.txt'))) 'updated'
         Assert-Contains ([IO.File]::ReadAllText($hook)) (Join-Path $installHome 'profile.ps1')
+    }
+
+    Invoke-InstallTest 'update without an installation fails before source acquisition' {
+        $newUser = Join-Path $root 'not-installed'
+        $result = Invoke-UpwshTestProcess -UserHome $newUser -File $updater -Arguments @('--source', $project)
+        Assert-Equal $result.Code 1
+        Assert-Contains $result.Text 'run upwsh install first'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $newUser '.config\upwsh'))) 'update created an installation'
+    }
+
+    Invoke-InstallTest 'disabled state survives both update and repair' {
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('unload')
+        Assert-Equal $result.Code 0
+        [IO.File]::WriteAllText($hook, "# personal profile`r`n")
+        foreach ($entry in @($updater, $installer)) {
+            $result = Invoke-UpwshTestProcess -UserHome $userHome -File $entry -Arguments @('--source', $project)
+            Assert-True ($result.Code -eq 0) $result.Text
+            Assert-Contains $result.Text 'enabled  false'
+            Assert-Equal ([IO.File]::ReadAllText($hook)) "# personal profile`r`n"
+            Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
+            Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
+        }
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('load')
+        Assert-Equal $result.Code 0
+    }
+
+    Invoke-InstallTest 'bad source and failed download leave the working installation intact' {
+        $before = [IO.File]::ReadAllText((Join-Path $installHome 'profile.ps1'))
+        $beforeHook = [IO.File]::ReadAllText($hook)
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $updater -Arguments @('--source', (Join-Path $root 'missing'))
+        Assert-Equal $result.Code 1
+        $command = @'
+function Invoke-WebRequest { throw 'offline fixture' }
+& UPDATER --ref test
+exit $LASTEXITCODE
+'@
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -Command $command.Replace('UPDATER', (ConvertTo-TestLiteral $updater))
+        Assert-Equal $result.Code 1
+        Assert-Contains $result.Text 'offline fixture'
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'profile.ps1'))) $before
+        Assert-Equal ([IO.File]::ReadAllText($hook)) $beforeHook
+        Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
+    }
+
+    Invoke-InstallTest 'invalid runtime syntax is rejected before replacing installed files' {
+        $badRoot = Join-Path $root 'invalid-runtime'
+        Copy-Item -LiteralPath $projectSrc -Destination $badRoot -Recurse
+        [IO.File]::WriteAllText((Join-Path $badRoot 'path.psm1'), 'function Broken {')
+        $before = [IO.File]::ReadAllText((Join-Path $installHome 'path.psm1'))
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $updater -Arguments @('--source', $badRoot)
+        Assert-Equal $result.Code 1
+        Assert-Contains $result.Text 'invalid runtime'
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'path.psm1'))) $before
+    }
+
+    Invoke-InstallTest 'configuration failure after replacement rolls back runtime profile tools and environment' {
+        $badRoot = Join-Path $root 'rollback-runtime'
+        Copy-Item -LiteralPath $projectSrc -Destination $badRoot -Recurse
+        [IO.File]::WriteAllText((Join-Path $badRoot 'scripts\install_profile.ps1'), @'
+param([string]$ProfilePath)
+[IO.File]::WriteAllText($ProfilePath, 'partial profile write')
+throw 'configuration fixture failure'
+'@)
+        [IO.File]::WriteAllText((Join-Path $badRoot 'local-source.txt'), 'must roll back')
+        $beforeHook = [IO.File]::ReadAllText($hook)
+        $beforeShim = [IO.File]::ReadAllText((Join-Path $installHome 'bin\upwsh.cmd'))
+        $command = @'
+$beforePath = $env:PATH
+$env:UPWSH_HOME = 'C:\prior-environment'
+& UPDATER --source SOURCE
+if ($LASTEXITCODE -ne 1) { throw 'expected deployment failure' }
+if ($env:PATH -cne $beforePath -or $env:UPWSH_HOME -cne 'C:\prior-environment') { throw 'environment not restored' }
+exit 0
+'@
+        $command = $command.Replace('UPDATER', (ConvertTo-TestLiteral $updater)).Replace('SOURCE', (ConvertTo-TestLiteral $badRoot))
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -Command $command
+        Assert-True ($result.Code -eq 0) $result.Text
+        Assert-Contains $result.Text 'configuration fixture failure'
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'local-source.txt'))) 'updated'
+        Assert-Equal ([IO.File]::ReadAllText($hook)) $beforeHook
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'bin\upwsh.cmd'))) $beforeShim
+        Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
+        Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
+        Assert-Equal (@(Get-ChildItem -LiteralPath (Split-Path $installHome) -Directory -Filter '.upwsh-*')).Count 0
     }
 
     Invoke-InstallTest 'uninstall check does not delete installed files' {
@@ -289,11 +381,37 @@ Write-Output ('AFTER_IEX:' + $LASTEXITCODE)
         Assert-Contains $result.Text 'AFTER_IEX:1'
     }
 
+    Invoke-InstallTest 'piped update does not leak update-only mode into later installs' {
+        $modeUser = Join-Path $root 'mode-user'
+        $command = @'
+function Invoke-WebRequest {
+    param($Uri, [switch]$UseBasicParsing)
+    [pscustomobject]@{ Content = [IO.File]::ReadAllText(INSTALLER) }
+}
+[IO.File]::ReadAllText(UPDATER) | Invoke-Expression
+if ($LASTEXITCODE -ne 1) { throw 'update should require an installation' }
+[IO.File]::ReadAllText(INSTALLER) | Invoke-Expression
+if ($LASTEXITCODE -ne 0) { throw 'install inherited update-only mode' }
+'@
+        $command = $command.Replace('INSTALLER', (ConvertTo-TestLiteral $installer)).Replace('UPDATER', (ConvertTo-TestLiteral $updater))
+        $result = Invoke-UpwshTestProcess -UserHome $modeUser -Command $command -Environment @{ UPWSH_SOURCE = $project }
+        Assert-True ($result.Code -eq 0) $result.Text
+        Assert-True (Test-Path -LiteralPath (Join-Path $modeUser '.config\upwsh\profile.ps1')) 'install did not recover after failed update'
+    }
+
     Invoke-InstallTest 'installed -File update preserves cwd across relaunch' {
         Install-Fixture $userHome | Out-Null
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('update') -WorkingDirectory $project -Environment @{ UPWSH_SKIP_RELAUNCH = $null }
         Assert-Equal $result.Code 0
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'local-source.txt'))) 'updated'
+    }
+
+    Invoke-InstallTest 'installed -File update reports child failure and keeps the installation' {
+        $before = [IO.File]::ReadAllText((Join-Path $installHome 'local-source.txt'))
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('update', '--source', (Join-Path $root 'missing')) -Environment @{ UPWSH_SKIP_RELAUNCH = $null }
+        Assert-Equal $result.Code 1
+        Assert-Contains $result.Text 'missing profile.ps1'
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'local-source.txt'))) $before
     }
 
     Invoke-InstallTest 'installed -File uninstall relaunches and removes only the installation' {
