@@ -19,6 +19,19 @@ function Get-GitCandidates {
     param([string]$Line)
     @((Complete-HookLine -Line $Line).Matches | ForEach-Object CompletionText)
 }
+function Complete-GitTab {
+    param([string]$Line, [int]$Cursor = $Line.Length)
+
+    $state = Complete-HookLine -Line $Line -Cursor $Cursor
+    $current = $Line.Substring($state.ReplacementIndex, $state.ReplacementLength)
+    $decision = Get-CompletionDecision -Matches $state.Matches -CurrentText $current -Normalized:$state.MatchesNormalized -LiteralPaths:$state.LiteralPaths
+    $module = (Get-Command Complete-HookLine).Module
+    $edit = & $module { param($state, $decision) Get-HookCompletionEdit -State $state -Decision $decision } $state $decision
+    [pscustomobject]@{
+        Line = $Line.Remove($edit.Start, $edit.Length).Insert($edit.Start, $edit.Text)
+        Cursor = $edit.Start + $edit.Text.Length
+    }
+}
 function Assert-Candidate {
     param([string]$Line, [string]$Expected)
     $values = @(Get-GitCandidates $Line)
@@ -56,6 +69,47 @@ try {
             Assert-Candidate 'git ch' 'cherry-pick'
             Assert-Equal ((Get-GitCandidates 'git sw') -join '|') 'switch'
         } finally { Pop-Location }
+    }
+    Test-GitCase 'unique Git words append one space for continuous completion' {
+        $step = Complete-GitTab 'git pul'
+        Assert-Equal $step.Line 'git pull '
+        Assert-Equal $step.Cursor $step.Line.Length
+        $step = Complete-GitTab ($step.Line + 'o')
+        Assert-Equal $step.Line 'git pull origin '
+        $step = Complete-GitTab ($step.Line + 'ma')
+        Assert-Equal $step.Line 'git pull origin main '
+        Assert-Equal $step.Cursor $step.Line.Length
+    }
+    Test-GitCase 'an already complete unique word also advances to the next argument' {
+        Assert-Equal (Complete-GitTab 'git pull').Line 'git pull '
+        Assert-Equal (Complete-GitTab 'git chec').Line 'git checkout '
+    }
+    Test-GitCase 'ambiguous common prefixes do not append a space' {
+        Assert-Equal (Complete-GitTab 'git ch').Line 'git che'
+        Assert-Equal (Complete-GitTab 'git switch fe').Line 'git switch feature/'
+    }
+    Test-GitCase 'completion reuses existing whitespace and moves the cursor past it' {
+        $step = Complete-GitTab 'git pul origin main' 7
+        Assert-Equal $step.Line 'git pull origin main'
+        Assert-Equal $step.Cursor 9
+        $step = Complete-GitTab 'git pull o main' 10
+        Assert-Equal $step.Line 'git pull origin main'
+        Assert-Equal $step.Cursor 16
+        $step = Complete-GitTab "git pul`torigin" 7
+        Assert-Equal $step.Line "git pull`torigin"
+        Assert-Equal $step.Cursor 9
+    }
+    Test-GitCase 'quoted refs get a separator outside the completed word' {
+        Assert-Equal (Complete-GitTab "git checkout 'feature/o'").Line 'git checkout feature/one '
+    }
+    Test-GitCase 'file and directory completion keep their existing behavior' {
+        Assert-Equal (Complete-GitTab 'git add ./no').Line 'git add ./notes.txt'
+        Assert-Equal (Complete-GitTab 'git add ./fea').Line 'git add ./feature/'
+    }
+    Test-GitCase 'completion before syntax delimiters does not add separators' {
+        $step = Complete-GitTab 'git pul; Write-Output done' 7
+        Assert-Equal $step.Line 'git pull; Write-Output done'
+        Assert-Equal $step.Cursor 8
     }
     Test-GitCase 'switch suggests branches but not tags or symbolic remote HEAD' {
         Assert-Candidate 'git switch ' 'main'

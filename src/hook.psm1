@@ -66,6 +66,7 @@ function New-HookState {
         Matches            = @()
         LiteralPaths       = $false
         MatchesNormalized  = $false
+        SpaceAfterWord     = $false
     }
 }
 
@@ -89,6 +90,7 @@ function Complete-HookLine {
         $state.ReplacementLength = $git.ReplacementLength
         $state.Matches = $git.Matches
         $state.MatchesNormalized = $true
+        $state.SpaceAfterWord = $true
         return $state
     }
     $commands = $ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] }, $true)
@@ -119,6 +121,24 @@ function Complete-HookLine {
     $state = Invoke-PathCompletionHook -State $state
     $state.MatchesNormalized = $true
     return $state
+}
+
+function Get-HookCompletionEdit {
+    param($State, $Decision)
+
+    $length = $State.ReplacementLength
+    $text = $Decision.Replacement
+    if ($State.SpaceAfterWord -and $Decision.MatchCount -eq 1) {
+        $end = $State.ReplacementIndex + $length
+        if ($end -eq $State.Line.Length) {
+            $text += ' '
+        } elseif ($State.Line[$end] -in @([char]' ', [char]9)) {
+            # Consume and reinsert one existing separator so Replace also advances the cursor.
+            $text += $State.Line[$end]
+            $length++
+        }
+    }
+    [pscustomobject]@{ Start = $State.ReplacementIndex; Length = $length; Text = $text }
 }
 
 function global:TabExpansion2 {
@@ -211,10 +231,11 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
             -Normalized:$state.MatchesNormalized
 
         if ($decision.MatchCount -eq 1) {
+            $edit = Get-HookCompletionEdit -State $state -Decision $decision
             [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
-                $state.ReplacementIndex,
-                $state.ReplacementLength,
-                $decision.Replacement
+                $edit.Start,
+                $edit.Length,
+                $edit.Text
             )
             return
         }

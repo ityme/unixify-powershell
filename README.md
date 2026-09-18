@@ -64,6 +64,8 @@ git pull origin <Tab>        → locally known branches for origin
 git checkout -- ./<Tab>      → files
 ```
 
+A unique Git word completes with a trailing space, so you can type `git pul<Tab>o<Tab>d<Tab>` without inserting spaces when each prefix has one match. Ambiguous prefixes and directory completions do not add a space.
+
 This uses local Git data only, with no extra dependencies. `git -C <directory>` and `git switch --track` are supported. Less common syntax falls back to normal completion.
 
 ## Manage the installation
