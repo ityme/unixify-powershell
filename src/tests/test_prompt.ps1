@@ -22,6 +22,8 @@ function Invoke-PromptTest {
             $script:SubmittedParseError = $false
             $script:LastCommandSucceeded = $true
             $script:LastCommandExitCode = 0
+            $script:LastNativeExitCode = 0
+            $script:LastCommandStatus = 'success'
             $script:ReadingInput = $false
             $script:BasePrompt = { $global:PromptRenderCount++; "render:$global:PromptRenderCount> " }
         }
@@ -35,6 +37,7 @@ function Capture-Prompt {
     try {
         [Console]::SetOut($writer)
         $text = prompt
+        Complete-TermPrompt
         [pscustomobject]@{ Text = $text; Report = $writer.ToString() }
     } finally { [Console]::SetOut($original); $writer.Dispose() }
 }
@@ -71,7 +74,7 @@ try {
         Assert-Equal (prompt) 'render:2> '
     }
     Invoke-PromptTest 'input editing redraws emit no command or prompt events' {
-        $null = prompt
+        $null = Capture-Prompt
         & $hook { $script:ReadingInput = $true }
         try {
             foreach ($i in 1..3) {
@@ -99,7 +102,7 @@ try {
         if ($idle.Report.Contains(']133;D;')) { throw 'command completion repeated' }
     }
     Invoke-PromptTest 'pending command status survives redraw and is consumed after input returns' {
-        $null = prompt
+        $null = Capture-Prompt
         Set-HookPromptInput -Line 'example-command'
         & $hook { $script:ReadingInput = $true }
         try { Assert-Equal (Capture-Prompt).Report '' }
@@ -122,7 +125,7 @@ try {
         Assert-Equal (prompt) "render:$($before + 1)> "
     }
     Invoke-PromptTest 'candidate display follows the same no-command rendering policy' {
-        $null = prompt
+        $null = Capture-Prompt
         & $hook { $script:CompletionDisplayState = [pscustomobject]@{ Line = 'git pull origin ' }; $script:ReadingInput = $true }
         try {
             Assert-Equal (Capture-Prompt).Report ''

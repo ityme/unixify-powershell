@@ -1,499 +1,322 @@
-# 终端状态上报。不绑按键。
-# 原子字段用中性名；OSC 2/7/133 是通用通道。默认写入。
-#
-# 上报开关：注释掉整行即不上报，也不做对应计算。
-$script:TermReportNames = @(
-    'SHELL'       # pwsh
-    'HOST'        # COMPUTERNAME
-    'USER'        # USERNAME
-    'DOMAIN'      # USERDOMAIN
-    'ADMIN'       # elevated?
-    'SSH'         # SSH_CONNECTION?
-    'CWD'         # full path
-    'DIR'         # last path segment
-    'CWD_HOME'    # path with $HOME as ~
-    'DRIVE'       # C:
-    'VENV'        # VIRTUAL_ENV leaf
-    'COMMAND'     # full command line
-    'CMD'         # first token / exe leaf
-    'BUSY'        # 1 while a command runs
-    'OK'          # last command succeeded?
-    'EXIT'        # last exit code
-    'ELAPSED_MS'  # last command duration
-    'TITLE'       # OSC 2 pane title
-    'OSC7'        # OSC 7 cwd URI
-    'OSC133'      # prompt/command marks A/B/C/D
+# Terminal protocol events and state. No subprocesses, polling, or command-specific adapters.
+. ([IO.Path]::Combine($PSScriptRoot, 'path_convert.ps1'))
+$script:TermKnownFields = @(
+    'SHELL', 'SHELL_VERSION', 'HOST', 'USER', 'DOMAIN', 'ADMIN', 'SSH', 'PID', 'SESSION_ID', 'SCHEMA',
+    'CWD', 'CWD_UNIX', 'DIR', 'CWD_HOME', 'DRIVE', 'PROVIDER', 'LOCATION', 'VENV',
+    'COMMAND', 'CMD', 'BUSY', 'OK', 'EXIT', 'STATUS', 'ELAPSED_MS', 'LAST_CMD', 'LAST_ELAPSED_MS',
+    'LAST_NATIVE_EXIT', 'COMMAND_ID', 'TITLE', 'OSC7', 'OSC9_9', 'OSC133', 'USERVARS'
 )
-$script:TermReport = [Collections.Generic.HashSet[string]]::new(
-    [string[]]$script:TermReportNames,
-    [StringComparer]::OrdinalIgnoreCase
-)
-
-$script:TermIdentity = $null
-$script:TermIdentitySequences = $null
-$script:TermCommandStarted = $null
-$script:TermLastLocation = $null
-$script:TermLastVenv = $null
-$script:TermLastHome = $null
-$script:TermLastLocationSequences = $null
-$script:TermIdlePrompt = $null
-$script:TermIdleReport = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-$script:TermUtf8 = [Text.Encoding]::UTF8
+$script:TermReport = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+$script:TermSent = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
+$script:TermEncoded = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
 $script:TermBuilder = [Text.StringBuilder]::new(2048)
-$script:TermCacheBuilder = [Text.StringBuilder]::new(1024)
+$script:TermUtf8 = [Text.Encoding]::UTF8
+$script:TermSessionId = [guid]::NewGuid().ToString('N')
+$script:TermIdentity = $null
+$script:TermCommandStarted = $null
+$script:TermCommandId = [long]0
+$script:TermRunningName = ''
+$script:TermLastName = ''
+$script:TermLastElapsed = ''
+$script:TermMode = 'Auto'
+$script:TermFullCommand = $false
+$script:TermCommandMaxBytes = 2048
+$script:TermPhase = 'none'
+$script:TermEndPending = $false
+$script:TermIdleKey = $null
+$script:TermLocationKey = $null
+$script:TermLocationValues = $null
+$script:TermResync = $true
+$script:TermConfigVersion = 0
+$script:TermClearFields = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 
-function Test-TermReport {
-    param([Parameter(Mandatory)][string]$Name)
-
-    $script:TermReport.Contains($Name)
-}
-
-function Test-TermReportAny {
-    param([Parameter(Mandatory)][string[]]$Name)
-
-    foreach ($item in $Name) {
-        if (Test-TermReport $item) {
-            return $true
+function Set-TermReporting {
+    [CmdletBinding()]
+    param(
+        [ValidateSet('Auto', 'On', 'Off')][string]$Mode,
+        [AllowEmptyCollection()][string[]]$Fields,
+        [bool]$FullCommand,
+        [ValidateRange(0, 16384)][int]$CommandMaxBytes,
+        [switch]$Reset
+    )
+    if ($Reset) {
+        $script:TermReport = [Collections.Generic.HashSet[string]]::new([string[]]$script:TermKnownFields, [StringComparer]::OrdinalIgnoreCase)
+        if (-not $env:WT_SESSION) { [void]$script:TermReport.Remove('OSC9_9') }
+        if ($Mode -ne 'On' -and -not ($env:WEZTERM_PANE -or $env:TERM_PROGRAM -in @('WezTerm', 'iTerm.app'))) {
+            [void]$script:TermReport.Remove('USERVARS')
         }
+        $script:TermMode = 'Auto'
+        $script:TermFullCommand = $false
+        $script:TermCommandMaxBytes = 2048
     }
-    $false
-}
-
-function Get-TermWorkingDirectory {
-    try {
-        return $ExecutionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath
-    } catch {
-        try {
-            return (Get-Location).Path
-        } catch {
-            return ''
+    if ($PSBoundParameters.ContainsKey('Fields')) {
+        foreach ($name in $Fields) {
+            if ($name -notin $script:TermKnownFields) { throw "unknown terminal field: $name" }
         }
-    }
-}
-
-function Get-TermIdentity {
-    if ($script:TermIdentity) {
-        return $script:TermIdentity
-    }
-
-    $admin = '0'
-    if (Test-TermReport 'ADMIN') {
-        try {
-            if ([Environment]::IsPrivilegedProcess) {
-                $admin = '1'
-            }
-        } catch {
-            try {
-                $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-                $principal = [Security.Principal.WindowsPrincipal]::new($identity)
-                if ($principal.IsInRole(
-                        [Security.Principal.WindowsBuiltInRole]::Administrator
-                    )) {
-                    $admin = '1'
-                }
-            } catch {
+        $selected = [Collections.Generic.HashSet[string]]::new([string[]]$Fields, [StringComparer]::OrdinalIgnoreCase)
+        foreach ($name in @($script:TermEncoded.Keys)) {
+            if (-not $selected.Contains('USERVARS') -or -not $selected.Contains($name)) {
+                [void]$script:TermClearFields.Add($name)
             }
         }
+        $script:TermReport = $selected
     }
-
-    $ssh = '0'
-    if (
-        (Test-TermReport 'SSH') -and
-        (
-            $env:SSH_CONNECTION -or
-            $env:SSH_CLIENT -or
-            $env:SSH_TTY
-        )
-    ) {
-        $ssh = '1'
-    }
-
-    $script:TermIdentity = [pscustomobject]@{
-        Host   = if (Test-TermReport 'HOST') { [string]$env:COMPUTERNAME } else { '' }
-        User   = if (Test-TermReport 'USER') { [string]$env:USERNAME } else { '' }
-        Domain = if (Test-TermReport 'DOMAIN') { [string]$env:USERDOMAIN } else { '' }
-        Admin  = $admin
-        Ssh    = $ssh
-        Shell  = 'pwsh'
-    }
-    return $script:TermIdentity
+    if ($Mode) { $script:TermMode = $Mode }
+    if ($PSBoundParameters.ContainsKey('FullCommand')) { $script:TermFullCommand = $FullCommand }
+    if ($PSBoundParameters.ContainsKey('CommandMaxBytes')) { $script:TermCommandMaxBytes = $CommandMaxBytes }
+    $script:TermConfigVersion++
+    $script:TermResync = $true
+    $script:TermIdleKey = $null
 }
 
-function Add-TermUserVariable {
-    param(
-        [Text.StringBuilder]$Builder,
-        [string]$Name,
-        [AllowEmptyString()][string]$Value = ''
-    )
+$initialSettings = @{ Reset = $true }
+if ($env:UPWSH_OSC -in @('Auto', 'On', 'Off')) { $initialSettings.Mode = $env:UPWSH_OSC }
+if ($null -ne $env:UPWSH_OSC_FIELDS) {
+    $initialSettings.Fields = [string[]]@($env:UPWSH_OSC_FIELDS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
+$initialSettings.FullCommand = $env:UPWSH_OSC_COMMAND -eq '1'
+Set-TermReporting @initialSettings
 
-    if (-not (Test-TermReport $Name)) {
-        return
-    }
-
-    [void]$Builder.Append([char]0x1b)
-    [void]$Builder.Append(']1337;SetUserVar=')
-    [void]$Builder.Append($Name)
-    [void]$Builder.Append('=')
-    [void]$Builder.Append(
-        [Convert]::ToBase64String($script:TermUtf8.GetBytes($Value))
-    )
-    [void]$Builder.Append([char]0x07)
+function Test-TermOutput {
+    if ($script:TermMode -eq 'Off') { return $false }
+    if ($script:TermMode -eq 'On') { return $true }
+    return $Host.Name -eq 'ConsoleHost' -and $Host.UI.SupportsVirtualTerminal -and
+        -not [Console]::IsOutputRedirected -and -not [Console]::IsInputRedirected -and $env:TERM -ne 'dumb'
 }
 
-function Add-TermText {
-    param(
-        [Text.StringBuilder]$Builder,
-        [string]$Text
-    )
+function Write-TermText {
+    param([string]$Text)
+    if (-not $Text) { return }
+    try { [Console]::Write($Text) }
+    catch { $script:TermResync = $true; $script:TermIdleKey = $null }
+}
 
-    if ($Text) {
-        [void]$Builder.Append($Text)
+function Add-TermVariables {
+    param([Collections.IDictionary]$Values, [bool]$Force = $false)
+    if (-not $script:TermReport.Contains('USERVARS')) { return }
+    foreach ($name in $Values.Keys) {
+        if (-not $script:TermReport.Contains($name)) { continue }
+        $value = [string]$Values[$name]
+        $previous = $null
+        $same = $script:TermSent.TryGetValue($name, [ref]$previous) -and $previous -ceq $value
+        if ($same -and -not $Force) { continue }
+        if (-not $same) {
+            $script:TermEncoded[$name] = "$([char]27)]1337;SetUserVar=$name=$([Convert]::ToBase64String($script:TermUtf8.GetBytes($value)))$([char]7)"
+            $script:TermSent[$name] = $value
+        }
+        [void]$script:TermBuilder.Append($script:TermEncoded[$name])
     }
+}
+
+function Clear-TermRemovedFields {
+    foreach ($name in $script:TermClearFields) {
+        [void]$script:TermBuilder.Append("$([char]27)]1337;SetUserVar=$name=$([char]7)")
+        [void]$script:TermEncoded.Remove($name)
+        [void]$script:TermSent.Remove($name)
+    }
+    $script:TermClearFields.Clear()
+}
+
+function Add-TermChannel {
+    param([string]$Name, [string]$Text, [bool]$Force = $false)
+    if (-not $script:TermReport.Contains($Name)) { return }
+    $previous = $null
+    if (-not $Force -and $script:TermSent.TryGetValue($Name, [ref]$previous) -and $previous -ceq $Text) { return }
+    $script:TermSent[$Name] = $Text
+    [void]$script:TermBuilder.Append($Text)
 }
 
 function Get-TermDirectoryLeaf {
     param([string]$Path)
-
-    $trimmed = $Path.TrimEnd([char[]]@('\', '/'))
-    if (-not $trimmed) {
-        return $Path
-    }
+    $trimmed = $Path.TrimEnd('\', '/')
+    if (-not $trimmed) { return $Path }
     $slash = $trimmed.LastIndexOfAny([char[]]@('\', '/'))
-    if ($slash -ge 0 -and $slash -lt $trimmed.Length - 1) {
-        return $trimmed.Substring($slash + 1)
-    }
+    if ($slash -ge 0 -and $slash -lt $trimmed.Length - 1) { return $trimmed.Substring($slash + 1) }
     return $trimmed
 }
 
-function Get-TermHomeRelativePath {
-    param([string]$Path)
-
-    if (-not $Path -or -not $HOME) {
-        return $Path
-    }
-
-    $homeFull = $HOME.TrimEnd('\', '/')
-    if ($Path.StartsWith($homeFull, [StringComparison]::OrdinalIgnoreCase)) {
-        $rest = $Path.Substring($homeFull.Length)
-        if ($rest -eq '' -or $rest.StartsWith('\') -or $rest.StartsWith('/')) {
-            return '~' + ($rest -replace '\\', '/')
-        }
-    }
-    return $Path
-}
-
-function Get-TermDrive {
-    param([string]$Path)
-
-    if ($Path.Length -ge 2 -and $Path[1] -eq [char]':') {
-        $letter = $Path[0]
-        if (
-            ($letter -ge 'A' -and $letter -le 'Z') -or
-            ($letter -ge 'a' -and $letter -le 'z')
-        ) {
-            return ([string]$letter).ToUpperInvariant() + ':'
-        }
-    }
-    return ''
-}
-
 function Get-TermCommandName {
-    param(
-        [AllowEmptyString()]
-        [string]$Command = ''
-    )
-
-    $text = ($Command -replace '[\x00-\x1f\x7f-\x9f]', ' ' -replace '\s+', ' ').Trim()
-    if ($text.StartsWith('& ')) {
-        $text = $text.Substring(2).Trim()
-    }
-    if ($text.StartsWith("'")) {
-        $end = $text.IndexOf("'", 1)
-        if ($end -gt 1) {
-            $text = $text.Substring(1, $end - 1)
-        }
-    } elseif ($text.StartsWith('"')) {
-        $end = $text.IndexOf('"', 1)
-        if ($end -gt 1) {
-            $text = $text.Substring(1, $end - 1)
-        }
-    } else {
-        $space = $text.IndexOf(' ')
-        if ($space -gt 0) {
-            $text = $text.Substring(0, $space)
-        }
-    }
-
-    if ($text -match '[\\/]') {
-        $slash = $text.LastIndexOfAny([char[]]@('\', '/'))
-        if ($slash -ge 0 -and $slash -lt $text.Length - 1) {
-            return $text.Substring($slash + 1)
-        }
-    }
-    return $text
-}
-
-function Get-TermVenvName {
-    $root = $env:VIRTUAL_ENV
-    if (-not $root) {
-        return ''
-    }
-    return Get-TermDirectoryLeaf $root
-}
-
-function Get-TermIdentitySequences {
-    if (-not (Test-TermReportAny @(
-                'SHELL'
-                'HOST'
-                'USER'
-                'DOMAIN'
-                'ADMIN'
-                'SSH'
-            ))) {
-        return ''
-    }
-
-    if ($script:TermIdentitySequences) {
-        return $script:TermIdentitySequences
-    }
-
-    $identity = Get-TermIdentity
-    $builder = $script:TermCacheBuilder
-    $builder.Clear() | Out-Null
-    Add-TermUserVariable $builder 'SHELL' $identity.Shell
-    Add-TermUserVariable $builder 'HOST' $identity.Host
-    Add-TermUserVariable $builder 'USER' $identity.User
-    Add-TermUserVariable $builder 'DOMAIN' $identity.Domain
-    Add-TermUserVariable $builder 'ADMIN' $identity.Admin
-    Add-TermUserVariable $builder 'SSH' $identity.Ssh
-    $script:TermIdentitySequences = $builder.ToString()
-    return $script:TermIdentitySequences
-}
-
-function Get-TermLocationSequences {
-    param([string]$Location)
-
-    if (-not (Test-TermReportAny @(
-                'CWD'
-                'DIR'
-                'CWD_HOME'
-                'DRIVE'
-                'VENV'
-                'OSC7'
-            ))) {
-        return ''
-    }
-
-    if (
-        $script:TermLastLocationSequences -and
-        $script:TermLastLocation -ceq $Location -and
-        $script:TermLastVenv -ceq $env:VIRTUAL_ENV -and
-        $script:TermLastHome -ceq $HOME
-    ) {
-        return $script:TermLastLocationSequences
-    }
-
-    $leaf = if (Test-TermReportAny @('DIR', 'TITLE')) {
-        Get-TermDirectoryLeaf $Location
-    } else {
-        ''
-    }
-    $builder = $script:TermCacheBuilder
-    $builder.Clear() | Out-Null
-    Add-TermUserVariable $builder 'CWD' $Location
-    Add-TermUserVariable $builder 'DIR' $leaf
-    if (Test-TermReport 'CWD_HOME') {
-        Add-TermUserVariable $builder 'CWD_HOME' (Get-TermHomeRelativePath $Location)
-    }
-    if (Test-TermReport 'DRIVE') {
-        Add-TermUserVariable $builder 'DRIVE' (Get-TermDrive $Location)
-    }
-    if (Test-TermReport 'VENV') {
-        Add-TermUserVariable $builder 'VENV' (Get-TermVenvName)
-    }
-    if ((Test-TermReport 'OSC7') -and $Location) {
-        $unix = $Location -replace '\\', '/'
-        if ($unix.Length -ge 2 -and $unix[1] -eq [char]':') {
-            $unix = '/' + $unix
-        }
-        [void]$builder.Append([char]0x1b)
-        [void]$builder.Append(']7;file://')
-        [void]$builder.Append($unix)
-        [void]$builder.Append([char]0x1b)
-        [void]$builder.Append('\')
-    }
-    $script:TermLastLocation = $Location
-    $script:TermLastVenv = $env:VIRTUAL_ENV
-    $script:TermLastHome = $HOME
-    $script:TermLastLocationSequences = $builder.ToString()
-    return $script:TermLastLocationSequences
+    param([AllowEmptyString()][string]$Command = '')
+    $tokens = $null; $errors = $null
+    $ast = [Management.Automation.Language.Parser]::ParseInput($Command, [ref]$tokens, [ref]$errors)
+    $commandAst = $ast.Find({ param($node) $node -is [Management.Automation.Language.CommandAst] }, $false)
+    $name = if ($commandAst) { $commandAst.GetCommandName() } else { '' }
+    if (-not $name) { return '' }
+    $label = (Get-TermDirectoryLeaf $name) -replace '[\x00-\x1f\x7f-\x9f]', ' '
+    return $label.Substring(0, [math]::Min(160, $label.Length))
 }
 
 function Get-TermPaneTitle {
-    param(
-        [AllowEmptyString()]
-        [string]$Command = ''
-    )
-
-    $directory = Get-TermDirectoryLeaf (Get-TermWorkingDirectory)
-    $cleanCommand = ($Command -replace '[\x00-\x1f\x7f-\x9f]', ' ' -replace '\s+', ' ').Trim()
-    $title = if ($cleanCommand) {
-        "$directory › $(Get-TermCommandName $cleanCommand)"
-    } else {
-        $directory
-    }
+    param([AllowEmptyString()][string]$Command = '', [string]$CommandName)
+    $location = $ExecutionContext.SessionState.Path.CurrentLocation.Path
+    $directory = Get-TermDirectoryLeaf $location
+    $name = if ($PSBoundParameters.ContainsKey('CommandName')) { $CommandName } elseif ($Command) { Get-TermCommandName $Command } else { '' }
+    $title = if ($name) { "$directory › $name" } else { $directory }
     $title = ($title -replace '[\x00-\x1f\x7f-\x9f]', ' ').Trim()
-
-    $maximumLength = 160
-    if ($title.Length -gt $maximumLength) {
-        return $title.Substring(0, $maximumLength - 3) + '...'
-    }
+    if ($title.Length -gt 160) { return $title.Substring(0, 157) + '...' }
     return $title
 }
 
-function Write-TermBuilder {
-    param([Text.StringBuilder]$Builder)
+function ConvertTo-TermFileUri {
+    param([string]$Path)
+    # Escape each filesystem segment, including literal %, before forming the file URI.
+    $slashPath = $Path.Replace('\', '/')
+    if ($slashPath.StartsWith('//')) {
+        $parts = $slashPath.Substring(2).Split('/')
+        $authority = $parts[0]
+        $segments = @($parts | Select-Object -Skip 1)
+    } elseif ($slashPath -match '^[A-Za-z]:/') {
+        $authority = [Environment]::MachineName
+        $segments = $slashPath.Split('/')
+    } else { return '' }
+    $encoded = [Collections.Generic.List[string]]::new()
+    foreach ($segment in $segments) { $encoded.Add([uri]::EscapeDataString($segment)) }
+    if (-not $slashPath.StartsWith('//')) { $encoded[0] = $segments[0] }
+    return 'file://' + $authority + '/' + ($encoded -join '/')
+}
 
-    if ($Builder.Length -eq 0) {
-        return
+function Get-TermIdentity {
+    if ($null -eq $script:TermIdentity) {
+        $admin = '0'
+        try {
+            $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+            try {
+                $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+                if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { $admin = '1' }
+            } finally { $identity.Dispose() }
+        } catch { }
+        $script:TermIdentity = [ordered]@{
+            SHELL = 'pwsh'; SHELL_VERSION = $PSVersionTable.PSVersion.ToString()
+            HOST = [Environment]::MachineName; USER = [Environment]::UserName; DOMAIN = [Environment]::UserDomainName
+            ADMIN = $admin; SSH = $(if ($env:SSH_CONNECTION -or $env:SSH_CLIENT -or $env:SSH_TTY) { '1' } else { '0' })
+            PID = [string]$PID; SESSION_ID = $script:TermSessionId; SCHEMA = '2'
+        }
     }
-    try {
-        [Console]::Write($Builder.ToString())
-    } catch {
-        # 状态上报失败不应阻断命令执行或提示符。
+    return $script:TermIdentity
+}
+
+function Get-TermLocationValues {
+    $cwd = $ExecutionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath
+    $location = $ExecutionContext.SessionState.Path.CurrentLocation
+    $key = @($cwd, $location.Path, $location.Provider.Name, $HOME, $env:VIRTUAL_ENV) -join [char]0
+    if ($script:TermLocationKey -ceq $key) { return $script:TermLocationValues }
+    $homeRelative = $cwd
+    $homeRoot = $HOME.TrimEnd('\', '/')
+    if ($cwd -eq $homeRoot) { $homeRelative = '~' }
+    elseif ($cwd.StartsWith($homeRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        $homeRelative = '~/' + $cwd.Substring($homeRoot.Length + 1).Replace('\', '/')
     }
+    $script:TermLocationValues = [ordered]@{
+        CWD = $cwd; CWD_UNIX = unixpath $cwd; DIR = Get-TermDirectoryLeaf $cwd; CWD_HOME = $homeRelative
+        DRIVE = $(if ($cwd -match '^([A-Za-z]):') { $Matches[1].ToUpperInvariant() + ':' } else { '' })
+        PROVIDER = $location.Provider.Name; LOCATION = $location.Path
+        VENV = $(if ($env:VIRTUAL_ENV) { Get-TermDirectoryLeaf $env:VIRTUAL_ENV } else { '' })
+    }
+    $script:TermFileUri = ConvertTo-TermFileUri $cwd
+    $script:TermLocationTitle = Get-TermPaneTitle
+    $script:TermLocationKey = $key
+    return $script:TermLocationValues
 }
 
 function Sync-TermCommand {
-    param(
-        [AllowEmptyString()]
-        [string]$Command = ''
-    )
+    param([AllowEmptyString()][string]$Command = '')
+    $script:TermCommandStarted = [Diagnostics.Stopwatch]::GetTimestamp()
+    $script:TermCommandId++
+    $script:TermRunningName = Get-TermCommandName $Command
+    $script:TermIdleKey = $null
+    if (-not (Test-TermOutput)) { $script:TermResync = $true; return }
+    [void]$script:TermBuilder.Clear()
+    Clear-TermRemovedFields
+    $text = ''
+    if ($script:TermFullCommand -and $script:TermCommandMaxBytes -gt 0) {
+        $chars = $Command.Substring(0, [math]::Min($Command.Length, $script:TermCommandMaxBytes)).ToCharArray()
+        $bytes = [byte[]]::new([math]::Max(4, $script:TermCommandMaxBytes))
+        $charsUsed = 0; $bytesUsed = 0; $complete = $false
+        $script:TermUtf8.GetEncoder().Convert($chars, 0, $chars.Length, $bytes, 0, $bytes.Length, $false, [ref]$charsUsed, [ref]$bytesUsed, [ref]$complete)
+        $text = if ($bytesUsed -le $script:TermCommandMaxBytes) { $script:TermUtf8.GetString($bytes, 0, $bytesUsed) } else { '' }
+    }
+    Add-TermVariables ([ordered]@{ BUSY = '1'; CMD = $script:TermRunningName; COMMAND = $text; COMMAND_ID = [string]$script:TermCommandId })
+    if ($script:TermReport.Contains('TITLE')) {
+        Add-TermChannel 'TITLE' "$([char]27)]2;$(Get-TermPaneTitle -CommandName $script:TermRunningName)$([char]7)"
+    }
+    if ($script:TermReport.Contains('OSC133')) {
+        [void]$script:TermBuilder.Append("$([char]27)]133;C$([char]7)")
+        $script:TermPhase = 'running'
+    }
+    Write-TermText $script:TermBuilder.ToString()
+}
 
-    if (Test-TermReport 'ELAPSED_MS') {
-        $script:TermCommandStarted = [DateTime]::UtcNow
+function Complete-TermPrompt {
+    if (-not $script:TermEndPending) { return }
+    $script:TermEndPending = $false
+    if ((Test-TermOutput) -and $script:TermReport.Contains('OSC133')) {
+        Write-TermText "$([char]27)]133;B$([char]7)"
+        $script:TermPhase = 'input'
     }
-
-    $builder = $script:TermBuilder
-    $builder.Clear() | Out-Null
-    Add-TermUserVariable $builder 'BUSY' '1'
-    Add-TermUserVariable $builder 'COMMAND' $Command
-    if (Test-TermReport 'CMD') {
-        Add-TermUserVariable $builder 'CMD' (Get-TermCommandName $Command)
-    }
-    if (Test-TermReport 'TITLE') {
-        [void]$builder.Append([char]0x1b)
-        [void]$builder.Append(']2;')
-        [void]$builder.Append((Get-TermPaneTitle -Command $Command))
-        [void]$builder.Append([char]0x07)
-    }
-    if (Test-TermReport 'OSC133') {
-        [void]$builder.Append([char]0x1b)
-        [void]$builder.Append(']133;C')
-        [void]$builder.Append([char]0x07)
-    }
-    Write-TermBuilder $builder
 }
 
 function Sync-TermPrompt {
     param(
         [bool]$Succeeded = $true,
         $ExitCode,
+        $NativeExitCode,
+        [ValidateSet('success', 'error', 'interrupted', 'unknown')][string]$Status,
         [bool]$CommandCompleted = $true,
-        [DateTime]$CompletedAt = [DateTime]::UtcNow
+        [long]$CompletedAt = [Diagnostics.Stopwatch]::GetTimestamp(),
+        [switch]$DeferEnd
     )
-
+    $effectiveExit = if ($Succeeded) { '0' } elseif ($null -ne $ExitCode -and [string]$ExitCode -notin @('', '0')) { [string]$ExitCode } else { '1' }
     $elapsed = ''
-    if ($script:TermCommandStarted) {
-        if (Test-TermReport 'ELAPSED_MS') {
-            $elapsed = [string][int](
-                ($CompletedAt - $script:TermCommandStarted).TotalMilliseconds
-            )
+    if ($CommandCompleted) {
+        if ($null -ne $script:TermCommandStarted) {
+            $elapsed = [string][long][math]::Max(0.0, [math]::Floor(($CompletedAt - $script:TermCommandStarted) * 1000.0 / [Diagnostics.Stopwatch]::Frequency))
         }
+        $script:TermLastElapsed = $elapsed
+        $script:TermLastName = $script:TermRunningName
         $script:TermCommandStarted = $null
     }
-
-    $location = Get-TermWorkingDirectory
-    $sameReport = $script:TermIdleReport.SetEquals($script:TermReport)
-    if (-not $sameReport) {
-        $script:TermIdentity = $null
-        $script:TermIdentitySequences = $null
-        $script:TermLastLocationSequences = $null
-        $script:TermIdlePrompt = $null
-    }
-    if ($elapsed -eq '' -and $null -ne $script:TermIdlePrompt -and $sameReport -and
-        $location -ceq $script:TermIdleLocation -and $HOME -ceq $script:TermIdleHome -and
-        $env:VIRTUAL_ENV -ceq $script:TermIdleVenv -and $Succeeded -eq $script:TermIdleSucceeded -and
-        [string]$ExitCode -ceq $script:TermIdleExitCode -and
-        $CommandCompleted -eq $script:TermIdleCommandCompleted -and
-        $script:TermIdentitySequences -and $script:TermLastLocationSequences) {
-        try { [Console]::Write($script:TermIdlePrompt) } catch { }
-        return
-    }
-
-    $needResult = Test-TermReportAny @('OK', 'EXIT', 'OSC133')
-    $ok = '1'
-    $exit = '0'
-    if ($needResult) {
-        $ok = if ($Succeeded) { '1' } else { '0' }
-        $exit = if ($Succeeded) {
-            '0'
-        } elseif ($null -ne $ExitCode -and [string]$ExitCode -ne '') {
-            [string]$ExitCode
-        } else {
-            '1'
-        }
-    }
-
-    $builder = $script:TermBuilder
-    $builder.Clear() | Out-Null
-    if (Test-TermReport 'OSC133') {
+    if (-not (Test-TermOutput)) { $script:TermResync = $true; $script:TermEndPending = $false; return }
+    $location = $ExecutionContext.SessionState.Path.CurrentLocation
+    $cwd = $ExecutionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath
+    $idleKey = @($cwd, $location.Path, $location.Provider.Name, $HOME, $env:VIRTUAL_ENV, $Succeeded, $effectiveExit, [string]$ExitCode, [string]$NativeExitCode, $Status, $script:TermConfigVersion) -join [char]0
+    [void]$script:TermBuilder.Clear()
+    Clear-TermRemovedFields
+    if ($script:TermReport.Contains('OSC133')) {
         if ($CommandCompleted) {
-            [void]$builder.Append([char]0x1b)
-            [void]$builder.Append(']133;D;')
-            [void]$builder.Append($exit)
-            [void]$builder.Append([char]0x07)
+            [void]$script:TermBuilder.Append("$([char]27)]133;D;$effectiveExit$([char]7)")
+        } elseif ($script:TermPhase -eq 'input') {
+            # D with no status after B closes an abandoned/empty input, not an executed command.
+            [void]$script:TermBuilder.Append("$([char]27)]133;D$([char]7)")
         }
-        [void]$builder.Append([char]0x1b)
-        [void]$builder.Append(']133;A')
-        [void]$builder.Append([char]0x07)
+        [void]$script:TermBuilder.Append("$([char]27)]133;A$([char]7)")
+        $script:TermEndPending = $true
+        $script:TermPhase = 'prompt'
     }
-    Add-TermText $builder (Get-TermIdentitySequences)
-    Add-TermText $builder (Get-TermLocationSequences $location)
-    Add-TermUserVariable $builder 'COMMAND' ''
-    Add-TermUserVariable $builder 'CMD' ''
-    Add-TermUserVariable $builder 'BUSY' '0'
-    Add-TermUserVariable $builder 'OK' $ok
-    Add-TermUserVariable $builder 'EXIT' $exit
-    Add-TermUserVariable $builder 'ELAPSED_MS' $elapsed
-    if (Test-TermReport 'TITLE') {
-        [void]$builder.Append([char]0x1b)
-        [void]$builder.Append(']2;')
-        [void]$builder.Append((Get-TermPaneTitle))
-        [void]$builder.Append([char]0x07)
+    $force = $CommandCompleted -or $script:TermResync
+    if ($force -or $script:TermIdleKey -cne $idleKey) {
+        if ($script:TermReport.Contains('USERVARS')) {
+            Add-TermVariables (Get-TermIdentity) $force
+        }
+        Add-TermVariables (Get-TermLocationValues) $force
+        Add-TermVariables ([ordered]@{
+            BUSY = '0'; COMMAND = ''; CMD = ''; OK = $(if ($Succeeded) { '1' } else { '0' })
+            EXIT = $effectiveExit; STATUS = $(if ($Status) { $Status } elseif ($Succeeded) { 'success' } else { 'error' })
+            ELAPSED_MS = $elapsed; LAST_CMD = $script:TermLastName; LAST_ELAPSED_MS = $script:TermLastElapsed
+            LAST_NATIVE_EXIT = [string]$NativeExitCode; COMMAND_ID = [string]$script:TermCommandId
+        }) $force
+        Add-TermChannel 'TITLE' "$([char]27)]2;$script:TermLocationTitle$([char]7)" $force
+        if ($script:TermReport.Contains('OSC7') -and $script:TermFileUri) {
+            Add-TermChannel 'OSC7' "$([char]27)]7;$script:TermFileUri$([char]7)" $force
+        }
+        if ($script:TermReport.Contains('OSC9_9') -and $cwd -notmatch '[\x00-\x1f\x7f"\x9c]') {
+            Add-TermChannel 'OSC9_9' "$([char]27)]9;9;`"$cwd`"$([char]7)" $force
+        }
+        $script:TermResync = $false
+        # One later idle prompt clears transient elapsed time; the persistent value remains.
+        $script:TermIdleKey = if ($elapsed) { $null } else { $idleKey }
     }
-    if (Test-TermReport 'OSC133') {
-        [void]$builder.Append([char]0x1b)
-        [void]$builder.Append(']133;B')
-        [void]$builder.Append([char]0x07)
-    }
-    if ($elapsed -eq '') {
-        $script:TermIdlePrompt = $builder.ToString()
-        $script:TermIdleLocation = $location
-        $script:TermIdleHome = $HOME
-        $script:TermIdleVenv = $env:VIRTUAL_ENV
-        $script:TermIdleSucceeded = $Succeeded
-        $script:TermIdleExitCode = [string]$ExitCode
-        $script:TermIdleCommandCompleted = $CommandCompleted
-        $script:TermIdleReport.Clear()
-        $script:TermIdleReport.UnionWith($script:TermReport)
-    }
-    Write-TermBuilder $builder
+    Write-TermText $script:TermBuilder.ToString()
+    if (-not $DeferEnd) { Complete-TermPrompt }
 }
 
-Export-ModuleMember -Function @(
-    'Get-TermPaneTitle'
-    'Get-TermCommandName'
-    'Sync-TermCommand'
-    'Sync-TermPrompt'
-)
+Export-ModuleMember -Function Get-TermPaneTitle, Get-TermCommandName, Sync-TermCommand, Sync-TermPrompt, Complete-TermPrompt, Set-TermReporting

@@ -18,6 +18,10 @@ function Invoke-UpwshTestProcess {
     $start.WorkingDirectory = $WorkingDirectory
     $start.Environment['USERPROFILE'] = $UserHome
     $start.Environment['UPWSH_TEST_ISOLATED'] = '1'
+    # Tests explicitly capture OSC even through redirected pipes; production defaults to Auto.
+    $start.Environment['UPWSH_OSC'] = 'On'
+    [void]$start.Environment.Remove('UPWSH_OSC_FIELDS')
+    [void]$start.Environment.Remove('UPWSH_OSC_COMMAND')
     $start.Environment['UPWSH_PROFILE'] = Join-Path $UserHome 'test-profile.ps1'
     $start.Environment['UPWSH_SKIP_PERSIST_PATH'] = '1'
     $start.Environment['UPWSH_SKIP_SESSION_LOAD'] = '1'

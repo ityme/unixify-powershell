@@ -16,12 +16,12 @@ function Assert-Equal {
     if ([string]$Actual -cne [string]$Expected) { throw "expected <$Expected>, got <$Actual>" }
 }
 function Capture-TermPrompt {
-    param([bool]$Succeeded = $true, [int]$ExitCode = 0)
+    param([bool]$Succeeded = $true, [int]$ExitCode = 0, [bool]$CommandCompleted = $true)
     $original = [Console]::Out
     $writer = [IO.StringWriter]::new()
     try {
         [Console]::SetOut($writer)
-        Sync-TermPrompt -Succeeded $Succeeded -ExitCode $ExitCode
+        Sync-TermPrompt -Succeeded $Succeeded -ExitCode $ExitCode -CommandCompleted:$CommandCompleted
         $writer.ToString()
     } finally {
         [Console]::SetOut($original)
@@ -93,10 +93,11 @@ Test-Interaction 'the candidate display reuses only the active Tab request' {
         Assert-Equal $completion.CompletionMatches[0].CompletionText 'cached-value'
     } finally { & $hook { $script:CompletionDisplayState = $null } }
 }
-Test-Interaction 'idle terminal reports are byte-identical including prompt boundaries' {
-    $first = Capture-TermPrompt
-    $second = Capture-TermPrompt
-    Assert-Equal $second $first
+Test-Interaction 'idle terminal reports omit unchanged state but retain boundaries' {
+    $null = Capture-TermPrompt -CommandCompleted:$false
+    $null = Capture-TermPrompt -CommandCompleted:$false
+    $second = Capture-TermPrompt -CommandCompleted:$false
+    if ($second.Contains('SetUserVar=')) { throw 'unchanged idle variables resent' }
     if (-not $second.Contains(']133;A') -or -not $second.Contains(']133;B')) { throw 'prompt boundaries missing' }
 }
 Test-Interaction 'terminal report cache follows status changes' {
@@ -133,17 +134,17 @@ Test-Interaction 'changing enabled fields invalidates cached reports' {
     $term = (Get-Command Sync-TermPrompt).Module
     $null = Capture-TermPrompt
     try {
-        & $term { [void]$script:TermReport.Remove('HOST'); [void]$script:TermReport.Remove('CWD') }
+        & $term { Set-TermReporting -Fields @($script:TermReport | Where-Object { $_ -notin @('HOST', 'CWD') }) }
         $output = Capture-TermPrompt
-        if ($output.Contains('SetUserVar=HOST=') -or $output.Contains('SetUserVar=CWD=')) { throw 'disabled field remained cached' }
-    } finally { & $term { [void]$script:TermReport.Add('HOST'); [void]$script:TermReport.Add('CWD') } }
+        if ($output -match 'SetUserVar=(?:HOST|CWD)=[^\x07]+') { throw 'disabled field remained cached' }
+    } finally { & $term { Set-TermReporting -Fields @(@($script:TermReport) + @('HOST', 'CWD')) } }
     if (-not (Capture-TermPrompt).Contains('SetUserVar=HOST=')) { throw 're-enabled field missing' }
 }
 Test-Interaction 'command elapsed time is emitted once rather than replayed from idle cache' {
     $original = [Console]::Out
     try { [Console]::SetOut([IO.TextWriter]::Null); Sync-TermCommand -Command 'fixture' } finally { [Console]::SetOut($original) }
     $completed = Capture-TermPrompt
-    $idle = Capture-TermPrompt
+    $idle = Capture-TermPrompt -CommandCompleted:$false
     if ($completed.Contains("SetUserVar=ELAPSED_MS=`a")) { throw 'elapsed time missing' }
     if (-not $idle.Contains("SetUserVar=ELAPSED_MS=`a")) { throw 'elapsed time repeated' }
 }

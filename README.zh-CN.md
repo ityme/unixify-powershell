@@ -110,6 +110,8 @@ function global:work { cd (winpath '/i/my work') }
 
 重复安装和更新会保留已有文件，并补齐缺失的模板。修改后新开 pwsh 生效。
 
+终端状态上报也可在 `custom/` 中配置。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
+
 ## 从源码安装
 
 ```powershell

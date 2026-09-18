@@ -110,6 +110,8 @@ function global:work { cd (winpath '/i/my work') }
 
 Reinstall and update preserve your files and fill in missing template files. Open a new pwsh to load your changes.
 
+Terminal status reporting is configurable from `custom/` too. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
+
 ## Install from source
 
 ```powershell

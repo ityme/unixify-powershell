@@ -12,6 +12,9 @@ $script:ReadingInput = $false
 $script:SubmittedDisplayLine = $null
 $script:LastCommandSucceeded = $true
 $script:LastCommandExitCode = 0
+$script:LastNativeExitCode = 0
+$script:LastCommandStatus = 'success'
+$script:ErrorBeforeCommand = $null
 $script:CachedPrompt = $null
 $script:CachedPromptLocation = $null
 $script:CachedPromptWidth = 0
@@ -25,6 +28,7 @@ function Set-HookPromptInput {
         [void][Management.Automation.Language.Parser]::ParseInput($Line, [ref]$tokens, [ref]$errors)
         $script:SubmittedParseError = $errors.Count -gt 0
         $script:CommandPending = $true
+        $script:ErrorBeforeCommand = $global:Error[0]
         Clear-GitCompletionCache
         Sync-TermCommand -Command $Line
     }
@@ -210,6 +214,7 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
         [System.Diagnostics.DebuggerHidden()]
         param()
         $lastRunStatus = $?
+        Complete-TermPrompt
         Microsoft.PowerShell.Core\Set-StrictMode -Off
         $script:ReadingInput = $true
         $script:SubmittedDisplayLine = $null
@@ -386,14 +391,25 @@ if (-not (Test-Path Variable:script:BasePrompt)) {
 function global:prompt {
     $succeeded = $?
     $exitCode = $global:LASTEXITCODE
-    $completedAt = [DateTime]::UtcNow
+    $lastError = $global:Error[0]
+    $completedAt = [Diagnostics.Stopwatch]::GetTimestamp()
     $location = $ExecutionContext.SessionState.Path.CurrentLocation.Path
     $width = $Host.UI.RawUI.WindowSize.Width
     $completed = $script:CommandPending -and -not $script:ReadingInput
     if ($completed) {
         $script:CommandPending = $false
         $script:LastCommandSucceeded = $succeeded -and -not $script:SubmittedParseError
-        $script:LastCommandExitCode = if ($script:SubmittedParseError) { 1 } else { $exitCode }
+        $script:LastNativeExitCode = $exitCode
+        $history = Get-History -Count 1
+        $interrupted = -not $script:SubmittedParseError -and $history -and $history.ExecutionStatus -eq 'Stopped'
+        $powerShellError = $lastError -and -not [object]::ReferenceEquals($lastError, $script:ErrorBeforeCommand) -and
+            ($lastError -isnot [Management.Automation.ErrorRecord] -or
+             $lastError.Exception -isnot [System.Exception] -or
+             $lastError.Exception.GetType().FullName -ne 'System.Management.Automation.NativeCommandExitException')
+        $script:LastCommandExitCode = if ($script:LastCommandSucceeded) { 0 }
+            elseif ($interrupted -or $powerShellError -or $script:SubmittedParseError -or -not $exitCode) { 1 }
+            else { $exitCode }
+        $script:LastCommandStatus = if ($script:LastCommandSucceeded) { 'success' } elseif ($interrupted) { 'interrupted' } else { 'error' }
         $script:SubmittedParseError = $false
     }
     $reuse = -not $completed -and
@@ -401,6 +417,12 @@ function global:prompt {
         $location -ceq $script:CachedPromptLocation -and
         $width -eq $script:CachedPromptWidth
     try {
+        if (-not $script:ReadingInput) {
+            # A must precede both direct host writes and the text returned by the renderer.
+            Sync-TermPrompt -Succeeded $script:LastCommandSucceeded -ExitCode $script:LastCommandExitCode `
+                -NativeExitCode $script:LastNativeExitCode -Status $script:LastCommandStatus `
+                -CommandCompleted:$completed -CompletedAt $completedAt -DeferEnd
+        }
         if (-not $reuse) {
             # Restore $? immediately before invoking renderers such as Starship. Ignore emits
             # nothing and does not add a synthetic entry to $Error or change LASTEXITCODE.
@@ -413,10 +435,7 @@ function global:prompt {
             $script:CachedPromptLocation = $location
             $script:CachedPromptWidth = $width
         }
-        if (-not $script:ReadingInput) {
-            Sync-TermPrompt -Succeeded $script:LastCommandSucceeded -ExitCode $script:LastCommandExitCode `
-                -CommandCompleted:$completed -CompletedAt $completedAt
-        }
+        # ConsoleHost writes the returned text before PSConsoleHostReadLine emits B.
         return $script:CachedPrompt
     } finally {
         $global:LASTEXITCODE = $exitCode

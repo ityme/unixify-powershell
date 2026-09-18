@@ -3,6 +3,7 @@ import argparse
 import ctypes as c
 from ctypes import wintypes as w
 import json
+import re
 import os
 from pathlib import Path
 import queue
@@ -49,9 +50,10 @@ parser.add_argument('--budget-ms', type=float, default=30)
 parser.add_argument('--enforce', action='store_true')
 parser.add_argument('--completion', action='store_true', help='Measure git pull origin <Tab> in an isolated repository')
 parser.add_argument('--lifecycle', action='store_true', help='Verify render counts for redraw, cancellation, submission, and interruption')
+parser.add_argument('--osc', action='store_true', help='Verify OSC frame order, encoded cwd and delta reporting on the wire')
 options = parser.parse_args()
-if options.completion and options.lifecycle:
-    parser.error('choose --completion or --lifecycle')
+if sum([options.completion, options.lifecycle, options.osc]) > 1:
+    parser.error('choose --completion, --lifecycle or --osc')
 if options.samples < 1:
     parser.error('--samples must be positive')
 runtime = Path(options.profile).resolve()
@@ -86,6 +88,8 @@ def capture_buffer(keys, timeout=15):
             result['prompt_events'] = data.count(b'\x1b]133;A')
             result['finished_events'] = data.count(b'\x1b]133;D;')
             result['candidates_visible'] = b'dev' in data and b'main' in data
+            if options.osc:
+                result['wire'] = data
             return result
     raise RuntimeError('Timed out capturing PSReadLine state')
 
@@ -131,6 +135,12 @@ try:
     env['APPDATA'] = str(bench_home / 'AppData/Roaming')
     env['UPWSH_SKIP_PERSIST_PATH'] = '1'
     env['UPWSH_PROFILE'] = str(bench_home / 'profile.ps1')
+    for key in ['UPWSH_OSC', 'UPWSH_OSC_FIELDS', 'UPWSH_OSC_COMMAND']:
+        env.pop(key, None)
+    if options.osc:
+        env['UPWSH_OSC'] = 'On'
+        env['UPWSH_BENCH_CWD'] = str(bench_home / 'space # literal%20')
+        Path(env['UPWSH_BENCH_CWD']).mkdir()
     working_directory = os.getcwd()
     if options.completion:
         fixture = bench_home / 'repo'
@@ -151,7 +161,7 @@ try:
             subprocess.run(['git', '-C', str(fixture), *args], env=env, check=True, capture_output=True)
     env_block = c.create_unicode_buffer('\0'.join(f'{key}={value}' for key, value in sorted(env.items())) + '\0\0')
     script = ". '" + str(runtime).replace("'", "''") + "'"
-    if options.completion or options.lifecycle:
+    if options.completion or options.lifecycle or options.osc:
         script += r""";
 Set-PSReadLineOption -HistorySavePath (Join-Path $HOME 'fixture-history.txt') -HistorySaveStyle SaveNothing
 $global:UpwshBenchRenders = 0
@@ -169,13 +179,49 @@ Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock {
     [Console]::Write('UPWSH_CAPTURE_READY')
 }
 """
+    if options.osc:
+        script += r""";
+& (Get-Command prompt).Module {
+    $script:CachedPrompt = $null
+    $script:BasePrompt = { $global:UpwshBenchRenders++; 'UPWSH_VISIBLE_PROMPT> ' }
+}
+"""
     command = c.create_unicode_buffer(subprocess.list2cmdline([shutil.which('pwsh'), '-NoLogo', '-NoProfile', '-NoExit', '-Command', script]))
     start = time.perf_counter()
     check(k.CreateProcessW(None, command, None, None, False, 0x00080000 | 0x00000400, env_block, working_directory, c.byref(startup), c.byref(process)))
     threading.Thread(target=read_loop, daemon=True).start()
-    await_prompt()
+    initial_wire = await_prompt()
     startup_ms = (time.perf_counter() - start) * 1000
-    if options.lifecycle:
+    if options.osc:
+        def verify_frame(wire):
+            start_mark = wire.find(b'\x1b]133;A\x07')
+            prompt_text = wire.find(b'UPWSH_VISIBLE_PROMPT> ')
+            end_mark = wire.find(b'\x1b]133;B\x07')
+            assert 0 <= start_mark < prompt_text < end_mark, 'prompt is outside A/B'
+        verify_frame(initial_wire)
+        previous = capture_buffer(b'')
+        clear = capture_buffer(bytes([12]))
+        assert clear['Renders'] == previous['Renders'] and clear['prompt_events'] == 0
+        idle = capture_buffer(bytes([13]))
+        verify_frame(idle['wire'])
+        assert b'SetUserVar=' not in idle['wire'] and idle['finished_events'] == 0
+        cwd = capture_buffer(b'cd $env:UPWSH_BENCH_CWD\r')
+        verify_frame(cwd['wire'])
+        assert b'\x1b]133;C\x07' in cwd['wire'] and b'\x1b]133;D;0\x07' in cwd['wire']
+        uris = re.findall(rb'\x1b\]7;([^\x07]+)\x07', cwd['wire'])
+        assert uris and b'space%20%23%20literal%2520' in uris[-1], 'incorrect encoded cwd'
+        from urllib.parse import urlsplit, unquote
+        parsed = urlsplit(uris[-1].decode('utf-8'))
+        assert not parsed.fragment and unquote(parsed.path).lstrip('/') == env['UPWSH_BENCH_CWD'].replace('\\', '/')
+        failure = capture_buffer(b'Write-Error "OSC fixture"\r')
+        verify_frame(failure['wire'])
+        assert b'\x1b]133;D;1\x07' in failure['wire']
+        after = capture_buffer(bytes([13]))
+        assert after['finished_events'] == 0 and b'LAST_ELAPSED_MS=' not in after['wire']
+        assert after['Status']['Succeeded'] is False
+        print(json.dumps({'wire_order': 'A < visible prompt < B', 'cwd_encoding': True,
+                          'idle_fields_omitted': True, 'failure_exit': 1, 'passed': True}))
+    elif options.lifecycle:
         rows = []
         previous = capture_buffer(b'')
 

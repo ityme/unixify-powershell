@@ -310,9 +310,7 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
         $writer.AutoFlush = $true
         try {
             & $module {
-                $script:TermReport.Remove('HOST') | Out-Null
-                $script:TermIdentity = $null
-                $script:TermIdentitySequences = $null
+                Set-TermReporting -Fields @($script:TermReport | Where-Object { $_ -ne 'HOST' })
             }
             [Console]::SetOut($writer)
             Sync-TermPrompt -Succeeded $true -ExitCode 0
@@ -320,14 +318,12 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
             $text = [Text.Encoding]::UTF8.GetString($stream.ToArray())
         } finally {
             & $module {
-                $script:TermReport.Add('HOST') | Out-Null
-                $script:TermIdentity = $null
-                $script:TermIdentitySequences = $null
+                Set-TermReporting -Fields @(@($script:TermReport) + 'HOST')
             }
             [Console]::SetOut($originalOut)
             $writer.Dispose()
         }
-        Assert-True ($text -notmatch 'SetUserVar=HOST=') 'HOST still reported'
+        Assert-True ($text -notmatch 'SetUserVar=HOST=[^\x07]+') 'HOST still reported a nonempty value'
         Assert-True ($text -match 'SetUserVar=USER=') 'USER was dropped with HOST'
     }
     Invoke-CompletionTest 'term report finishes within 20ms' {
