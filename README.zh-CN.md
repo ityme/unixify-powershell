@@ -51,6 +51,21 @@ cd (winpath '~/my work')
 
 两条命令都支持多个路径和管道输入，不要求路径存在。Tab 遇到需要引号的 Unix 绝对路径时，会生成 `(winpath '…')`。注释、内嵌脚本、重定向和 `--output=/c/a` 这类组合参数不会自动转换。
 
+## Git 补全
+
+Git 在 Path 上时，按 Tab 补全常用子命令、分支、标签和已配置的远程名称：
+
+```text
+git sw<Tab>                  → git switch
+git switch fe<Tab>           → 匹配的本地分支
+git checkout v<Tab>          → 匹配的标签及其他引用
+git push o<Tab>              → origin
+git pull origin <Tab>        → 本地已知的 origin 分支
+git checkout -- ./<Tab>      → 文件
+```
+
+只读取本地 Git 数据，不联网、不需要额外依赖。支持 `git -C <目录>` 和 `git switch --track`，其他复杂写法回退到普通补全。
+
 ## 管理安装
 
 | 命令 | 作用 |

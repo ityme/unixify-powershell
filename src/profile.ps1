@@ -23,6 +23,7 @@ Import-ShellModule 'tools.psm1'
 Import-ShellModule 'upwsh.psm1'
 . ([IO.Path]::Combine($PSScriptRoot, 'alias.ps1'))
 Import-ShellModule 'completion.psm1'
+Import-ShellModule 'git_completion.psm1'
 Import-ShellModule 'term.psm1'
 
 # AllScope 别名必须在 dot-source 的入口里删除。

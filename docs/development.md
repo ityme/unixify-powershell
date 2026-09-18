@@ -11,6 +11,7 @@ Run from the repository root with PowerShell 7:
 ```powershell
 pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_path_commands.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_git_completion.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_interaction.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
@@ -19,6 +20,12 @@ pwsh -NoLogo -NoProfile -File src/tests/test_install.ps1
 ```
 
 The test harness uses temporary user homes and profiles and disables persistent environment writes.
+
+## Git completion
+
+`src/git_completion.psm1` handles common Git command positions before filesystem completion. It reads refs and configured remotes only when requested by Tab, without contacting a remote. Each query has a 500ms process wait limit and leaves `$LASTEXITCODE` unchanged. Subcommand names need no Git process. The scope is intentionally limited; unknown syntax returns to normal completion.
+
+Git completion tests create and remove an isolated local repository with fixture branches, tags, and remote-tracking refs. They do not modify the project repository or access remotes.
 
 ## Path conversion
 

@@ -56,7 +56,7 @@ try {
         Assert-Contains $result.Text 'state    deployed'
         Assert-Contains $result.Text '%UPWSH_HOME%\bin'
         Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
-        foreach ($file in @('profile.ps1', 'bin\upwsh.cmd', 'custom\alias.ps1')) {
+        foreach ($file in @('profile.ps1', 'git_completion.psm1', 'bin\upwsh.cmd', 'custom\alias.ps1')) {
             Assert-True (Test-Path -LiteralPath (Join-Path $installHome $file) -PathType Leaf) "missing $file"
         }
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'tests'))) 'tests were deployed'

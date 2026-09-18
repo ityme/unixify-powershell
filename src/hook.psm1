@@ -83,6 +83,14 @@ function Complete-HookLine {
     $tokens = $null
     $errors = $null
     $ast = [Management.Automation.Language.Parser]::ParseInput($Line, [ref]$tokens, [ref]$errors)
+    $git = Get-GitCompletion -Line $Line -Cursor $Cursor -Ast $ast
+    if ($null -ne $git) {
+        $state.ReplacementIndex = $git.ReplacementIndex
+        $state.ReplacementLength = $git.ReplacementLength
+        $state.Matches = $git.Matches
+        $state.MatchesNormalized = $true
+        return $state
+    }
     $commands = $ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] }, $true)
     $pathElement = $null
     foreach ($command in $commands) {

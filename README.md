@@ -51,6 +51,21 @@ cd (winpath '~/my work')
 
 Both commands accept multiple paths and pipeline input; paths need not exist. Tab inserts `(winpath '…')` when an absolute Unix path needs quoting. Comments, embedded scripts, redirections, and combined arguments such as `--output=/c/a` are not automatically rewritten.
 
+## Git completion
+
+With Git on Path, press Tab to complete common commands, branches, tags, and configured remotes:
+
+```text
+git sw<Tab>                  → git switch
+git switch fe<Tab>           → matching local branches
+git checkout v<Tab>          → matching tags and other refs
+git push o<Tab>              → origin
+git pull origin <Tab>        → locally known branches for origin
+git checkout -- ./<Tab>      → files
+```
+
+This uses local Git data only, with no extra dependencies. `git -C <directory>` and `git switch --track` are supported. Less common syntax falls back to normal completion.
+
 ## Manage the installation
 
 | Command | Purpose |

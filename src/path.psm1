@@ -467,13 +467,13 @@ function Get-CompletionDecision {
         }
     }
 
-    $seen = [Collections.Generic.HashSet[string]]::new(
-        [StringComparer]::OrdinalIgnoreCase
-    )
+    $allPathResults = @($Matches | Where-Object { [string]$_.ResultType -notin @('ProviderItem', 'ProviderContainer', 'ProviderFile', 'ProviderDirectory') }).Count -eq 0
+    $comparer = if ($allPathResults) { [StringComparer]::OrdinalIgnoreCase } else { [StringComparer]::Ordinal }
+    $comparison = if ($allPathResults) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    $seen = [Collections.Generic.HashSet[string]]::new($comparer)
     $firstMatch = $null
     $prefix = $null
     $matchCount = 0
-    $allPathResults = $true
 
     foreach ($match in @($Matches)) {
         $comparisonText = if ($Normalized) {
@@ -518,7 +518,7 @@ function Get-CompletionDecision {
         }
 
         # Once the prefix is short, most candidates need one native string comparison.
-        while ($prefix.Length -gt 0 -and -not $candidate.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        while ($prefix.Length -gt 0 -and -not $candidate.StartsWith($prefix, $comparison)) {
             $prefix = $prefix.Substring(0, $prefix.Length - 1)
         }
     }
