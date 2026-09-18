@@ -355,19 +355,22 @@ function global:prompt {
     $exitCode = $global:LASTEXITCODE
     $location = $ExecutionContext.SessionState.Path.CurrentLocation.Path
     $width = $Host.UI.RawUI.WindowSize.Width
-    $reuse = $script:ReusePrompt -and
+    $completionRedraw = $null -ne $script:CompletionDisplayState
+    $reuse = ($script:ReusePrompt -or $completionRedraw) -and
         $null -ne $script:CachedPrompt -and
         $location -ceq $script:CachedPromptLocation -and
         $width -eq $script:CachedPromptWidth
     $script:ReusePrompt = $false
     try {
-        # No command ran on an empty Enter; keep Starship and its subprocesses off this path.
+        # Empty Enter and completion redraws do not run commands; reuse the rendered prompt.
         if (-not $reuse) {
             $script:CachedPrompt = & $script:BasePrompt
             $script:CachedPromptLocation = $location
             $script:CachedPromptWidth = $width
         }
-        Sync-TermPrompt -Succeeded $succeeded -ExitCode $exitCode
+        if (-not $completionRedraw) {
+            Sync-TermPrompt -Succeeded $succeeded -ExitCode $exitCode
+        }
         return $script:CachedPrompt
     } finally {
         $global:LASTEXITCODE = $exitCode

@@ -88,6 +88,46 @@ try {
         Assert-Equal $global:LASTEXITCODE 7
         $global:LASTEXITCODE = 0
     }
+    Invoke-PromptTest 'candidate display redraws reuse the prompt without terminal status events' {
+        $null = prompt
+        $before = $global:PromptRenderCount
+        $writer = [IO.StringWriter]::new()
+        try {
+            & $hook { $script:CompletionDisplayState = [pscustomobject]@{ Line = 'git pull origin ' } }
+            [Console]::SetOut($writer)
+            foreach ($index in 1..3) {
+                Assert-Equal (prompt) "render:$before> "
+            }
+            Assert-Equal $global:PromptRenderCount $before
+            Assert-Equal $writer.ToString() ''
+        } finally {
+            & $hook { $script:CompletionDisplayState = $null }
+            [Console]::SetOut([IO.TextWriter]::Null)
+            $writer.Dispose()
+        }
+        Set-HookPromptInput -Line 'Write-Output done'
+        Assert-Equal (prompt) "render:$($before + 1)> "
+        Assert-Equal $global:PromptRenderCount ($before + 1)
+    }
+    Invoke-PromptTest 'candidate redraw refreshes on window width changes without terminal events' {
+        $before = $global:PromptRenderCount
+        $writer = [IO.StringWriter]::new()
+        try {
+            & $hook {
+                $script:CompletionDisplayState = [pscustomobject]@{ Line = 'git pull origin ' }
+                $script:CachedPromptWidth = -1
+            }
+            [Console]::SetOut($writer)
+            $null = prompt
+            $null = prompt
+            Assert-Equal $global:PromptRenderCount ($before + 1)
+            Assert-Equal $writer.ToString() ''
+        } finally {
+            & $hook { $script:CompletionDisplayState = $null }
+            [Console]::SetOut([IO.TextWriter]::Null)
+            $writer.Dispose()
+        }
+    }
 } finally {
     [Console]::SetOut($originalOut)
     Remove-Variable PromptRenderCount -Scope Global -ErrorAction SilentlyContinue
