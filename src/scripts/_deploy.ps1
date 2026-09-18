@@ -86,6 +86,53 @@ function Restore-UpwshEnvironment {
     }
 }
 
+function Get-UpwshManagedFiles {
+    param([string]$Root)
+
+    if (-not [IO.Directory]::Exists($Root)) { return }
+    foreach ($item in Get-ChildItem -LiteralPath $Root -Force) {
+        if ($item.Name -in @('custom', 'tool', 'bin', '.git')) { continue }
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw "refusing to replace a linked runtime path: $($item.FullName)"
+        }
+        if ($item.PSIsContainer) {
+            foreach ($child in Get-ChildItem -LiteralPath $item.FullName -Recurse -Force) {
+                if ($child.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                    throw "refusing to replace a linked runtime path: $($child.FullName)"
+                }
+                if (-not $child.PSIsContainer) { $child }
+            }
+        } else { $item }
+    }
+}
+
+function New-UpwshDeploymentDirectory {
+    param([string]$Path, [Collections.Generic.List[string]]$Created)
+
+    if ([IO.Directory]::Exists($Path)) { return }
+    $parent = [IO.Path]::GetDirectoryName($Path)
+    if ($parent) { New-UpwshDeploymentDirectory -Path $parent -Created $Created }
+    [void][IO.Directory]::CreateDirectory($Path)
+    $Created.Add($Path)
+}
+
+function Set-UpwshDeploymentFile {
+    param([string]$Source, [string]$Target, [string]$Backup, $Journal, $Created)
+
+    New-UpwshDeploymentDirectory -Path ([IO.Path]::GetDirectoryName($Target)) -Created $Created
+    if ([IO.File]::Exists($Target)) {
+        $old = [IO.File]::ReadAllBytes($Target)
+        $new = [IO.File]::ReadAllBytes($Source)
+        if ($old.Length -eq $new.Length -and [Convert]::ToBase64String($old) -ceq [Convert]::ToBase64String($new)) { return }
+        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($Backup))
+        [IO.File]::Replace($Source, $Target, $Backup)
+        $Journal.Add([pscustomobject]@{ Target = $Target; Backup = $Backup; Added = $false })
+    } else {
+        [IO.File]::Move($Source, $Target)
+        $Journal.Add([pscustomobject]@{ Target = $Target; Backup = $null; Added = $true })
+    }
+}
+
 function Install-UpwshRuntime {
     param(
         [string]$Source,
@@ -108,42 +155,52 @@ function Install-UpwshRuntime {
     $id = [guid]::NewGuid().ToString('N')
     $stage = Join-Path $parent ".upwsh-stage-$id"
     $backup = Join-Path $parent ".upwsh-backup-$id"
-    $hadTarget = Test-Path -LiteralPath $targetPath
     $hadProfile = [IO.File]::Exists($ProfilePath)
     $profileBytes = if ($hadProfile) { [IO.File]::ReadAllBytes($ProfilePath) } else { $null }
     $environment = Get-UpwshEnvironmentSnapshot
-    $savedTree = $false
-    $newTree = $false
     $configurationStarted = $false
-    $committed = $false
     $rollbackFailed = $false
-    $preserved = [Collections.Generic.List[string]]::new()
+    $journal = [Collections.Generic.List[object]]::new()
+    $created = [Collections.Generic.List[string]]::new()
+    $activeFile = $null
+    $shim = Join-Path $targetPath 'bin\upwsh.cmd'
+    $shimBytes = if ([IO.File]::Exists($shim)) { [IO.File]::ReadAllBytes($shim) } else { $null }
     $output = [Collections.Generic.List[object]]::new()
     try {
         Copy-UpwshRuntime -Source $sourcePath -Destination $stage
         Test-UpwshRuntime $stage
-        # Keep the original custom untouched in the backup; stage a copy and fill missing samples.
-        $custom = Join-Path $targetPath 'custom'
-        if (Test-Path -LiteralPath $custom) {
-            Copy-Item -LiteralPath $custom -Destination (Join-Path $stage 'custom') -Recurse -Force
+        # Windows can hold directory handles for running shells/tools. Keep all live directories
+        # in place and replace only managed files, recording enough to undo every successful edit.
+        $oldFiles = @(Get-UpwshManagedFiles $targetPath)
+        $newFiles = @(Get-UpwshManagedFiles $stage)
+        $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($file in $newFiles) {
+            $relative = [IO.Path]::GetRelativePath($stage, $file.FullName)
+            [void]$names.Add($relative)
+            $activeFile = Join-Path $targetPath $relative
+            Set-UpwshDeploymentFile -Source $file.FullName -Target $activeFile -Backup (Join-Path $backup $relative) -Journal $journal -Created $created
         }
-        Copy-UpwshCustomDefaults -Source (Join-Path $sourcePath 'custom') -Destination (Join-Path $stage 'custom')
-        if ($hadTarget) {
-            [IO.Directory]::Move($targetPath, $backup)
-            $savedTree = $true
+        foreach ($file in $oldFiles) {
+            $relative = [IO.Path]::GetRelativePath($targetPath, $file.FullName)
+            if ($names.Contains($relative)) { continue }
+            $activeFile = $file.FullName
+            $saved = Join-Path $backup $relative
+            [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($saved))
+            [IO.File]::Move($activeFile, $saved)
+            $journal.Add([pscustomobject]@{ Target = $activeFile; Backup = $saved; Added = $false })
         }
-        foreach ($name in @('tool', 'bin')) {
-            $saved = Join-Path $backup $name
-            if ($savedTree -and [IO.Directory]::Exists($saved)) {
-                [IO.Directory]::Move($saved, (Join-Path $stage $name))
-                $preserved.Add($name)
-            }
+        $defaults = Join-Path $stage 'custom'
+        Copy-UpwshCustomDefaults -Source (Join-Path $sourcePath 'custom') -Destination $defaults
+        foreach ($file in Get-ChildItem -LiteralPath $defaults -Recurse -File -Force) {
+            $relative = [IO.Path]::GetRelativePath($stage, $file.FullName)
+            $activeFile = Join-Path $targetPath $relative
+            if (Test-Path -LiteralPath $activeFile) { continue }
+            Set-UpwshDeploymentFile -Source $file.FullName -Target $activeFile -Backup (Join-Path $backup $relative) -Journal $journal -Created $created
         }
-        # Preserve bin without modifying its original shim; rollback needs its original bytes.
-        $shim = Join-Path $stage 'bin\upwsh.cmd'
-        $shimBytes = if ([IO.File]::Exists($shim)) { [IO.File]::ReadAllBytes($shim) } else { $null }
-        [IO.Directory]::Move($stage, $targetPath)
-        $newTree = $true
+        foreach ($name in @('custom', 'bin', 'tool\bin')) {
+            New-UpwshDeploymentDirectory -Path (Join-Path $targetPath $name) -Created $created
+        }
+        $activeFile = $null
         $configurationStarted = $true
         . (Join-Path $targetPath 'upwsh_home.ps1')
         foreach ($line in @(Add-UpwshUserEnvironment)) { $output.Add($line) }
@@ -151,25 +208,32 @@ function Install-UpwshRuntime {
         if ($Enable) {
             foreach ($line in @(& (Join-Path $targetPath 'scripts\install_profile.ps1') -ProfilePath $ProfilePath)) { $output.Add($line) }
         }
-        $committed = $true
     } catch {
         $failure = $_
         $rollbackErrors = [Collections.Generic.List[string]]::new()
         if ($configurationStarted) {
             try {
                 $shim = Join-Path $targetPath 'bin\upwsh.cmd'
-                if ($null -ne $shimBytes) { [IO.File]::WriteAllBytes($shim, $shimBytes) }
+                if ($null -ne $shimBytes) {
+                    if (-not [IO.File]::Exists($shim) -or [Convert]::ToBase64String([IO.File]::ReadAllBytes($shim)) -cne [Convert]::ToBase64String($shimBytes)) {
+                        [IO.File]::WriteAllBytes($shim, $shimBytes)
+                    }
+                }
                 elseif ([IO.File]::Exists($shim)) { [IO.File]::Delete($shim) }
             } catch { $rollbackErrors.Add("shim: $($_.Exception.Message)") }
         }
-        try {
-            $preservedRoot = if ($newTree) { $targetPath } else { $stage }
-            foreach ($name in $preserved) {
-                [IO.Directory]::Move((Join-Path $preservedRoot $name), (Join-Path $backup $name))
-            }
-            if ($newTree) { Remove-Item -LiteralPath $targetPath -Recurse -Force }
-            if ($savedTree) { [IO.Directory]::Move($backup, $targetPath) }
-        } catch { $rollbackErrors.Add("files: $($_.Exception.Message)") }
+        for ($index = $journal.Count - 1; $index -ge 0; $index--) {
+            $entry = $journal[$index]
+            try {
+                if ($entry.Added) { [IO.File]::Delete($entry.Target) }
+                elseif ([IO.File]::Exists($entry.Target)) { [IO.File]::Replace($entry.Backup, $entry.Target, [Management.Automation.Language.NullString]::Value) }
+                else { [IO.File]::Move($entry.Backup, $entry.Target) }
+            } catch { $rollbackErrors.Add("$($entry.Target): $($_.Exception.Message)") }
+        }
+        for ($index = $created.Count - 1; $index -ge 0; $index--) {
+            try { [IO.Directory]::Delete($created[$index], $false) }
+            catch { $rollbackErrors.Add("$($created[$index]): $($_.Exception.Message)") }
+        }
         if ($configurationStarted) {
             try {
                 if ($hadProfile) { [IO.File]::WriteAllBytes($ProfilePath, $profileBytes) }
@@ -190,15 +254,19 @@ function Install-UpwshRuntime {
             $rollbackFailed = $true
             throw "deployment failed: $($failure.Exception.Message); rollback incomplete: $($rollbackErrors -join '; '). Recovery locations: $targetPath, $backup and $stage"
         }
+        if ($activeFile) {
+            throw "could not update '$activeFile': $($failure.Exception.Message). Previous files restored. Close programs using this file, check its permissions, then retry."
+        }
         throw $failure
     } finally {
-        # A backup is only disposable after commit; keep recovery files if rollback failed.
-        if ($committed -and (Test-Path -LiteralPath $backup)) {
-            try { Remove-Item -LiteralPath $backup -Recurse -Force }
-            catch { Write-Warning "installed successfully; old backup remains at $backup" }
-        }
-        if (-not $rollbackFailed -and -not (Test-Path -LiteralPath $backup) -and (Test-Path -LiteralPath $stage)) {
-            Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+        # Only our private staging/backup directories are removed; never the live install root.
+        if (-not $rollbackFailed) {
+            foreach ($temporary in @($stage, $backup)) {
+                if (Test-Path -LiteralPath $temporary) {
+                    try { Remove-Item -LiteralPath $temporary -Recurse -Force }
+                    catch { Write-Warning "cleanup incomplete; recovery files remain at $temporary" }
+                }
+            }
         }
     }
     Write-Output "home     $targetPath"

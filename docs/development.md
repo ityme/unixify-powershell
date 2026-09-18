@@ -18,9 +18,18 @@ pwsh -NoLogo -NoProfile -File src/tests/test_interaction.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_deploy_locks.ps1
 ```
 
 The test harness uses temporary user homes and profiles and disables persistent environment writes.
+
+## Deployment
+
+Install/update validate staged files before changing the installation. They keep live directories in place because Windows directory handles can prevent whole-tree renames. Changed program files use same-volume file replacement with a backup journal; unchanged files, tools, and existing custom settings are left in place. Missing custom templates are added and journaled.
+
+A caught deployment error restores completed file changes, the profile, and environment settings. A locked program file causes a failure naming that file; the installer does not kill the owning process or require elevation. If rollback itself fails, recovery files remain and their locations are reported. Replacement is atomic per file, not across the entire installation; process termination or power loss is outside this rollback guarantee. Open a new pwsh after a successful update.
+
+The lock tests use temporary installations and Windows handles that deny rename/delete, including locked tool and custom files.
 
 ## Git completion
 

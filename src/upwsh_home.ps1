@@ -155,7 +155,9 @@ function Write-UpwshCommandShim {
         'pwsh -NoLogo -NoProfile -File "%~dp0..\scripts\upwsh.ps1" %*'
         ''
     ) -join "`r`n"
-    [IO.File]::WriteAllText($shim, $text)
+    if (-not [IO.File]::Exists($shim) -or [IO.File]::ReadAllText($shim) -cne $text) {
+        [IO.File]::WriteAllText($shim, $text)
+    }
     Write-Output "cmd     $shim"
 }
 
