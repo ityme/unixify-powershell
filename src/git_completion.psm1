@@ -5,14 +5,71 @@ $script:GitCommands = @(
     'revert', 'show', 'stash', 'status', 'switch', 'tag'
 )
 
+$script:GitQueryCache = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+$script:GitCacheLifetimeMs = 1000
+$script:GitCacheLimit = 16
+$script:GitExecutable = $null
+
+function Clear-GitCompletionCache {
+    $script:GitQueryCache.Clear()
+}
+
+function Resolve-GitCompletionExecutable {
+    param([string]$WorkingDirectory)
+
+    $cached = $script:GitExecutable
+    if ($cached -and $cached.SearchPath -ceq $env:PATH -and $cached.Extensions -ceq $env:PATHEXT -and
+        $cached.Directory -ceq $WorkingDirectory -and [IO.File]::Exists($cached.Path)) {
+        return $cached.Path
+    }
+    Clear-GitCompletionCache
+    $script:GitExecutable = $null
+    $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($git) {
+        $script:GitExecutable = [pscustomobject]@{
+            SearchPath = $env:PATH; Extensions = $env:PATHEXT; Directory = $WorkingDirectory; Path = $git.Source
+        }
+        return $git.Source
+    }
+}
+
 function Read-GitCompletionData {
     param([string[]]$DirectoryArgs, [string[]]$Arguments)
 
-    $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (-not $git) { return @() }
+    $directory = $ExecutionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath
+    $executable = Resolve-GitCompletionExecutable $directory
+    if (-not $executable) { return @() }
+    # Git environment overrides can select a different repository/configuration without cd.
+    $environment = [Environment]::GetEnvironmentVariables('Process')
+    $gitEnvironment = [Collections.Generic.List[string]]::new()
+    foreach ($name in $environment.Keys) {
+        if ($name.StartsWith('GIT_', [StringComparison]::OrdinalIgnoreCase) -or $name -in @('HOME', 'XDG_CONFIG_HOME')) {
+            $value = [string]$environment[$name]
+            $gitEnvironment.Add("${name}=$value")
+        }
+    }
+    $gitEnvironment.Sort([StringComparer]::Ordinal)
+    $keyBuilder = [Text.StringBuilder]::new()
+    # Length-prefix each component so spaces, quotes and separators cannot collide.
+    foreach ($part in @($executable, $directory, [string]$DirectoryArgs.Count) + $DirectoryArgs +
+        @([string]$Arguments.Count) + $Arguments + @($gitEnvironment.ToArray())) {
+        [void]$keyBuilder.Append($part.Length).Append(':').Append($part)
+    }
+    $key = $keyBuilder.ToString()
+    $now = [Environment]::TickCount64
+    foreach ($oldKey in @($script:GitQueryCache.Keys)) {
+        if ($now - $script:GitQueryCache[$oldKey].CreatedAt -ge $script:GitCacheLifetimeMs) {
+            [void]$script:GitQueryCache.Remove($oldKey)
+        }
+    }
+    $cached = $null
+    if ($script:GitQueryCache.TryGetValue($key, [ref]$cached)) {
+        return $cached.Lines
+    }
+
     $start = [Diagnostics.ProcessStartInfo]::new()
-    $start.FileName = $git.Source
-    $start.WorkingDirectory = $ExecutionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath
+    $start.FileName = $executable
+    $start.WorkingDirectory = $directory
     $start.UseShellExecute = $false
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
@@ -32,7 +89,18 @@ function Read-GitCompletionData {
         }
         $text = $stdout.GetAwaiter().GetResult()
         $null = $stderr.GetAwaiter().GetResult()
-        if ($process.ExitCode -eq 0) { $text -split '\r?\n' | Where-Object { $_ } }
+        if ($process.ExitCode -eq 0) {
+            $lines = @($text -split '\r?\n' | Where-Object { $_ })
+            if ($script:GitQueryCache.Count -ge $script:GitCacheLimit) {
+                $oldest = $null
+                foreach ($entry in $script:GitQueryCache.GetEnumerator()) {
+                    if ($null -eq $oldest -or $entry.Value.CreatedAt -lt $oldest.Value.CreatedAt) { $oldest = $entry }
+                }
+                [void]$script:GitQueryCache.Remove($oldest.Key)
+            }
+            $script:GitQueryCache[$key] = [pscustomobject]@{ CreatedAt = [Environment]::TickCount64; Lines = $lines }
+            return $lines
+        }
     } catch {
         # Missing Git, non-repositories, and slow queries leave the command line usable.
     } finally {
@@ -159,4 +227,4 @@ function Get-GitCompletion {
     [pscustomobject]@{ ReplacementIndex = $start; ReplacementLength = $length; Matches = $matches }
 }
 
-Export-ModuleMember -Function Get-GitCompletion
+Export-ModuleMember -Function Get-GitCompletion, Clear-GitCompletionCache

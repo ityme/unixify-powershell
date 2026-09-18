@@ -14,6 +14,9 @@ function Set-HookPromptInput {
     param([AllowEmptyString()][string]$Line = '')
 
     $script:ReusePrompt = [string]::IsNullOrWhiteSpace($Line)
+    if (-not $script:ReusePrompt) {
+        Clear-GitCompletionCache
+    }
 }
 
 function Test-CompleteCommandLine {

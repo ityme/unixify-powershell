@@ -174,8 +174,9 @@ try {
         Assert-Candidate "git checkout 'feature/o'" 'feature/one'
         Assert-Candidate 'git.exe sw' 'switch'
     }
-    Test-GitCase 'new refs appear on the next Tab and native exit status is preserved' {
+    Test-GitCase 'new refs appear after command execution and native exit status is preserved' {
         $null = Get-GitCandidates 'git switch new'
+        Set-HookPromptInput -Line 'git branch new-branch'
         Invoke-FixtureGit branch new-branch
         $global:LASTEXITCODE = 7
         Assert-Candidate 'git switch new' 'new-branch'
