@@ -68,6 +68,12 @@ A unique Git word completes with a trailing space, so you can type `git pul<Tab>
 
 This uses local Git data only, with no extra dependencies. `git -C <directory>` and `git switch --track` are supported. Less common syntax falls back to normal completion. Queries are cached for one second; entering a command clears the cache. Changes made in another terminal may take up to one second to appear.
 
+## Prompt refresh
+
+The prompt shows a snapshot from the last completed command. Empty Enter, comments, Ctrl+L, Tab, and Ctrl+C while editing reuse it. Executing a command, including a failed or interrupted command, refreshes it once. Directory or window-width changes also refresh it.
+
+Changes made in another window, such as switching a branch in the same working tree, appear after your next command here. Run `git status` to check the repository and refresh the prompt.
+
 ## Manage the installation
 
 | Command | Purpose |

@@ -1,11 +1,17 @@
 # 按键与 prompt 管道。
 #
 # Tab:  completion -> path
-# Enter: term command -> path rewrite -> accept
-# prompt: starship -> term
+# Enter: path rewrite -> accept
+# ReadLine: submitted code -> command state
+# prompt: render only after submission or layout change -> term
 
 $script:SkipConvertedHistory = $false
-$script:ReusePrompt = $false
+$script:CommandPending = $false
+$script:SubmittedParseError = $false
+$script:ReadingInput = $false
+$script:SubmittedDisplayLine = $null
+$script:LastCommandSucceeded = $true
+$script:LastCommandExitCode = 0
 $script:CachedPrompt = $null
 $script:CachedPromptLocation = $null
 $script:CachedPromptWidth = 0
@@ -13,9 +19,14 @@ $script:CachedPromptWidth = 0
 function Set-HookPromptInput {
     param([AllowEmptyString()][string]$Line = '')
 
-    $script:ReusePrompt = [string]::IsNullOrWhiteSpace($Line)
-    if (-not $script:ReusePrompt) {
+    if (Test-CompleteCommandLine -InputScript $Line) {
+        $tokens = $null
+        $errors = $null
+        [void][Management.Automation.Language.Parser]::ParseInput($Line, [ref]$tokens, [ref]$errors)
+        $script:SubmittedParseError = $errors.Count -gt 0
+        $script:CommandPending = $true
         Clear-GitCompletionCache
+        Sync-TermCommand -Command $Line
     }
 }
 
@@ -31,15 +42,15 @@ function Test-CompleteCommandLine {
 
     $tokens = $null
     $parseErrors = $null
-    [void][System.Management.Automation.Language.Parser]::ParseInput(
+    $ast = [System.Management.Automation.Language.Parser]::ParseInput(
         $InputScript,
         [ref]$tokens,
         [ref]$parseErrors
     )
-
-    return -not @(
-        $parseErrors | Where-Object IncompleteInput
-    ).Count
+    if (@($parseErrors | Where-Object IncompleteInput).Count) { return $false }
+    # Comments/empty statements have no work, but declarations and submitted parse errors do.
+    return $parseErrors.Count -gt 0 -or @($ast.EndBlock.Statements).Count -gt 0 -or
+        $null -ne $ast.ParamBlock -or @($ast.UsingStatements).Count -gt 0
 }
 
 function Test-WindowsCommandLineReplacement {
@@ -194,6 +205,29 @@ if ($Host.Name -eq 'ConsoleHost' -and -not (Get-Module PSReadLine)) {
     Import-Module PSReadLine -ErrorAction SilentlyContinue
 }
 if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
+    # All PSReadLine submit keys converge here. Editing cancellations do not return code to run.
+    function global:PSConsoleHostReadLine {
+        [System.Diagnostics.DebuggerHidden()]
+        param()
+        $lastRunStatus = $?
+        Microsoft.PowerShell.Core\Set-StrictMode -Off
+        $script:ReadingInput = $true
+        $script:SubmittedDisplayLine = $null
+        try {
+            $line = [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($Host.Runspace, $ExecutionContext, $lastRunStatus)
+            $displayLine = $script:SubmittedDisplayLine
+        } finally {
+            $script:ReadingInput = $false
+            $script:SubmittedDisplayLine = $null
+        }
+        if ($displayLine -and (Test-CompleteCommandLine -InputScript $line)) {
+            Set-HookPromptInput -Line $displayLine
+        } else {
+            Set-HookPromptInput -Line $line
+        }
+        return $line
+    }
+
     Set-PSReadLineOption -CompletionQueryItems 60
     Set-PSReadLineOption -AddToHistoryHandler {
         param($lineToBeAdded)
@@ -309,15 +343,14 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
                     [ref]$line,
                     [ref]$cursor
                 )
-                Set-HookPromptInput -Line $line
                 if (Test-CompleteCommandLine -InputScript $line) {
-                    Sync-TermCommand -Command $line
                     $rewritten = ConvertTo-WindowsCommandLine -InputScript $line
                     if (
                         $rewritten -cne $line -and
                         (Test-WindowsCommandLineReplacement -Original $line -Converted $rewritten)
                     ) {
                         [Microsoft.PowerShell.PSConsoleReadLine]::AddToHistory($line)
+                        $script:SubmittedDisplayLine = $line
                         $script:SkipConvertedHistory = $true
                         [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
                             0,
@@ -353,23 +386,36 @@ if (-not (Test-Path Variable:script:BasePrompt)) {
 function global:prompt {
     $succeeded = $?
     $exitCode = $global:LASTEXITCODE
+    $completedAt = [DateTime]::UtcNow
     $location = $ExecutionContext.SessionState.Path.CurrentLocation.Path
     $width = $Host.UI.RawUI.WindowSize.Width
-    $completionRedraw = $null -ne $script:CompletionDisplayState
-    $reuse = ($script:ReusePrompt -or $completionRedraw) -and
+    $completed = $script:CommandPending -and -not $script:ReadingInput
+    if ($completed) {
+        $script:CommandPending = $false
+        $script:LastCommandSucceeded = $succeeded -and -not $script:SubmittedParseError
+        $script:LastCommandExitCode = if ($script:SubmittedParseError) { 1 } else { $exitCode }
+        $script:SubmittedParseError = $false
+    }
+    $reuse = -not $completed -and
         $null -ne $script:CachedPrompt -and
         $location -ceq $script:CachedPromptLocation -and
         $width -eq $script:CachedPromptWidth
-    $script:ReusePrompt = $false
     try {
-        # Empty Enter and completion redraws do not run commands; reuse the rendered prompt.
         if (-not $reuse) {
-            $script:CachedPrompt = & $script:BasePrompt
+            # Restore $? immediately before invoking renderers such as Starship. Ignore emits
+            # nothing and does not add a synthetic entry to $Error or change LASTEXITCODE.
+            $script:CachedPrompt = & $(
+                $script:BasePrompt
+                if (-not $script:LastCommandSucceeded) {
+                    Microsoft.PowerShell.Utility\Write-Error 'Last command failed' -ErrorAction Ignore
+                }
+            )
             $script:CachedPromptLocation = $location
             $script:CachedPromptWidth = $width
         }
-        if (-not $completionRedraw) {
-            Sync-TermPrompt -Succeeded $succeeded -ExitCode $exitCode
+        if (-not $script:ReadingInput) {
+            Sync-TermPrompt -Succeeded $script:LastCommandSucceeded -ExitCode $script:LastCommandExitCode `
+                -CommandCompleted:$completed -CompletedAt $completedAt
         }
         return $script:CachedPrompt
     } finally {

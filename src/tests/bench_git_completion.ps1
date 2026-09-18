@@ -38,7 +38,7 @@ $rows = foreach ($line in @('git pul', 'git switch ', 'git pull ', 'git pull ori
     $hits = [Collections.Generic.List[double]]::new()
     for ($index = 0; $index -lt $Samples; $index++) {
         # A command invalidates query data but keeps executable discovery warm.
-        Set-HookPromptInput -Line 'benchmark'
+        Clear-GitCompletionCache
         $fresh = Measure-Tab $line
         $repeat = Measure-Tab $line
         $misses.Add($fresh.Ms)

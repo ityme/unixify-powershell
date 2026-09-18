@@ -398,14 +398,16 @@ function Sync-TermCommand {
 function Sync-TermPrompt {
     param(
         [bool]$Succeeded = $true,
-        $ExitCode
+        $ExitCode,
+        [bool]$CommandCompleted = $true,
+        [DateTime]$CompletedAt = [DateTime]::UtcNow
     )
 
     $elapsed = ''
     if ($script:TermCommandStarted) {
         if (Test-TermReport 'ELAPSED_MS') {
             $elapsed = [string][int](
-                ([DateTime]::UtcNow - $script:TermCommandStarted).TotalMilliseconds
+                ($CompletedAt - $script:TermCommandStarted).TotalMilliseconds
             )
         }
         $script:TermCommandStarted = $null
@@ -423,6 +425,7 @@ function Sync-TermPrompt {
         $location -ceq $script:TermIdleLocation -and $HOME -ceq $script:TermIdleHome -and
         $env:VIRTUAL_ENV -ceq $script:TermIdleVenv -and $Succeeded -eq $script:TermIdleSucceeded -and
         [string]$ExitCode -ceq $script:TermIdleExitCode -and
+        $CommandCompleted -eq $script:TermIdleCommandCompleted -and
         $script:TermIdentitySequences -and $script:TermLastLocationSequences) {
         try { [Console]::Write($script:TermIdlePrompt) } catch { }
         return
@@ -445,10 +448,12 @@ function Sync-TermPrompt {
     $builder = $script:TermBuilder
     $builder.Clear() | Out-Null
     if (Test-TermReport 'OSC133') {
-        [void]$builder.Append([char]0x1b)
-        [void]$builder.Append(']133;D;')
-        [void]$builder.Append($exit)
-        [void]$builder.Append([char]0x07)
+        if ($CommandCompleted) {
+            [void]$builder.Append([char]0x1b)
+            [void]$builder.Append(']133;D;')
+            [void]$builder.Append($exit)
+            [void]$builder.Append([char]0x07)
+        }
         [void]$builder.Append([char]0x1b)
         [void]$builder.Append(']133;A')
         [void]$builder.Append([char]0x07)
@@ -479,6 +484,7 @@ function Sync-TermPrompt {
         $script:TermIdleVenv = $env:VIRTUAL_ENV
         $script:TermIdleSucceeded = $Succeeded
         $script:TermIdleExitCode = [string]$ExitCode
+        $script:TermIdleCommandCompleted = $CommandCompleted
         $script:TermIdleReport.Clear()
         $script:TermIdleReport.UnionWith($script:TermReport)
     }

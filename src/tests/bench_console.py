@@ -48,7 +48,10 @@ parser.add_argument('--samples', type=int, default=40)
 parser.add_argument('--budget-ms', type=float, default=30)
 parser.add_argument('--enforce', action='store_true')
 parser.add_argument('--completion', action='store_true', help='Measure git pull origin <Tab> in an isolated repository')
+parser.add_argument('--lifecycle', action='store_true', help='Verify render counts for redraw, cancellation, submission, and interruption')
 options = parser.parse_args()
+if options.completion and options.lifecycle:
+    parser.error('choose --completion or --lifecycle')
 if options.samples < 1:
     parser.error('--samples must be positive')
 runtime = Path(options.profile).resolve()
@@ -81,6 +84,7 @@ def capture_buffer(keys, timeout=15):
             result = json.loads((bench_home / 'capture.json').read_text(encoding='utf-8'))
             result['ms'] = (time.perf_counter() - start) * 1000
             result['prompt_events'] = data.count(b'\x1b]133;A')
+            result['finished_events'] = data.count(b'\x1b]133;D;')
             result['candidates_visible'] = b'dev' in data and b'main' in data
             return result
     raise RuntimeError('Timed out capturing PSReadLine state')
@@ -98,7 +102,7 @@ def await_prompt(timeout=15):
         if b'\x1b[6n' in part:
             send(b'\x1b[1;1R')
         if b'\x1b]133;B\x07' in data:
-            return
+            return data
     raise RuntimeError('Timed out waiting for prompt; terminal output withheld')
 
 try:
@@ -123,6 +127,8 @@ try:
     if config.exists():
         env['STARSHIP_CONFIG'] = str(config)
     env['USERPROFILE'] = str(bench_home)
+    env['LOCALAPPDATA'] = str(bench_home / 'AppData/Local')
+    env['APPDATA'] = str(bench_home / 'AppData/Roaming')
     env['UPWSH_SKIP_PERSIST_PATH'] = '1'
     env['UPWSH_PROFILE'] = str(bench_home / 'profile.ps1')
     working_directory = os.getcwd()
@@ -145,16 +151,20 @@ try:
             subprocess.run(['git', '-C', str(fixture), *args], env=env, check=True, capture_output=True)
     env_block = c.create_unicode_buffer('\0'.join(f'{key}={value}' for key, value in sorted(env.items())) + '\0\0')
     script = ". '" + str(runtime).replace("'", "''") + "'"
-    if options.completion:
+    if options.completion or options.lifecycle:
         script += r""";
+Set-PSReadLineOption -HistorySavePath (Join-Path $HOME 'fixture-history.txt') -HistorySaveStyle SaveNothing
 $global:UpwshBenchRenders = 0
 $module = (Get-Command prompt).Module
 $global:UpwshBenchBase = & $module { $script:BasePrompt }
-& $module { $script:BasePrompt = { $global:UpwshBenchRenders++; & $global:UpwshBenchBase } }
+& $module { $script:BasePrompt = { $global:UpwshBenchSucceeded = $global:?; $global:UpwshBenchRenders++; & $global:UpwshBenchBase } }
+Set-PSReadLineKeyHandler -Chord Ctrl+o -Function AcceptAndGetNext
 Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock {
     $line = $null; $cursor = 0
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
-    $state = [pscustomobject]@{ Line = $line; Cursor = $cursor; Renders = $global:UpwshBenchRenders }
+    $module = (Get-Command prompt).Module
+    $status = & $module { [pscustomobject]@{ Pending = $script:CommandPending; Succeeded = $script:LastCommandSucceeded; Exit = $script:LastCommandExitCode } }
+    $state = [pscustomobject]@{ Line = $line; Cursor = $cursor; Renders = $global:UpwshBenchRenders; RendererSucceeded = $global:UpwshBenchSucceeded; Status = $status }
     [IO.File]::WriteAllText((Join-Path $HOME 'capture.json'), ($state | ConvertTo-Json -Compress))
     [Console]::Write('UPWSH_CAPTURE_READY')
 }
@@ -165,7 +175,74 @@ Set-PSReadLineKeyHandler -Chord Ctrl+g -ScriptBlock {
     threading.Thread(target=read_loop, daemon=True).start()
     await_prompt()
     startup_ms = (time.perf_counter() - start) * 1000
-    if options.completion:
+    if options.lifecycle:
+        rows = []
+        previous = capture_buffer(b'')
+
+        def check_action(name, keys, renders, expected_line='', finishes=0, interrupt=False):
+            global previous
+            if interrupt:
+                # Console cancellation may flush queued keys. Wait for the new prompt before Ctrl+g.
+                begin = time.perf_counter()
+                send(keys)
+                events = await_prompt()
+                result = capture_buffer(b'')
+                result['ms'] = (time.perf_counter() - begin) * 1000
+                result['finished_events'] += events.count(b'\x1b]133;D;')
+                result['prompt_events'] += events.count(b'\x1b]133;A')
+            else:
+                result = capture_buffer(keys)
+            delta = result['Renders'] - previous['Renders']
+            row = {'action': name, 'ms': round(result['ms'], 2), 'renders': delta,
+                   'finished_events': result['finished_events'], 'prompt_events': result['prompt_events'],
+                   'line': result['Line'], 'status': result['Status'], 'renderer_succeeded': result['RendererSucceeded']}
+            rows.append(row)
+            assert delta == renders, row
+            assert result['Line'] == expected_line, row
+            assert result['finished_events'] == finishes, row
+            previous = result
+            return result
+
+        check_action('type without execution', b'$null=1', 0, '$null=1')
+        check_action('Ctrl+L editing', bytes([12]), 0, '$null=1')
+        check_action('Ctrl+C cancel editing', bytes([3]), 0)
+        check_action('empty Enter', bytes([13]), 0)
+        check_action('comment-only Enter', b'# fixture comment\r', 0)
+        check_action('block-comment Enter', b'<# fixture comment #>\r', 0)
+        check_action('actual assignment', b'$null=1\r', 1, finishes=1)
+        check_action('incomplete multiline', b'if ($true) {\r', 0, 'if ($true) {\n')
+        check_action('Ctrl+C cancel multiline', bytes([3]), 0)
+        check_action('native failure', b'& (Get-Process -Id $PID).Path -NoProfile -Command "exit 7"\r', 1, finishes=1)
+        assert previous['Status']['Succeeded'] is False and previous['Status']['Exit'] == 7, rows[-1]
+        assert previous['RendererSucceeded'] is False, rows[-1]
+        check_action('idle after failure', bytes([13]), 0)
+        assert previous['Status']['Succeeded'] is False and previous['Status']['Exit'] == 7, rows[-1]
+        check_action('Ctrl+L after failure', bytes([12]), 0)
+        # Wait for the command's side effect, not an arbitrary sleep, before interrupting it.
+        send(b'[IO.File]::WriteAllText((Join-Path $HOME "running.flag"), "ready"); Start-Sleep 30\r')
+        deadline = time.perf_counter() + 15
+        while not (bench_home / 'running.flag').exists():
+            if time.perf_counter() >= deadline:
+                raise RuntimeError('interruption fixture did not begin execution')
+            time.sleep(0.02)
+        check_action('Ctrl+C interrupt execution', bytes([3]), 1, finishes=1, interrupt=True)
+        assert previous['Status']['Pending'] is False and previous['Status']['Succeeded'] is False, rows[-1]
+        assert previous['RendererSucceeded'] is False, rows[-1]
+        check_action('redraw after interruption', bytes([12]), 0)
+        check_action('success after interruption', b'$null=2\r', 1, finishes=1)
+        assert previous['Status']['Succeeded'] is True and previous['RendererSucceeded'] is True, rows[-1]
+        check_action('Ctrl+o alternative submit', b'$null=3' + bytes([15]), 1, finishes=1)
+        check_action('path arguments still convert on Enter', b'Write-Output /c/fixture\r', 1, finishes=1)
+        check_action('recall original Unix command', b'\x1b[A', 0, 'Write-Output /c/fixture')
+        check_action('cancel recalled input', bytes([3]), 0)
+        check_action('cmdlet failure', b'Write-Error "fixture failure"\r', 1, finishes=1)
+        assert previous['Status']['Succeeded'] is False and previous['RendererSucceeded'] is False, rows[-1]
+        check_action('submitted syntax error', b'1 + * 2\r', 1, finishes=1)
+        assert previous['Status']['Succeeded'] is False, rows[-1]
+        check_action('idle after syntax error', bytes([13]), 0)
+        check_action('empty Ctrl+C', bytes([3]), 0)
+        print(json.dumps({'lifecycle_checks': rows, 'passed': True}))
+    elif options.completion:
         typed = capture_buffer(b'git pull origin ')
         rows = [capture_buffer(bytes([9])) for _ in range(options.samples + 5)]
         input_preserved = all(row['Line'] == 'git pull origin ' and row['Cursor'] == 16 for row in rows)

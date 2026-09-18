@@ -56,17 +56,20 @@ pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1 -Check
 pwsh -NoLogo -NoProfile -File src/tests/bench_prompt.ps1 -Enforce
 python src/tests/bench_console.py --enforce
 python src/tests/bench_console.py --completion --samples 20
+python src/tests/bench_console.py --lifecycle
 pwsh -NoLogo -NoProfile -File src/tests/bench_interaction.ps1 -Files 1000 -Samples 10
 pwsh -NoLogo -NoProfile -File src/tests/bench_git_completion.ps1 -Samples 20
 ```
 
 - `bench_prompt.ps1` measures profile loading, the first prompt, and empty Enter handling.
-- `bench_console.py` sends Enter through Windows ConPTY. `--completion` creates a temporary Git repository, types `git pull origin `, and presses Tab without executing the command. It checks that listing candidates preserves the buffer and does not rerun the prompt renderer or emit prompt-boundary events. It requires Python and uses only the standard library.
+- `bench_console.py` sends Enter through Windows ConPTY. `--completion` creates a temporary Git repository, types `git pull origin `, and presses Tab without executing the command. It checks that listing candidates preserves the buffer and does not rerun the prompt renderer or emit prompt-boundary events. `--lifecycle` checks actual Ctrl+L/Ctrl+C, multiline cancellation, alternate submission, failure, and interruption behavior. It requires Python and uses only the standard library.
 - `bench_interaction.ps1` measures terminal reporting and file completion with generated files.
 - `bench_git_completion.ps1` compares fresh queries with immediate repeats in the current repository, including word completion and its trailing space. The first query still starts Git; different query types do not share cache entries.
 
 The empty Enter target is p95 below 30ms. Startup and completion have separate measurements; ConPTY timings exclude the terminal application's screen painting. Compare repeated runs on the same machine, since system load affects the results.
 
-Empty Enter and candidate-list redraws reuse the previous prompt. A candidate redraw does not emit a new terminal prompt event. Commands, directory changes, and window width changes refresh the rendered prompt. With Starship, Git status, time, and other dynamic segments therefore refresh after a command, not on empty Enter.
+`PSConsoleHostReadLine` records submitted code after PSReadLine returns, independent of the submit key. Empty/comment-only input and editing cancellation leave the cached prompt valid. A pending command is consumed once by the next prompt, including failure or execution interruption. While PSReadLine is editing, prompt redraws do not emit command-finished or prompt-boundary events. Idle new input lines emit prompt boundaries but no false command completion. End time is captured before rendering, and the last success/exit snapshot survives idle redraws.
+
+Directory and window-width changes also invalidate the rendered text. With Starship, branch/status/time changes made elsewhere are not polled: they appear after a command in this shell. This snapshot policy deliberately favors predictable low-latency editing.
 
 Explicit path completion queries the filesystem first. Candidate display reuses that keypress's results; the next Tab queries again to see filesystem changes. Idle terminal reports reuse encoded text until the directory, virtual environment, result, or enabled fields change.
