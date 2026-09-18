@@ -374,7 +374,8 @@ if (-not (Test-Path Variable:script:BasePrompt)) {
     $script:BasePrompt = {
         Get-UpwshPromptText `
             -Succeeded $script:LastCommandSucceeded `
-            -ExitCode $script:LastCommandExitCode
+            -ExitCode $script:LastCommandExitCode `
+            -DurationMs (Get-TermLastElapsedMilliseconds)
     }
 }
 

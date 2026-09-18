@@ -2,7 +2,7 @@
 
 [README](../README.md) · [中文介绍](../README.zh-CN.md)
 
-`src/` contains the runtime; lifecycle entry points are in `src/scripts/`. Installation copies the runtime to `~/.config/upwsh` and excludes `src/tests/`. `src/prompt.psm1` provides the native `username@host path branch>` prompt and does not depend on Starship.
+`src/` contains the runtime; lifecycle entry points are in `src/scripts/`. Installation copies the runtime to `~/.config/upwsh` and excludes `src/tests/`. `src/prompt.psm1` provides the native `username@host folder branch ❯` prompt and does not depend on Starship.
 
 ## Tests
 
@@ -54,9 +54,11 @@ pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1 -Check
 
 ## Native prompt
 
-`src/prompt.psm1` reads `.git/HEAD` at a repository root and uses a 250ms-bounded local Git query when the current directory is inside a subdirectory, worktree, or detached HEAD. It does not run Git during idle prompt reuse. The prompt cache key includes the current directory and `.git/HEAD` marker, so a branch change is visible on the next actual prompt render.
+`src/prompt.psm1` reads local `.git/HEAD` directly at a repository root. In subdirectories and worktrees, one local `git rev-parse --git-path HEAD` query locates it (250ms process wait limit). This also works before the first commit. Each actual render reads fresh branch data; only the completed prompt text is cached by `hook.psm1`. Empty Enter and editing redraws neither read Git nor launch subprocesses. Detached HEAD uses a `detached@<short-sha>` label.
 
-The prompt renderer is intentionally small: username, host, Unix-style path, branch/detached label, and success/failure symbol. `starship.toml` is no longer parsed or executed.
+The visual reference is the user's Starship `pure` palette, implemented without parsing TOML or executing Starship. User/host: `#22C55E`; italic folder: `#EAB308`; branch: `#06B6D4`; duration: `#73DACA`; bold success character: `#0DB447`; bold error code and character: `#D15B71`. Both states use `❯` and one trailing space. Failures print the numeric effective exit code immediately before `❯`; there is no `!` or extra error icon. Duration appears at 2,000ms, uses milliseconds (`2s345ms`), and precedes the error code without an extra separator, matching the reference format. The hook reuses the monotonic duration already recorded by terminal reporting, even when OSC is disabled.
+
+The user's folder-only requirement overrides the reference's three-component path truncation: home is `~`, a drive root is `/c`, and other filesystem locations display their last folder name. Colors are truecolor ANSI, disabled for redirected output, `TERM=dumb`, or `NO_COLOR`. Tests can use `Get-UpwshPromptText -Color Always/Never` for deterministic captures.
 
 ## Performance
 
@@ -81,6 +83,6 @@ The empty Enter target is p95 below 30ms. Startup and completion have separate m
 
 `PSConsoleHostReadLine` records submitted code after PSReadLine returns, independent of the submit key. Empty/comment-only input and editing cancellation leave the cached prompt valid. A pending command is consumed once by the next prompt, including failure or execution interruption. While PSReadLine is editing, prompt redraws do not emit command-finished or prompt-boundary events. Idle new input lines emit prompt boundaries and may close the abandoned input with an unnumbered D, but never a false numbered command result. End time is captured before rendering, and the last success/exit snapshot survives idle redraws.
 
-Directory and window-width changes also invalidate the rendered text. With Starship, branch/status/time changes made elsewhere are not polled: they appear after a command in this shell. This snapshot policy deliberately favors predictable low-latency editing.
+Directory and window-width changes also invalidate the rendered text. Branch/status changes made elsewhere are not polled: they appear after a command in this shell. This snapshot policy deliberately favors predictable low-latency editing.
 
 Explicit path completion queries the filesystem first. Candidate display reuses that keypress's results; the next Tab queries again to see filesystem changes. Idle terminal reports send only changed fields. Command completion resynchronizes the full snapshot to restore state possibly changed by child processes. See [Terminal Reporting](terminal-reporting.md) for field definitions, configuration, privacy, and protocol tests.

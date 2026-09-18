@@ -5,10 +5,10 @@ A native Unix-style prompt, paths, commands, and Tab completion for **PowerShell
 The prompt follows this shape:
 
 ```text
-ityme@win ~ dev>
+ityme@win project dev ❯
 ```
 
-Outside a Git repository it omits the branch. The renderer reads `.git/HEAD` first and falls back to a short local Git query for subdirectories, worktrees, and detached HEADs. It does not run Starship.
+The path segment shows only the current folder name (`~` at home); outside a Git repository, the branch is omitted. Colors and `❯` follow the Starship visual reference: a failed command adds its numeric error code in red, and commands lasting at least two seconds show their duration. The native renderer reads local `.git/HEAD` first, using Git to locate it in subdirectories and worktrees. It does not run Starship.
 
 [简体中文](README.zh-CN.md)
 
@@ -94,7 +94,7 @@ Changes made in another window, such as switching a branch in the same working t
 
 Open a new pwsh after installing or updating. When you call the loaded `upwsh` function, `load` also applies the profile to that session. `unload` leaves the current session unchanged. To uninstall while keeping personal settings, use `upwsh uninstall --keep-custom`.
 
-The install directory is fixed at `~/.config/upwsh`; `UPWSH_HOME` records it. The native prompt is configured by `src/prompt.psm1` and follows the current directory and Git branch. Run `upwsh --help` for command help.
+The install directory is fixed at `~/.config/upwsh`; `UPWSH_HOME` records it. The native prompt in `src/prompt.psm1` follows the current folder and Git branch. Run `upwsh --help` for command help.
 
 ## CLI tools
 

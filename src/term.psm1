@@ -319,4 +319,9 @@ function Sync-TermPrompt {
     if (-not $DeferEnd) { Complete-TermPrompt }
 }
 
-Export-ModuleMember -Function Get-TermPaneTitle, Get-TermCommandName, Sync-TermCommand, Sync-TermPrompt, Complete-TermPrompt, Set-TermReporting
+function Get-TermLastElapsedMilliseconds {
+    # Share the completed command's monotonic duration with the native prompt, even with OSC off.
+    return [long]$script:TermLastElapsed
+}
+
+Export-ModuleMember -Function Get-TermPaneTitle, Get-TermCommandName, Sync-TermCommand, Sync-TermPrompt, Complete-TermPrompt, Set-TermReporting, Get-TermLastElapsedMilliseconds
