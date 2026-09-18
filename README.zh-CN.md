@@ -1,6 +1,14 @@
 # unixify-powershell
 
-为 **Windows 上的 PowerShell 7** 提供 Unix 风格的路径、命令和 Tab 补全。
+为 **Windows 上的 PowerShell 7** 提供原生 Unix 风格提示符、路径、命令和 Tab 补全。
+
+提示符形如：
+
+```text
+ityme@win ~ dev>
+```
+
+不在 Git 仓库中时不显示分支。提示符优先读取 `.git/HEAD`，在子目录、worktree 或 detached HEAD 中回退到本地 Git 查询。不运行 Starship。
 
 [English](README.md)
 
@@ -86,7 +94,7 @@ Git 单词唯一匹配时，补全后自动加空格。每段都只有一个匹�
 
 安装或更新后，新开 pwsh 生效。通过已加载的 `upwsh` 函数调用 `load`，还会加载当前会话；`unload` 不撤销当前会话中已加载的功能。卸载时需要保留个人配置，可用 `upwsh uninstall --keep-custom`。
 
-安装目录固定为 `~/.config/upwsh`，`UPWSH_HOME` 记录这个位置。命令帮助见 `upwsh --help`。
+安装目录固定为 `~/.config/upwsh`，`UPWSH_HOME` 记录这个位置。原生提示符由 `src/prompt.psm1` 提供，会随当前目录和 Git 分支变化。命令帮助见 `upwsh --help`。
 
 ## CLI 工具
 

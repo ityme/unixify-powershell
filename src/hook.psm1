@@ -370,22 +370,12 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
     }
 }
 
-$starshipCommand = Get-Command starship -ErrorAction SilentlyContinue
-if ($starshipCommand) {
-    $promptCommand = Get-Command prompt -ErrorAction SilentlyContinue
-    if (-not $promptCommand -or $promptCommand.Source -ne 'starship') {
-        Invoke-Expression (& $starshipCommand.Source init powershell --print-full-init | Out-String)
-    }
-    if (Get-Module PSReadLine) {
-        $psReadLineOptions = Get-PSReadLineOption
-        if ($psReadLineOptions.EditMode -ne 'Vi') {
-            Set-PSReadLineOption -ViModeIndicator None
-        }
-    }
-}
-
 if (-not (Test-Path Variable:script:BasePrompt)) {
-    $script:BasePrompt = (Get-Command prompt).ScriptBlock
+    $script:BasePrompt = {
+        Get-UpwshPromptText `
+            -Succeeded $script:LastCommandSucceeded `
+            -ExitCode $script:LastCommandExitCode
+    }
 }
 
 function global:prompt {

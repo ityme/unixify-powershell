@@ -2,7 +2,7 @@
 
 [README](../README.md) · [中文介绍](../README.zh-CN.md)
 
-`src/` contains the runtime; lifecycle entry points are in `src/scripts/`. Installation copies the runtime to `~/.config/upwsh` and excludes `src/tests/`.
+`src/` contains the runtime; lifecycle entry points are in `src/scripts/`. Installation copies the runtime to `~/.config/upwsh` and excludes `src/tests/`. `src/prompt.psm1` provides the native `username@host path branch>` prompt and does not depend on Starship.
 
 ## Tests
 
@@ -14,6 +14,7 @@ pwsh -NoLogo -NoProfile -File src/tests/test_path_commands.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_git_completion.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_git_cache.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_prompt_renderer.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_term.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_interaction.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
@@ -50,6 +51,12 @@ Standalone installers contain generated copies so `irm | iex` works before insta
 pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1
 pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1 -Check
 ```
+
+## Native prompt
+
+`src/prompt.psm1` reads `.git/HEAD` at a repository root and uses a 250ms-bounded local Git query when the current directory is inside a subdirectory, worktree, or detached HEAD. It does not run Git during idle prompt reuse. The prompt cache key includes the current directory and `.git/HEAD` marker, so a branch change is visible on the next actual prompt render.
+
+The prompt renderer is intentionally small: username, host, Unix-style path, branch/detached label, and success/failure symbol. `starship.toml` is no longer parsed or executed.
 
 ## Performance
 
