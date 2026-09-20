@@ -18,6 +18,7 @@ $script:ErrorBeforeCommand = $null
 $script:CachedPrompt = $null
 $script:CachedPromptLocation = $null
 $script:CachedPromptWidth = 0
+$script:CachedPromptThemeRevision = -1
 
 function Set-HookPromptInput {
     param([AllowEmptyString()][string]$Line = '')
@@ -403,10 +404,12 @@ function global:prompt {
         $script:LastCommandStatus = if ($script:LastCommandSucceeded) { 'success' } elseif ($interrupted) { 'interrupted' } else { 'error' }
         $script:SubmittedParseError = $false
     }
+    $themeRevision = Get-UpwshThemeRevision
     $reuse = -not $completed -and
         $null -ne $script:CachedPrompt -and
         $location -ceq $script:CachedPromptLocation -and
-        $width -eq $script:CachedPromptWidth
+        $width -eq $script:CachedPromptWidth -and
+        $themeRevision -eq $script:CachedPromptThemeRevision
     try {
         if (-not $script:ReadingInput) {
             # A must precede both direct host writes and the text returned by the renderer.
@@ -425,6 +428,7 @@ function global:prompt {
             )
             $script:CachedPromptLocation = $location
             $script:CachedPromptWidth = $width
+            $script:CachedPromptThemeRevision = $themeRevision
         }
         # ConsoleHost writes the returned text before PSConsoleHostReadLine emits B.
         return $script:CachedPrompt

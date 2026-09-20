@@ -5,7 +5,7 @@ function Test-UpwshRuntime {
     foreach ($name in @(
         'profile.ps1', 'path_convert.ps1', 'upwsh_home.ps1', 'alias.ps1',
         'path.psm1', 'unix.psm1', 'fs.psm1', 'proc.psm1', 'text.psm1', 'sys.psm1',
-        'tools.psm1', 'upwsh.psm1', 'completion.psm1', 'git_completion.psm1', 'prompt.psm1', 'term.psm1', 'hook.psm1',
+        'tools.psm1', 'upwsh.psm1', 'completion.psm1', 'git_completion.psm1', 'theme.psm1', 'themes\iWonder.json', 'prompt.psm1', 'term.psm1', 'hook.psm1',
         'scripts\install.ps1', 'scripts\update.ps1', 'scripts\uninstall.ps1',
         'scripts\upwsh.ps1', 'scripts\install_profile.ps1', 'scripts\install_cli_tools.ps1',
         'scripts\_deploy.ps1', 'scripts\_relaunch.ps1'
@@ -91,7 +91,7 @@ function Get-UpwshManagedFiles {
 
     if (-not [IO.Directory]::Exists($Root)) { return }
     foreach ($item in Get-ChildItem -LiteralPath $Root -Force) {
-        if ($item.Name -in @('custom', 'tool', 'bin', '.git')) { continue }
+        if ($item.Name -in @('custom', 'themes', 'tool', 'bin', '.git')) { continue }
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "refusing to replace a linked runtime path: $($item.FullName)"
         }
@@ -189,13 +189,17 @@ function Install-UpwshRuntime {
             [IO.File]::Move($activeFile, $saved)
             $journal.Add([pscustomobject]@{ Target = $activeFile; Backup = $saved; Added = $false })
         }
-        $defaults = Join-Path $stage 'custom'
-        Copy-UpwshCustomDefaults -Source (Join-Path $sourcePath 'custom') -Destination $defaults
-        foreach ($file in Get-ChildItem -LiteralPath $defaults -Recurse -File -Force) {
-            $relative = [IO.Path]::GetRelativePath($stage, $file.FullName)
-            $activeFile = Join-Path $targetPath $relative
-            if (Test-Path -LiteralPath $activeFile) { continue }
-            Set-UpwshDeploymentFile -Source $file.FullName -Target $activeFile -Backup (Join-Path $backup $relative) -Journal $journal -Created $created
+        foreach ($folder in @('custom', 'themes')) {
+            $defaults = Join-Path $stage $folder
+            if ($folder -eq 'custom') {
+                Copy-UpwshCustomDefaults -Source (Join-Path $sourcePath $folder) -Destination $defaults
+            }
+            foreach ($file in Get-ChildItem -LiteralPath $defaults -Recurse -File -Force) {
+                $relative = [IO.Path]::GetRelativePath($stage, $file.FullName)
+                $activeFile = Join-Path $targetPath $relative
+                if (Test-Path -LiteralPath $activeFile) { continue }
+                Set-UpwshDeploymentFile -Source $file.FullName -Target $activeFile -Backup (Join-Path $backup $relative) -Journal $journal -Created $created
+            }
         }
         foreach ($name in @('custom', 'bin', 'tool\bin')) {
             New-UpwshDeploymentDirectory -Path (Join-Path $targetPath $name) -Created $created

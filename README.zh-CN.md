@@ -106,6 +106,17 @@ upwsh tool install eza rg fd fzf
 upwsh tool uninstall rg
 ```
 
+## 主题
+
+默认主题为 **iWonder**。列出本地主题，或切换主题，无需重启 pwsh：
+
+```powershell
+upwsh theme list
+upwsh theme install "iWonder"
+```
+
+主题位于 `~/.config/upwsh/themes/`，`custom/theme.json` 记录当前主题文件名。切换前先校验，下一次提示符立即应用；安装和更新保留本地主题与选择。颜色、字符和显示选项见[主题说明](docs/themes.md)。
+
 ## 个人配置
 
 编辑 `~/.config/upwsh/custom/alias.ps1`，修改自带的 `w`、`t`、`i`、`d`、`gs` 快捷命令。也可以添加自己的 `custom/*.ps1` 文件；PowerShell 会在内置配置之后，按文件名顺序加载它们。

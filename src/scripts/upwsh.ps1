@@ -8,6 +8,8 @@
 #   upwsh tool list
 #   upwsh tool install eza rg
 #   upwsh tool uninstall eza
+#   upwsh theme list
+#   upwsh theme install iWonder
 
 $ErrorActionPreference = 'Stop'
 $script:Arguments = @($args)
@@ -31,6 +33,10 @@ install a listed CLI tool
    tool install     Download listed CLI tools; names limit the list
    tool uninstall   Remove the named tools from UPWSH_HOME\\tool\\bin
    tool list        List supported tools and whether the shell has them
+
+select a local prompt theme
+   theme list       List installed themes; * marks the active theme
+   theme install    Select a local theme by name and refresh the prompt
 
 'upwsh --help' prints this overview.
 
@@ -89,6 +95,10 @@ function ConvertFrom-UpwshArguments {
             $result.Command = 'tool'
             $index = 1
         }
+        '^theme$' {
+            $result.Command = 'theme'
+            $index = 1
+        }
         '^install$' {
             $result.Command = 'install'
             $index = 1
@@ -106,6 +116,22 @@ function ConvertFrom-UpwshArguments {
             $result.Error = "unknown option: $first"
             return $result
         }
+    }
+
+    if ($result.Command -eq 'theme') {
+        $rest = @($tokens | Select-Object -Skip 1)
+        if ($rest.Count -eq 1 -and $rest[0] -in @('-h', '--help')) {
+            $result.Help = $true
+        } elseif ($rest.Count -eq 1 -and $rest[0] -eq 'list') {
+            $result.Action = 'list'
+        } elseif ($rest.Count -eq 2 -and $rest[0] -eq 'install' -and -not $rest[1].StartsWith('-')) {
+            $result.Action = 'install'
+            $result.Only = @([string]$rest[1])
+        } else {
+            $result.Help = $true
+            $result.Error = 'usage: upwsh theme list | upwsh theme install <name>'
+        }
+        return $result
     }
 
     if ($result.Command -eq 'tool') {
@@ -222,6 +248,24 @@ function Invoke-UpwshTool {
     & $installer @installerArgs
 }
 
+function Invoke-UpwshTheme {
+    param($Parsed)
+
+    . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
+    $themePath = Join-Path (Get-UpwshHome) 'theme.psm1'
+    if (-not [IO.File]::Exists($themePath)) { throw 'themes are not installed; run upwsh install first' }
+    $module = Import-Module $themePath -Global -PassThru -ErrorAction Stop
+    if ($Parsed.Action -eq 'list') {
+        foreach ($theme in @(& $module { Get-UpwshThemeList })) {
+            $mark = if ($theme.Active) { '*' } else { ' ' }
+            Write-Output "$mark $($theme.Name)"
+        }
+    } else {
+        $selected = & $module { param($name) Set-UpwshTheme $name } $Parsed.Only[0]
+        Write-Output "theme    $selected"
+    }
+}
+
 function Invoke-UpwshSetup {
     param($Parsed)
 
@@ -255,6 +299,18 @@ if ($parsed.Help -or -not $parsed.Command) {
     Get-UpwshUsage
     if ($parsed.Error) {
         Complete-Upwsh 2 $scriptInvocation
+        return
+    }
+    Complete-Upwsh 0 $scriptInvocation
+    return
+}
+
+if ($parsed.Command -eq 'theme') {
+    try {
+        Invoke-UpwshTheme -Parsed $parsed
+    } catch {
+        Write-Output "upwsh: $($_.Exception.Message)"
+        Complete-Upwsh 1 $scriptInvocation
         return
     }
     Complete-Upwsh 0 $scriptInvocation

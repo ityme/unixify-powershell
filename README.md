@@ -106,6 +106,17 @@ upwsh tool install eza rg fd fzf
 upwsh tool uninstall rg
 ```
 
+## Themes
+
+The default theme is **iWonder**. List local themes or switch without restarting pwsh:
+
+```powershell
+upwsh theme list
+upwsh theme install "iWonder"
+```
+
+Themes live in `~/.config/upwsh/themes/`; `custom/theme.json` records the selected filename. Switching validates the theme and refreshes the next prompt. Install/update preserve your local themes and selection. See [Themes](docs/themes.md) for configurable colors, symbols, and display options.
+
 ## Personal settings
 
 Edit `~/.config/upwsh/custom/alias.ps1` to change the supplied `w`, `t`, `i`, `d`, and `gs` shortcuts. You can also add your own `custom/*.ps1` files; PowerShell loads them in filename order after the built-in configuration.

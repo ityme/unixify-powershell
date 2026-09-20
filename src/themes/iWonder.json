@@ -1,0 +1,27 @@
+{
+  "Version": 1,
+  "Name": "iWonder",
+  "Colors": {
+    "UserHost": "#22C55E",
+    "Directory": "#EAB308",
+    "Branch": "#06B6D4",
+    "Duration": "#73DACA",
+    "Success": "#0DB447",
+    "Error": "#D15B71"
+  },
+  "Symbols": {
+    "Success": "❯",
+    "Error": "❯"
+  },
+  "Display": {
+    "ShowUserHost": true,
+    "ShowGitBranch": true,
+    "ShowDuration": true,
+    "ShowExitCode": true,
+    "DirectoryStyle": "folder",
+    "DirectoryItalic": true,
+    "SymbolBold": true,
+    "ErrorBold": true,
+    "DurationMinMs": 2000
+  }
+}

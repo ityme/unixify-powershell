@@ -24,6 +24,7 @@ Import-ShellModule 'upwsh.psm1'
 . ([IO.Path]::Combine($PSScriptRoot, 'alias.ps1'))
 Import-ShellModule 'completion.psm1'
 Import-ShellModule 'git_completion.psm1'
+Import-ShellModule 'theme.psm1'
 Import-ShellModule 'prompt.psm1'
 Import-ShellModule 'term.psm1'
 
