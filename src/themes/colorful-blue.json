@@ -1,12 +1,15 @@
 {
   "Version": 2,
-  "Name": "iWonder",
+  "Name": "colorful-blue",
   "Order": [
     "user",
-    "at",
+    "userArrow",
     "host",
+    "hostArrow",
     "directory",
+    "directoryArrow",
     "git",
+    "gitArrow",
     "duration",
     "exitCode",
     "symbol",
@@ -14,67 +17,92 @@
   ],
   "Modules": {
     "user": {
-      "Foreground": "#22C55E",
-      "Background": "transparent",
-      "Enabled": true
+      "Foreground": "#E0F2F1",
+      "Background": "#00695C",
+      "Prefix": " ",
+      "Suffix": " "
     },
-    "at": {
+    "userArrow": {
       "Type": "text",
-      "Text": "@",
-      "Foreground": "#22C55E",
-      "Background": "transparent",
+      "Text": "",
       "AttachTo": [
-        "user",
-        "host"
-      ]
+        "user"
+      ],
+      "Foreground": "previous.background",
+      "Background": "next.background"
     },
     "host": {
-      "Foreground": "#22C55E",
-      "Background": "transparent",
-      "Enabled": true,
+      "Foreground": "#000000",
+      "Background": "#00897B",
+      "Prefix": " ",
       "Suffix": " "
+    },
+    "hostArrow": {
+      "Type": "text",
+      "Text": "",
+      "AttachTo": [
+        "host"
+      ],
+      "Foreground": "previous.background",
+      "Background": "next.background"
     },
     "directory": {
-      "Foreground": "#EAB308",
-      "Background": "transparent",
-      "Style": "folder",
-      "Italic": true,
-      "Suffix": " "
+      "Foreground": "#1a1b26",
+      "Background": "#4DB6AC",
+      "Prefix": " ",
+      "Suffix": " ",
+      "Style": "folder"
+    },
+    "directoryArrow": {
+      "Type": "text",
+      "Text": "",
+      "AttachTo": [
+        "directory"
+      ],
+      "Foreground": "previous.background",
+      "Background": "next.background"
     },
     "git": {
-      "Foreground": "#06B6D4",
-      "Background": "transparent",
-      "Enabled": true,
+      "Foreground": "#1a1b26",
+      "Background": "#80CBC4",
+      "Prefix": " ",
       "Suffix": " "
     },
+    "gitArrow": {
+      "Type": "text",
+      "Text": "",
+      "AttachTo": [
+        "git"
+      ],
+      "Foreground": "previous.background",
+      "Background": "next.background"
+    },
     "duration": {
-      "Foreground": "#73DACA",
+      "Foreground": "#73daca",
       "Background": "transparent",
-      "Enabled": true,
-      "MinMs": 2000
+      "MinMs": 2000,
+      "Prefix": " "
     },
     "exitCode": {
-      "Foreground": "#D15B71",
+      "Foreground": "#d15b71",
       "Background": "transparent",
-      "Enabled": true,
       "When": "failure",
-      "Bold": true
+      "Bold": true,
+      "Prefix": " "
     },
     "symbol": {
-      "Foreground": "#0DB447",
-      "Background": "transparent",
       "Text": "❯",
+      "Foreground": "#0db447",
+      "Background": "transparent",
       "Bold": true,
+      "Prefix": " ",
       "Failure": {
-        "Text": "❯",
-        "Foreground": "#D15B71"
+        "Foreground": "#d15b71"
       }
     },
     "inputSpace": {
       "Type": "text",
-      "Text": " ",
-      "Foreground": "default",
-      "Background": "transparent"
+      "Text": " "
     }
   },
   "_Comment": {
@@ -100,6 +128,11 @@
     "symbol.Failure": "失败时覆盖 Text、Foreground、Background、Bold、Italic；未写的值继承 symbol。",
     "Reload": "放入 ~/.config/upwsh/themes/ 后执行 upwsh theme install \"名称\"。编辑已选主题后再次执行；下一次提示符生效。",
     "_Comment": "本对象只作说明，可删除。修改它不会改变实际配置。JSON 不使用 // 注释。",
-    "Theme": "绿、黄、青；保留用户名、目录斜体与所有显示项。"
+    "Theme": "深青 → 湖绿 → 亮青 → 冰青",
+    "Source": "starship-colorful.toml / palettes.blue_iWonder",
+    "Mapping": "user←os, host←user, directory←dir, git←env；不增加时钟/OS 数据，目录保持 folder。耗时用 fg_notify，不使用未被参考格式引用的 bg_duration。",
+    "ContrastAdjustments": [
+      "host 文字 #FFFFFF → #000000（对比 4.32 → 4.86:1）"
+    ]
   }
 }

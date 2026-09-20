@@ -9,7 +9,7 @@
 #   upwsh tool install eza rg
 #   upwsh tool uninstall eza
 #   upwsh theme list
-#   upwsh theme install iWonder
+#   upwsh theme install pure-default
 
 $ErrorActionPreference = 'Stop'
 $script:Arguments = @($args)

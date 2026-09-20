@@ -1,0 +1,105 @@
+{
+  "Version": 2,
+  "Name": "pure-quiet",
+  "Order": [
+    "user",
+    "at",
+    "host",
+    "directory",
+    "git",
+    "duration",
+    "exitCode",
+    "symbol",
+    "inputSpace"
+  ],
+  "Modules": {
+    "user": {
+      "Foreground": "#AAB4C0",
+      "Background": "transparent",
+      "Enabled": false
+    },
+    "at": {
+      "Type": "text",
+      "Text": "@",
+      "Foreground": "#AAB4C0",
+      "Background": "transparent",
+      "AttachTo": [
+        "user",
+        "host"
+      ]
+    },
+    "host": {
+      "Foreground": "#AAB4C0",
+      "Background": "transparent",
+      "Enabled": false,
+      "Suffix": " "
+    },
+    "directory": {
+      "Foreground": "#DCE3EB",
+      "Background": "transparent",
+      "Style": "folder",
+      "Italic": false,
+      "Suffix": " "
+    },
+    "git": {
+      "Foreground": "#AAB4C0",
+      "Background": "transparent",
+      "Enabled": true,
+      "Suffix": " "
+    },
+    "duration": {
+      "Foreground": "#BFC9D5",
+      "Background": "transparent",
+      "Enabled": false,
+      "MinMs": 2000
+    },
+    "exitCode": {
+      "Foreground": "#FDA4AF",
+      "Background": "transparent",
+      "Enabled": true,
+      "When": "failure",
+      "Bold": true
+    },
+    "symbol": {
+      "Foreground": "#DCE3EB",
+      "Background": "transparent",
+      "Text": ">",
+      "Bold": false,
+      "Failure": {
+        "Text": "!",
+        "Foreground": "#FDA4AF"
+      }
+    },
+    "inputSpace": {
+      "Type": "text",
+      "Text": " ",
+      "Foreground": "default",
+      "Background": "transparent"
+    }
+  },
+  "_Comment": {
+    "Version": "仅支持整数 2；不读取或转换旧版 Colors/Symbols/Display。",
+    "Name": "与文件名一致（不含 .json），最多 80 字符；字母或数字开头，支持空格、下划线、短横线，不能以空格结尾。",
+    "Order": "从左到右的模块名称，可重复。未列入的模块不渲染；用 Enabled: false 临时隐藏。最多 128 项。",
+    "Modules": "内置 user、host、directory、git、duration、exitCode、symbol；自定义名称必须写 Type: text。最多 64 项。",
+    "Foreground": "文字前景色：#RRGGBB 或 default（终端默认文字色）。",
+    "Background": "文字单元格背景色：#RRGGBB 或 transparent（终端默认背景，不是 alpha 透明度）。",
+    "Enabled": "可选布尔值，默认 true；写 false 隐藏模块，不查询其数据。",
+    "When": "可选 always/success/failure，默认 always；exitCode 默认 failure。按上一条命令是否成功判断。",
+    "Prefix": "模块可见时才显示的前缀文字，默认空；可放左侧空格或符号，使用本模块颜色。",
+    "Suffix": "模块可见时才显示的后缀文字，默认空；可放右侧空格或符号。运行时不自动插入空格。",
+    "Bold": "可选布尔值，是否加粗，默认 false。",
+    "Italic": "可选布尔值，是否斜体，默认 false；效果依赖终端和字体。",
+    "Text": "text 模块固定文字；symbol 的成功提示字符，默认 ❯。允许空格，不允许换行或控制字符；最多 128 个 UTF-16 代码单元。",
+    "AttachTo": "仅 text 使用，数组内必须是 Order 中的内置模块；所有目标均可见才显示，默认 [] 独立显示。不绑定其他 text，避免循环依赖。",
+    "ConnectorColors": "仅 text 的颜色支持 previous.background / next.background，取当前位置前后最近可见内置模块的背景，跳过隐藏段和其他 text。无邻居时背景为 transparent，前景为 default；邻居透明时前景也回退 default。",
+    "directory.Style": "folder 只显示末级目录；path 显示 Unix 风格路径。默认 folder，家目录显示 ~。",
+    "git": "只在文件系统 Git 仓库中显示分支，非仓库或查询失败时隐藏。",
+    "duration.MinMs": "整数毫秒，0–86400000，默认 2000；耗时必须大于 0 且达到门槛才显示。与 When 条件同时满足。",
+    "exitCode": "默认只在失败时显示；有效失败码缺失或为 0 时显示 1。When: always 可在成功时显示 0。",
+    "symbol.Failure": "失败时覆盖 Text、Foreground、Background、Bold、Italic；未写的值继承 symbol。",
+    "Reload": "放入 ~/.config/upwsh/themes/ 后执行 upwsh theme install \"名称\"。编辑已选主题后再次执行；下一次提示符生效。",
+    "_Comment": "本对象只作说明，可删除。修改它不会改变实际配置。JSON 不使用 // 注释。",
+    "Theme": "隐藏用户名和耗时，只留目录、分支与状态；失败显示数字和 !。"
+  }
+}

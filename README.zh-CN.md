@@ -108,16 +108,49 @@ upwsh tool uninstall rg
 
 ## 主题
 
-默认主题为 **iWonder**，另有 **Glacier**（冷色）、**Ember**（暖色）、**Quiet**（极简）、**Daylight**（浅色终端背景）。列出本地主题，或切换主题，无需重启 pwsh：
+两个系列，共 12 套本地主题。默认 **`pure-default`**（原 iWonder）。切换无需重启 pwsh：
 
 ```powershell
 upwsh theme list
-upwsh theme install "Glacier"
+upwsh theme install "colorful-blue"
+upwsh theme install "pure-default"
 ```
 
-主题位于 `~/.config/upwsh/themes/`，`custom/theme.json` 记录当前主题文件名。v2 用 `Order` 和 `Modules` 配置独立的用户/主机段、前景/背景色，以及随条件段显隐的自定义文字连接符。每份模板含 `_Comment` 中文说明，切换后下一次提示符应用。
+### pure-* · 透明背景
 
-**不再支持 v1 主题。** 部署 v2 前先将旧主题备份到安装目录外；更新仍保留同名文件，发现旧版内置主题时会停止。升级步骤、透明背景和条件箭头配置见[主题说明](docs/themes.zh-CN.md)。
+![五套 pure 主题：默认、冷色、暖色、极简、浅色背景](docs/assets/themes/pure.png)
+
+| 主题 | 外观 |
+| --- | --- |
+| [pure-default](src/themes/pure-default.json) | 原有绿色用户/主机、黄色斜体目录、青色分支 |
+| [pure-glacier](src/themes/pure-glacier.json) | 冰蓝目录、淡紫分支 |
+| [pure-ember](src/themes/pure-ember.json) | 琥珀目录、暖白分支 |
+| [pure-quiet](src/themes/pure-quiet.json) | 极简，隐藏用户/主机和耗时；成功 `>`，失败 `!` |
+| [pure-daylight](src/themes/pure-daylight.json) | 深蓝目录、深紫分支，适合浅色终端背景 |
+
+### colorful-* · 连续色块
+
+![七套 colorful 主题：用户、主机、目录与 Git 使用连续色块](docs/assets/themes/colorful.png)
+
+| 主题 | 配色顺序 |
+| --- | --- |
+| [colorful-blue](src/themes/colorful-blue.json) | 深青 → 湖绿 → 亮青 → 冰青 |
+| [colorful-green](src/themes/colorful-green.json) | 鼠尾草绿 → 抹茶绿 → 春芽绿 → 极地薄荷 |
+| [colorful-macaron](src/themes/colorful-macaron.json) | 香芋紫 → 天空蓝 → 湖水绿 → 嫩芽绿 |
+| [colorful-morandi](src/themes/colorful-morandi.json) | 豆沙灰 → 灰粉 → 燕麦 → 亚麻 |
+| [colorful-cyberpunk](src/themes/colorful-cyberpunk.json) | 霓虹紫 → 极光蓝 → 荧光绿 → 冰蓝 |
+| [colorful-retro](src/themes/colorful-retro.json) | 森林暗绿 → 砖赭 → 暖棕 → 象牙白 |
+| [colorful-memphis](src/themes/colorful-memphis.json) | 亮粉 → 柠檬黄 → 青绿 → 极浅蓝 |
+
+Colorful 按已确认的 `starship-colorful.toml` 配色制作。用户、主机、目录、Git 使用连续色块和实心三角，耗时、返回码与 `❯` 保持透明背景。非仓库、短耗时或成功时，相应模块隐藏，不留下多余箭头。文字对比调整记录在各 JSON 的 `_Comment.ContrastAdjustments` 中。
+
+预览使用示例用户/主机、分支 `dev`、失败码 `7` 和耗时 `2.345s`；Quiet 隐藏耗时。深色预览背景为 `#1a1b26`，Daylight 为白色。选择主题不会更改终端整体背景。**Colorful 需要含 Powerline 字形的字体**，例如 JetBrainsMono Nerd Font。
+
+想像预览页一样切换八种命令状态，下载仓库后用浏览器打开 **[docs/themes.html](docs/themes.html)**，无需联网或启动服务。GitHub 可能显示 HTML 源码，不直接运行页面。
+
+配置位于 `~/.config/upwsh/themes/`，`custom/theme.json` 记录选择。v2 用 `Order`、`Modules` 配置颜色、排列和连接符，每份 JSON 都有中文字段说明。切换后下一次提示符生效；编辑后需重新选择同一主题。
+
+更新只补齐缺失文件，保留原有主题与选择。旧名称没有别名，也不会自动重命名；更新后请显式选择新名称。**不支持 v1 主题**，升级前先备份。升级步骤和配置方式见[主题说明](docs/themes.zh-CN.md)。
 
 ## 个人配置
 

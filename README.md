@@ -108,16 +108,49 @@ upwsh tool uninstall rg
 
 ## Themes
 
-The default theme is **iWonder**. Also included: **Glacier** (cool), **Ember** (warm), **Quiet** (minimal), and **Daylight** (light terminal backgrounds). List local themes or switch without restarting pwsh:
+Two families, 12 local themes. **`pure-default`** is the default (formerly iWonder). Switch without restarting pwsh:
 
 ```powershell
 upwsh theme list
-upwsh theme install "Glacier"
+upwsh theme install "colorful-blue"
+upwsh theme install "pure-default"
 ```
 
-Themes live in `~/.config/upwsh/themes/`; `custom/theme.json` records the selected filename. V2 uses `Order` and `Modules` for separate user/host segments, foreground/background colors, and custom text connectors that follow conditional segments. Each bundled JSON includes `_Comment` explanations. Switching refreshes the next prompt.
+### pure-* · transparent backgrounds
 
-**V1 themes are no longer supported.** Back up old themes outside the installation before deploying v2; updates preserve existing files and stop if a bundled theme still has an old header. See [Themes](docs/themes.md) for the upgrade steps, transparent backgrounds, and conditional arrows.
+![Five pure themes: default, glacier, ember, quiet and daylight](docs/assets/themes/pure.png)
+
+| Theme | Appearance |
+| --- | --- |
+| [pure-default](src/themes/pure-default.json) | Original green user/host, yellow italic folder, cyan branch |
+| [pure-glacier](src/themes/pure-glacier.json) | Ice-blue folder, lavender branch |
+| [pure-ember](src/themes/pure-ember.json) | Amber folder, warm-white branch |
+| [pure-quiet](src/themes/pure-quiet.json) | Minimal: hides user/host and duration; `>` on success, `!` on failure |
+| [pure-daylight](src/themes/pure-daylight.json) | Deep blue and purple for a light terminal background |
+
+### colorful-* · connected color blocks
+
+![Seven colorful themes with connected user, host, directory and Git segments](docs/assets/themes/colorful.png)
+
+| Theme | Palette |
+| --- | --- |
+| [colorful-blue](src/themes/colorful-blue.json) | Deep teal → lake green → bright teal → ice teal |
+| [colorful-green](src/themes/colorful-green.json) | Sage → matcha → spring green → pale mint |
+| [colorful-macaron](src/themes/colorful-macaron.json) | Lilac → sky blue → lake green → soft green |
+| [colorful-morandi](src/themes/colorful-morandi.json) | Sage grey → dusty pink → oat → linen |
+| [colorful-cyberpunk](src/themes/colorful-cyberpunk.json) | Neon purple → electric blue → aqua → ice blue |
+| [colorful-retro](src/themes/colorful-retro.json) | Forest green → ochre → warm tan → ivory |
+| [colorful-memphis](src/themes/colorful-memphis.json) | Pink → lemon yellow → cyan → pale blue |
+
+Colorful follows the approved `starship-colorful.toml` palette reference. User, host, folder and Git form a connected strip; duration, exit code and `❯` keep transparent backgrounds. Missing Git, short commands and successful commands hide their conditional segments without leaving orphan arrows. Foreground readability corrections are recorded in each JSON's `_Comment.ContrastAdjustments`.
+
+Screenshots show sample user/host, branch `dev`, exit code `7`, and duration `2.345s`; Quiet hides duration. Dark previews use `#1a1b26`, Daylight uses white. Terminal backgrounds are not changed by selecting a theme. **Colorful needs Powerline glyphs**, for example JetBrainsMono Nerd Font.
+
+For an interactive comparison of all eight command states, download the repository and open **[docs/themes.html](docs/themes.html)** in a browser. It works offline; GitHub may show the HTML source rather than run it.
+
+Themes live in `~/.config/upwsh/themes/`; `custom/theme.json` records the selection. V2 uses `Order` and `Modules` for colors, layout and attached connectors. Each JSON includes Chinese field explanations. Switching refreshes the next prompt; editing requires reselecting the theme.
+
+Updates add missing themes and preserve existing files and selection. Old names are not aliases or automatically renamed; select a new name explicitly after updating. **V1 themes are unsupported**: back them up before upgrading. See [Themes](docs/themes.md) for upgrade steps and configuration.
 
 ## Personal settings
 

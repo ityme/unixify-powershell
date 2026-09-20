@@ -1,6 +1,6 @@
 {
   "Version": 2,
-  "Name": "Daylight",
+  "Name": "pure-default",
   "Order": [
     "user",
     "at",
@@ -14,14 +14,14 @@
   ],
   "Modules": {
     "user": {
-      "Foreground": "#475569",
+      "Foreground": "#22C55E",
       "Background": "transparent",
       "Enabled": true
     },
     "at": {
       "Type": "text",
       "Text": "@",
-      "Foreground": "#475569",
+      "Foreground": "#22C55E",
       "Background": "transparent",
       "AttachTo": [
         "user",
@@ -29,45 +29,45 @@
       ]
     },
     "host": {
-      "Foreground": "#475569",
+      "Foreground": "#22C55E",
       "Background": "transparent",
       "Enabled": true,
       "Suffix": " "
     },
     "directory": {
-      "Foreground": "#1D4ED8",
+      "Foreground": "#EAB308",
       "Background": "transparent",
       "Style": "folder",
-      "Italic": false,
+      "Italic": true,
       "Suffix": " "
     },
     "git": {
-      "Foreground": "#6D28D9",
+      "Foreground": "#06B6D4",
       "Background": "transparent",
       "Enabled": true,
       "Suffix": " "
     },
     "duration": {
-      "Foreground": "#0E7490",
+      "Foreground": "#73DACA",
       "Background": "transparent",
       "Enabled": true,
       "MinMs": 2000
     },
     "exitCode": {
-      "Foreground": "#B91C1C",
+      "Foreground": "#D15B71",
       "Background": "transparent",
       "Enabled": true,
       "When": "failure",
       "Bold": true
     },
     "symbol": {
-      "Foreground": "#166534",
+      "Foreground": "#0DB447",
       "Background": "transparent",
       "Text": "❯",
       "Bold": true,
       "Failure": {
         "Text": "❯",
-        "Foreground": "#B91C1C"
+        "Foreground": "#D15B71"
       }
     },
     "inputSpace": {
@@ -100,6 +100,6 @@
     "symbol.Failure": "失败时覆盖 Text、Foreground、Background、Bold、Italic；未写的值继承 symbol。",
     "Reload": "放入 ~/.config/upwsh/themes/ 后执行 upwsh theme install \"名称\"。编辑已选主题后再次执行；下一次提示符生效。",
     "_Comment": "本对象只作说明，可删除。修改它不会改变实际配置。JSON 不使用 // 注释。",
-    "Theme": "深蓝目录、深紫分支；为白色或浅灰终端准备，不会自动改变背景。"
+    "Theme": "绿、黄、青；保留用户名、目录斜体与所有显示项。"
   }
 }

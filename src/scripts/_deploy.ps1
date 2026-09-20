@@ -25,7 +25,7 @@ function Test-UpwshRuntime {
     foreach ($name in @(
         'profile.ps1', 'path_convert.ps1', 'upwsh_home.ps1', 'alias.ps1',
         'path.psm1', 'unix.psm1', 'fs.psm1', 'proc.psm1', 'text.psm1', 'sys.psm1',
-        'tools.psm1', 'upwsh.psm1', 'completion.psm1', 'git_completion.psm1', 'theme.psm1', 'themes\iWonder.json', 'prompt.psm1', 'term.psm1', 'hook.psm1',
+        'tools.psm1', 'upwsh.psm1', 'completion.psm1', 'git_completion.psm1', 'theme.psm1', 'themes\pure-default.json', 'prompt.psm1', 'term.psm1', 'hook.psm1',
         'scripts\install.ps1', 'scripts\update.ps1', 'scripts\uninstall.ps1',
         'scripts\upwsh.ps1', 'scripts\install_profile.ps1', 'scripts\install_cli_tools.ps1',
         'scripts\_deploy.ps1', 'scripts\_relaunch.ps1'

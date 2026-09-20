@@ -6,27 +6,26 @@
 
 ```powershell
 upwsh theme list
-upwsh theme install "Glacier"
-upwsh theme install "iWonder"
+upwsh theme install "colorful-blue"
+upwsh theme install "pure-default"
 ```
 
 `list` marks the active theme with `*`. `install` selects an existing local theme, not a download. Editing the selected theme requires running the same selection command again. The next prompt uses the new data; another session's selection does not redraw an idle input line.
 
 ## Bundled themes
 
-| Theme | Appearance | Terminal background |
-| --- | --- | --- |
-| [iWonder](../src/themes/iWonder.json) | Original green/yellow/cyan palette, italic folder, `❯` | Dark |
-| [Glacier](../src/themes/Glacier.json) | Ice-blue folder, lavender branch | Dark |
-| [Ember](../src/themes/Ember.json) | Amber folder, warm-white branch | Dark |
-| [Quiet](../src/themes/Quiet.json) | Hides user/host and duration; `>` on success, `!` on failure | Dark |
-| [Daylight](../src/themes/Daylight.json) | Deep-blue folder, purple branch | Light |
+The [README gallery](../README.md#themes) introduces all 12 themes with screenshots. Open [themes.html](themes.html) locally to compare all eight command states offline.
 
-All five use v2 while retaining their appearance. Their backgrounds default to `transparent`; individual segments can now have colored backgrounds. Terminal font, window opacity, and overall background remain terminal settings.
+- **pure-***: `pure-default` (formerly iWonder), `pure-glacier`, `pure-ember`, `pure-quiet`, `pure-daylight`. Transparent backgrounds; the original appearances are unchanged. Daylight targets light terminal backgrounds.
+- **colorful-***: `colorful-blue`, `colorful-green`, `colorful-macaron`, `colorful-morandi`, `colorful-cyberpunk`, `colorful-retro`, `colorful-memphis`. Connected user/host/directory/Git color blocks, followed by duration, exit code and symbol on transparent backgrounds. Requires Powerline glyphs.
+
+All names and filenames use lowercase hyphenated names. Old installed files and selection are not renamed or deleted; select a new name explicitly after updating. There are no old-name aliases. A retained valid v2 theme still works under its own filename; invalid/removed selections fall back to `pure-default`.
+
+Colorful preserves the reference background colors. Some foreground colors were adjusted for readability; each JSON's `_Comment.ContrastAdjustments` lists the differences. The reference OS/username palette steps map to user/host here; no clock or OS module is added. Terminal font, window opacity, and overall background remain terminal settings.
 
 ## Files and upgrading
 
-Themes live in `~/.config/upwsh/themes/`. The optional selection file `custom/theme.json` contains a filename, for example `{"Theme":"Glacier.json"}`. Without it, iWonder is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 iWonder.
+Themes live in `~/.config/upwsh/themes/`. The optional selection file `custom/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-default is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-default.
 
 **Only Version 2 is supported.** There is no v1 reader or automatic conversion. `Colors`, `Symbols`, and `Display` no longer exist; changing just the version number is insufficient.
 
@@ -36,7 +35,7 @@ Install/update preserve existing theme files and selection. If an existing bundl
 pwsh -NoLogo -NoProfile -File src/scripts/update.ps1 --source src
 ```
 
-Missing v2 presets are installed. Open a new pwsh and select a theme. Rewrite custom themes from a v2 template; a selection referencing a removed custom theme warns and falls back to iWonder. No deployment step overwrites, moves, or converts personal themes. Subsequent updates also add only missing files.
+Missing v2 presets are installed. Open a new pwsh and select a theme. Rewrite custom themes from a v2 template; a selection referencing a removed custom theme warns and falls back to pure-default. No deployment step overwrites, moves, or converts personal themes. Subsequent updates also add only missing files.
 
 Uninstall removes `themes/`; `--keep-custom` retains the selection file, not the themes. Back up custom themes separately.
 

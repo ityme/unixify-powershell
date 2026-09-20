@@ -8,29 +8,28 @@
 
 ```powershell
 upwsh theme list                 # * 标记当前主题
-upwsh theme install "Glacier"    # 选择已有的本地主题，不下载
-upwsh theme install "iWonder"    # 恢复默认外观
+upwsh theme install "colorful-blue" # 选择已有的本地主题，不下载
+upwsh theme install "pure-default"  # 恢复默认外观
 ```
 
-| 主题 | 外观 | 建议终端背景 |
-| --- | --- | --- |
-| [iWonder](../src/themes/iWonder.json) | 绿、黄、青，目录斜体，提示字符 `❯` | 深色 |
-| [Glacier](../src/themes/Glacier.json) | 冰蓝目录、淡紫分支 | 深色 |
-| [Ember](../src/themes/Ember.json) | 琥珀目录、暖白分支 | 深色 |
-| [Quiet](../src/themes/Quiet.json) | 隐藏用户名和耗时；成功 `>`，失败 `!` | 深色 |
-| [Daylight](../src/themes/Daylight.json) | 深蓝目录、深紫分支 | 浅色 |
+[README 主题画廊](../README.zh-CN.md#主题)包含全部 12 套主题的介绍和预览图；下载仓库后用浏览器打开 [themes.html](themes.html)，可离线切换八种命令状态。
 
-五组主题已改为 v2，外观不变。`user` 与 `host` 已分开，`@` 是可隐藏的自定义段。背景默认为 `transparent`，你可以给每段设置色块。
+- **pure-***：`pure-default`（原 iWonder）、`pure-glacier`、`pure-ember`、`pure-quiet`、`pure-daylight`。透明背景，原有外观不变；Daylight 用于浅色终端背景。
+- **colorful-***：`colorful-blue`、`colorful-green`、`colorful-macaron`、`colorful-morandi`、`colorful-cyberpunk`、`colorful-retro`、`colorful-memphis`。用户、主机、目录、Git 使用连续色块；耗时、返回码和提示字符使用透明背景，需要含 Powerline 字形的字体。
+
+主题名称和文件名统一使用小写、短横线。更新不重命名或删除安装目录的旧文件，也不改选择；更新后请显式选择新名字。没有旧名称别名。保留的有效 v2 主题仍可按原文件名使用；无效或已移走的选择会回退到 `pure-default`。
+
+Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON 的 `_Comment.ContrastAdjustments` 列出差异。原 OS / Username 两级配色用于 user / host，没有增加时钟或 OS 模块。整体背景和窗口透明度仍由终端控制。
 
 ## 文件与生效方式
 
 - `~/.config/upwsh/themes/名称.json`：外观配置。
-- `~/.config/upwsh/custom/theme.json`：选择文件，例如 `{"Theme":"Glacier.json"}`。
-- 没有选择文件时使用 iWonder。
+- `~/.config/upwsh/custom/theme.json`：选择文件，例如 `{"Theme":"colorful-blue.json"}`。
+- 没有选择文件时使用 pure-default。
 
 选择后下一次提示符生效。在另一个窗口或通过 `upwsh.cmd` 切换时，本窗口下次生成提示符才会读取选择，不在空闲输入过程中自行重绘。**编辑已选中的主题后，也要再执行一次 `upwsh theme install "名称"`**。解析结果有缓存，不在每次按键时读取整个主题。
 
-选中无效主题会报错并保留原选择。选择文件损坏或引用不受支持的主题时，已有会话保留上次可用主题，新会话回退到有效的 v2 iWonder。
+选中无效主题会报错并保留原选择。选择文件损坏或引用不受支持的主题时，已有会话保留上次可用主题，新会话回退到有效的 v2 pure-default。
 
 ## 从 v1 升级
 
@@ -49,7 +48,7 @@ upwsh theme install "iWonder"    # 恢复默认外观
 
 3. 新开 pwsh，执行 `upwsh theme list`，再选择主题。自定义 v1 文件请参考 v2 模板手动重写。
 
-`custom/theme.json` 保留。它若引用已移走的自定义主题，新会话会提示并回退到 iWonder。更新不会替你覆盖、搬走或转换个人主题。后续 v2 更新也只补缺失文件，不覆盖同名文件。
+`custom/theme.json` 保留。它若引用已移走的自定义主题，新会话会提示并回退到 pure-default。更新不会替你覆盖、搬走或转换个人主题。后续 v2 更新也只补缺失文件，不覆盖同名文件。
 
 卸载会删除 `themes/`；`--keep-custom` 只保留选择文件，不保留主题文件。卸载前另行备份。
 
