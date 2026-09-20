@@ -51,6 +51,50 @@ try {
         Assert-True (-not [IO.File]::Exists($selection)) 'list wrote selection'
         Assert-Equal (Get-UpwshPromptText -Color Never) "$identity ~ ❯ "
     }
+    Test-Theme 'all bundled themes are installed, documented and render their settings' {
+        $expected = @('Daylight', 'Ember', 'Glacier', 'iWonder', 'Quiet')
+        $listed = @(Get-UpwshThemeList)
+        Assert-Equal ($listed.Name -join ',') ($expected -join ',')
+        Assert-Equal @($listed | Where-Object Active).Count 1
+        try {
+            foreach ($name in $expected) {
+                $file = Join-Path $themes "$name.json"
+                $data = [IO.File]::ReadAllText($file) | ConvertFrom-Json -AsHashtable
+                Assert-Equal $data.Name $name
+                foreach ($section in @('Colors', 'Symbols', 'Display')) {
+                    foreach ($key in $data[$section].Keys) {
+                        Assert-True (-not [string]::IsNullOrWhiteSpace($data._Comment["$section.$key"])) "missing comment for $name/$section.$key"
+                    }
+                }
+                Assert-Equal (Invoke-ThemeCli @('theme','install',$name)).Code 0
+                Assert-Equal (Get-UpwshTheme).Name $name
+                $success = if ($name -eq 'Quiet') { '~ > ' } else { "$identity ~ ❯ " }
+                $failure = if ($name -eq 'Quiet') { '~ 7! ' } else { "$identity ~ 2s345ms7❯ " }
+                Assert-Equal (Get-UpwshPromptText -Color Never) $success
+                Assert-Equal (Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 2345 -Color Never) $failure
+                $rgb = @(1, 3, 5 | ForEach-Object { [Convert]::ToInt32($data.Colors.Directory.Substring($_, 2), 16) }) -join ';'
+                $attributes = if ($name -eq 'iWonder') { '3;' } else { '' }
+                Assert-True ((Get-UpwshPromptText -Color Always).Contains("$([char]27)[$($attributes)38;2;${rgb}m~ ")) "wrong directory style for $name"
+                Assert-Equal (Get-UpwshPromptText -DurationMs 1999 -Color Never) $success
+            }
+        } finally { $null = Set-UpwshTheme 'iWonder' }
+    }
+    Test-Theme 'comment metadata is optional and does not affect rendering' {
+        $file = Join-Path $themes 'Glacier.json'
+        $saved = [IO.File]::ReadAllText($file)
+        try {
+            $null = Set-UpwshTheme 'Glacier'
+            $before = Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 2345 -Color Always
+            $data = $saved | ConvertFrom-Json -AsHashtable
+            $data.Remove('_Comment')
+            [IO.File]::WriteAllText($file, ($data | ConvertTo-Json -Depth 4))
+            $null = Set-UpwshTheme 'Glacier'
+            Assert-Equal (Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 2345 -Color Always) $before
+        } finally {
+            [IO.File]::WriteAllText($file, $saved)
+            $null = Set-UpwshTheme 'iWonder'
+        }
+    }
     Test-Theme 'invalid theme command shapes show usage' {
         $cases = @(
             ,@('theme')
@@ -182,7 +226,7 @@ try {
             Assert-Equal $child.Text.TrimEnd("`r", "`n") "$identity ~ ❯ "
         } finally { [IO.File]::WriteAllText($selection, $saved) }
     }
-    Test-Theme 'update preserves theme selection and local theme files' {
+    Test-Theme 'update adds missing bundled themes while preserving theme selection and local files' {
         Assert-Equal (Invoke-ThemeCli @('theme','install','Quiet Blue')).Code 0
         $before = [IO.File]::ReadAllText($alternatePath)
         $beforeSelection = [IO.File]::ReadAllText($selection)
@@ -191,8 +235,14 @@ try {
         $default.Colors.Success = '#102030'
         [IO.File]::WriteAllText($installedDefault, ($default | ConvertTo-Json -Depth 4))
         $beforeDefault = [IO.File]::ReadAllText($installedDefault)
+        foreach ($name in @('Glacier', 'Ember', 'Quiet', 'Daylight')) {
+            [IO.File]::Delete((Join-Path $themes "$name.json"))
+        }
         $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'scripts\update.ps1') -Arguments @('--source', $runtime)
         Assert-True ($result.Code -eq 0) $result.Text
+        foreach ($name in @('Glacier', 'Ember', 'Quiet', 'Daylight')) {
+            Assert-Equal ([IO.File]::ReadAllText((Join-Path $themes "$name.json"))) ([IO.File]::ReadAllText((Join-Path $runtime "themes\$name.json")))
+        }
         Assert-Equal ([IO.File]::ReadAllText($selection)) $beforeSelection
         Assert-Equal ([IO.File]::ReadAllText($alternatePath)) $before
         Assert-Equal ([IO.File]::ReadAllText($installedDefault)) $beforeDefault

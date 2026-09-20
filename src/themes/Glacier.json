@@ -1,13 +1,13 @@
 {
   "Version": 1,
-  "Name": "iWonder",
+  "Name": "Glacier",
   "Colors": {
-    "UserHost": "#22C55E",
-    "Directory": "#EAB308",
-    "Branch": "#06B6D4",
-    "Duration": "#73DACA",
-    "Success": "#0DB447",
-    "Error": "#D15B71"
+    "UserHost": "#A9BCD0",
+    "Directory": "#8CC8FF",
+    "Branch": "#C4B5FD",
+    "Duration": "#7DD3FC",
+    "Success": "#86EFAC",
+    "Error": "#FDA4AF"
   },
   "Symbols": {
     "Success": "❯",
@@ -19,7 +19,7 @@
     "ShowDuration": true,
     "ShowExitCode": true,
     "DirectoryStyle": "folder",
-    "DirectoryItalic": true,
+    "DirectoryItalic": false,
     "SymbolBold": true,
     "ErrorBold": true,
     "DurationMinMs": 2000
@@ -47,6 +47,6 @@
     "Display.DurationMinMs": "显示耗时的门槛，整数毫秒，范围 0–86400000；2000 表示 2 秒。",
     "Reload": "把文件放到 ~/.config/upwsh/themes/，执行 upwsh theme install \"名称\"。修改已选主题后再次执行同一命令。",
     "_Comment": "说明用元数据，不参与渲染；保留或删除均可。JSON 不使用 // 注释。",
-    "Theme": "绿、黄、青；保留用户名、目录斜体与所有显示项。"
+    "Theme": "冰蓝目录、淡紫分支；保留完整信息，取消目录斜体。"
   }
 }

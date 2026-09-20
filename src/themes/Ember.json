@@ -1,13 +1,13 @@
 {
   "Version": 1,
-  "Name": "iWonder",
+  "Name": "Ember",
   "Colors": {
-    "UserHost": "#22C55E",
-    "Directory": "#EAB308",
-    "Branch": "#06B6D4",
-    "Duration": "#73DACA",
-    "Success": "#0DB447",
-    "Error": "#D15B71"
+    "UserHost": "#CDBBA7",
+    "Directory": "#F5C17C",
+    "Branch": "#E5D5BD",
+    "Duration": "#F0AB8A",
+    "Success": "#BBD58C",
+    "Error": "#FF9B91"
   },
   "Symbols": {
     "Success": "❯",
@@ -19,7 +19,7 @@
     "ShowDuration": true,
     "ShowExitCode": true,
     "DirectoryStyle": "folder",
-    "DirectoryItalic": true,
+    "DirectoryItalic": false,
     "SymbolBold": true,
     "ErrorBold": true,
     "DurationMinMs": 2000
@@ -47,6 +47,6 @@
     "Display.DurationMinMs": "显示耗时的门槛，整数毫秒，范围 0–86400000；2000 表示 2 秒。",
     "Reload": "把文件放到 ~/.config/upwsh/themes/，执行 upwsh theme install \"名称\"。修改已选主题后再次执行同一命令。",
     "_Comment": "说明用元数据，不参与渲染；保留或删除均可。JSON 不使用 // 注释。",
-    "Theme": "绿、黄、青；保留用户名、目录斜体与所有显示项。"
+    "Theme": "琥珀目录、暖白分支；适合深色终端，错误仍用红色。"
   }
 }

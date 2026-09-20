@@ -108,14 +108,14 @@ upwsh tool uninstall rg
 
 ## Themes
 
-The default theme is **iWonder**. List local themes or switch without restarting pwsh:
+The default theme is **iWonder**. Also included: **Glacier** (cool), **Ember** (warm), **Quiet** (minimal), and **Daylight** (light terminal backgrounds). List local themes or switch without restarting pwsh:
 
 ```powershell
 upwsh theme list
-upwsh theme install "iWonder"
+upwsh theme install "Glacier"
 ```
 
-Themes live in `~/.config/upwsh/themes/`; `custom/theme.json` records the selected filename. Switching validates the theme and refreshes the next prompt. Install/update preserve your local themes and selection. See [Themes](docs/themes.md) for configurable colors, symbols, and display options.
+Themes live in `~/.config/upwsh/themes/`; `custom/theme.json` records the selected filename. Switching validates the theme and refreshes the next prompt. Install/update preserve your local themes and selection, adding missing bundled themes. Each bundled JSON includes optional `_Comment` field explanations. Themes change text colors, not the terminal background. See [Themes](docs/themes.md) for configuration and reload instructions.
 
 ## Personal settings
 

@@ -108,14 +108,14 @@ upwsh tool uninstall rg
 
 ## 主题
 
-默认主题为 **iWonder**。列出本地主题，或切换主题，无需重启 pwsh：
+默认主题为 **iWonder**，另有 **Glacier**（冷色）、**Ember**（暖色）、**Quiet**（极简）、**Daylight**（浅色终端背景）。列出本地主题，或切换主题，无需重启 pwsh：
 
 ```powershell
 upwsh theme list
-upwsh theme install "iWonder"
+upwsh theme install "Glacier"
 ```
 
-主题位于 `~/.config/upwsh/themes/`，`custom/theme.json` 记录当前主题文件名。切换前先校验，下一次提示符立即应用；安装和更新保留本地主题与选择。颜色、字符和显示选项见[主题说明](docs/themes.md)。
+主题位于 `~/.config/upwsh/themes/`，`custom/theme.json` 记录当前主题文件名。切换前先校验，下一次提示符应用；安装和更新保留本地主题与选择，只补齐缺失的主题。每份模板的 `_Comment` 都有中文字段说明。主题只改文字颜色，不改终端背景。配置和重新加载方法见[主题说明](docs/themes.zh-CN.md)。
 
 ## 个人配置
 
