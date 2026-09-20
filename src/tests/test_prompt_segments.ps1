@@ -197,6 +197,13 @@ try {
             Assert-Equal (Get-UpwshPromptText -Color Auto) '$(throw "do not execute")'
         } finally { $env:NO_COLOR = $saved }
     }
+    Test-Segments 'failed render never mutates the next successful symbol style' {
+        Use-Theme (New-Theme)
+        $before = Get-UpwshPromptText -Color Always
+        $null = Get-UpwshPromptText -Succeeded $false -ExitCode 7 -Color Always
+        Assert-Equal (Get-UpwshPromptText -Color Always) $before
+        Assert-Equal (Get-UpwshTheme).Modules.symbol.Background 'transparent'
+    }
 } finally { Pop-Location }
 if ($script:Failures.Count) {
     $script:Failures | ForEach-Object { Write-Error $_ -ErrorAction Continue }

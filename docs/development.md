@@ -77,6 +77,7 @@ pwsh -NoLogo -NoProfile -File src/tests/bench_interaction.ps1 -Files 1000 -Sampl
 pwsh -NoLogo -NoProfile -File src/tests/bench_git_completion.ps1 -Samples 20
 ```
 
+- `bench_startup.py --baseline <snapshot>/src/profile.ps1 --candidate src/profile.ps1 --runs 7` alternates fresh ConPTY processes and reports startup-to-input-ready medians and ranges. Use `--output <file.json>` to retain samples and `--max-ratio 0.95` to require at least a 5% median reduction. This measures process startup, profile loading, first rendering and input setup together, not reboot-cold disk access or the terminal application's window painting. Each process uses a temporary user home; configured themes/custom files come from the supplied runtime trees. Without a ratio gate, completion means measurements were collected, not that an optimization passed.
 - `bench_prompt.ps1` measures profile loading, the first prompt, and empty Enter handling.
 - `bench_console.py` sends Enter through Windows ConPTY. `--completion` creates a temporary Git repository, types `git pull origin `, and presses Tab without executing the command. It checks that listing candidates preserves the buffer and does not rerun the prompt renderer or emit prompt-boundary events. `--lifecycle` checks actual Ctrl+L/Ctrl+C, multiline cancellation, alternate submission, failure, and interruption behavior. It requires Python and uses only the standard library.
 - `bench_term.ps1` reports OSC formatting time, byte count, and sequence count; `bench_console.py --osc` verifies protocol order on the wire.
