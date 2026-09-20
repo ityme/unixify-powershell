@@ -15,6 +15,7 @@ pwsh -NoLogo -NoProfile -File src/tests/test_git_completion.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_git_cache.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_prompt_renderer.ps1
+pwsh -NoLogo -NoProfile -File src/tests/test_prompt_segments.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_theme.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_term.ps1
 pwsh -NoLogo -NoProfile -File src/tests/test_interaction.ps1
@@ -28,7 +29,7 @@ The test harness uses temporary user homes and profiles and disables persistent 
 
 ## Deployment
 
-Install/update validate staged files before changing the installation. They keep live directories in place because Windows directory handles can prevent whole-tree renames. Changed program files use same-volume file replacement with a backup journal; unchanged files, tools, existing custom settings, and local themes are left in place. Missing custom templates and bundled themes are added and journaled.
+Install/update validate staged files before changing the installation. V2 deployment also checks the headers of existing bundled theme filenames before any program changes; an old theme blocks deployment with backup/replacement instructions rather than being overwritten or left incompatible with the new renderer. They keep live directories in place because Windows directory handles can prevent whole-tree renames. Changed program files use same-volume file replacement with a backup journal; unchanged files, tools, existing custom settings, and local themes are left in place. Missing custom templates and bundled themes are added and journaled.
 
 A caught deployment error restores completed file changes, the profile, and environment settings. A locked program file causes a failure naming that file; the installer does not kill the owning process or require elevation. If rollback itself fails, recovery files remain and their locations are reported. Replacement is atomic per file, not across the entire installation; process termination or power loss is outside this rollback guarantee. Open a new pwsh after a successful update.
 
@@ -57,7 +58,7 @@ pwsh -NoLogo -NoProfile -File src/scripts/sync_path_convert.ps1 -Check
 
 `src/prompt.psm1` reads local `.git/HEAD` directly at a repository root. In subdirectories and worktrees, one local `git rev-parse --git-path HEAD` query locates it (250ms process wait limit). This also works before the first commit. Each actual render reads fresh branch data; only the completed prompt text is cached by `hook.psm1`. Empty Enter and editing redraws neither read Git nor launch subprocesses. Detached HEAD uses a `detached@<short-sha>` label.
 
-The bundled `iWonder` theme in `src/themes/iWonder.json` preserves the user's Starship `pure` visual reference, without parsing TOML or executing Starship. `src/theme.psm1` validates local theme data and persists the selected filename in `custom/theme.json`; changing its revision invalidates the rendered prompt cache. See [Themes](themes.md) for settings and update/uninstall behavior.
+The bundled `iWonder` theme in `src/themes/iWonder.json` preserves the user's Starship `pure` visual reference, without parsing TOML or executing Starship. `src/theme.psm1` accepts only v2 `Order`/`Modules`, validates and fills defaults once per load, and persists the selected filename in `custom/theme.json`. Changing its revision invalidates the rendered prompt cache. The renderer resolves visible built-in data first, then literal text and attached connectors using neighboring visible backgrounds. There is no v1 compatibility layer. See [Themes](themes.md) for settings and update/uninstall behavior.
 
 In iWonder, user/host is `#22C55E`, the italic folder is `#EAB308`, the branch is `#06B6D4`, duration is `#73DACA`, the bold success character is `#0DB447`, and the bold error code and character are `#D15B71`. Both states use `❯` and one trailing space. Failures print the numeric effective exit code immediately before `❯`; there is no `!` or extra error icon. Duration appears at 2,000ms, uses milliseconds (`2s345ms`), and precedes the error code without an extra separator, matching the reference format. The hook reuses the monotonic duration already recorded by terminal reporting, even when OSC is disabled.
 

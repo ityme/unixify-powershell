@@ -1,4 +1,24 @@
 # Shared deployment for install/update. Source acquisition happens before this file is loaded.
+function Test-UpwshThemeHeaders {
+    param([string]$Root, [string[]]$Names)
+
+    foreach ($name in $Names) {
+        $file = Join-Path $Root $name
+        if (-not [IO.File]::Exists($file)) { continue }
+        try {
+            if ([IO.FileInfo]::new($file).Length -gt 65536) { throw 'theme exceeds 64 KiB' }
+            $data = [IO.File]::ReadAllText($file) | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+            if ($data -isnot [Collections.IDictionary] -or
+                ($data.Version -isnot [int] -and $data.Version -isnot [long]) -or $data.Version -ne 2 -or
+                $data.Modules -isnot [Collections.IDictionary] -or $data.Order -isnot [array]) {
+                throw 'requires Version 2 with Order/Modules'
+            }
+        } catch {
+            throw "cannot deploy with theme '$file': $($_.Exception.Message). Back up old themes outside themes/, replace them with v2 files or move them out, then retry. No theme conversion or overwrite is performed."
+        }
+    }
+}
+
 function Test-UpwshRuntime {
     param([string]$Root)
 
@@ -14,6 +34,7 @@ function Test-UpwshRuntime {
             throw "invalid runtime: missing $name"
         }
     }
+    Test-UpwshThemeHeaders -Root (Join-Path $Root 'themes') -Names @(Get-ChildItem -LiteralPath (Join-Path $Root 'themes') -Filter '*.json' -File | ForEach-Object Name)
     $scripts = foreach ($item in Get-ChildItem -LiteralPath $Root -Force) {
         if ($item.Name -in @('tests', 'custom', 'tool', 'bin', '.git')) { continue }
         if ($item.PSIsContainer) {
@@ -149,6 +170,8 @@ function Install-UpwshRuntime {
     if (Test-Path -LiteralPath (Join-Path $targetPath '.git')) { throw 'refusing to replace a git checkout' }
     if (Test-Path -LiteralPath $ProfilePath -PathType Container) { throw "profile path is a directory: $ProfilePath" }
     Test-UpwshRuntime $sourcePath
+    # Retained bundled themes must work with the new renderer before any program file changes.
+    Test-UpwshThemeHeaders -Root (Join-Path $targetPath 'themes') -Names @(Get-ChildItem -LiteralPath (Join-Path $sourcePath 'themes') -Filter '*.json' -File | ForEach-Object Name)
 
     $parent = Split-Path -Parent $targetPath
     [void][IO.Directory]::CreateDirectory($parent)

@@ -115,7 +115,9 @@ upwsh theme list
 upwsh theme install "Glacier"
 ```
 
-主题位于 `~/.config/upwsh/themes/`，`custom/theme.json` 记录当前主题文件名。切换前先校验，下一次提示符应用；安装和更新保留本地主题与选择，只补齐缺失的主题。每份模板的 `_Comment` 都有中文字段说明。主题只改文字颜色，不改终端背景。配置和重新加载方法见[主题说明](docs/themes.zh-CN.md)。
+主题位于 `~/.config/upwsh/themes/`，`custom/theme.json` 记录当前主题文件名。v2 用 `Order` 和 `Modules` 配置独立的用户/主机段、前景/背景色，以及随条件段显隐的自定义文字连接符。每份模板含 `_Comment` 中文说明，切换后下一次提示符应用。
+
+**不再支持 v1 主题。** 部署 v2 前先将旧主题备份到安装目录外；更新仍保留同名文件，发现旧版内置主题时会停止。升级步骤、透明背景和条件箭头配置见[主题说明](docs/themes.zh-CN.md)。
 
 ## 个人配置
 

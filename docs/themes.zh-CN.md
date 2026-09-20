@@ -1,8 +1,8 @@
-# 本地主题
+# 本地主题（v2）
 
 [README](../README.zh-CN.md) · [English](themes.md)
 
-默认主题 **iWonder** 保留原有外观。主题只控制提示符，不运行脚本，也不调用 Starship。
+主题由 **`Order` 排列顺序**和 **`Modules` 分段设置**组成。每段独立设置前景、背景、粗体、斜体及前后文字。自定义段只显示固定文字，不执行 PowerShell。
 
 ## 选择主题
 
@@ -14,100 +14,162 @@ upwsh theme install "iWonder"    # 恢复默认外观
 
 | 主题 | 外观 | 建议终端背景 |
 | --- | --- | --- |
-| [iWonder](../src/themes/iWonder.json) | 绿、黄、青配色，目录斜体，提示字符 `❯` | 深色 |
-| [Glacier](../src/themes/Glacier.json) | 冰蓝目录、淡紫分支，不用斜体 | 深色 |
-| [Ember](../src/themes/Ember.json) | 琥珀目录、暖白分支，不用斜体 | 深色 |
-| [Quiet](../src/themes/Quiet.json) | 中性色；隐藏用户名和耗时；成功 `>`，失败 `!` | 深色 |
-| [Daylight](../src/themes/Daylight.json) | 深蓝目录、深紫分支，不用斜体 | 浅色 |
+| [iWonder](../src/themes/iWonder.json) | 绿、黄、青，目录斜体，提示字符 `❯` | 深色 |
+| [Glacier](../src/themes/Glacier.json) | 冰蓝目录、淡紫分支 | 深色 |
+| [Ember](../src/themes/Ember.json) | 琥珀目录、暖白分支 | 深色 |
+| [Quiet](../src/themes/Quiet.json) | 隐藏用户名和耗时；成功 `>`，失败 `!` | 深色 |
+| [Daylight](../src/themes/Daylight.json) | 深蓝目录、深紫分支 | 浅色 |
 
-五组都显示当前文件夹、Git 分支和失败退出码。除 Quiet 外，都显示用户名和主机名，耗时达到 2 秒时显示执行时间。
+五组主题已改为 v2，外观不变。`user` 与 `host` 已分开，`@` 是可隐藏的自定义段。背景默认为 `transparent`，你可以给每段设置色块。
 
-**主题只改文字前景色。** 背景、字体、字号由 WezTerm 或 Windows Terminal 控制；选择 Daylight 不会自动切成浅色背景。
+## 文件与生效方式
 
-在已加载主题功能的会话中，切换后下一次提示符生效，无需重启。在另一个窗口或通过 `upwsh.cmd` 切换时，本窗口会在下次生成提示符时读取选择，不会在空闲输入过程中自行重绘。
+- `~/.config/upwsh/themes/名称.json`：外观配置。
+- `~/.config/upwsh/custom/theme.json`：选择文件，例如 `{"Theme":"Glacier.json"}`。
+- 没有选择文件时使用 iWonder。
 
-## 配置文件在哪里
+选择后下一次提示符生效。在另一个窗口或通过 `upwsh.cmd` 切换时，本窗口下次生成提示符才会读取选择，不在空闲输入过程中自行重绘。**编辑已选中的主题后，也要再执行一次 `upwsh theme install "名称"`**。解析结果有缓存，不在每次按键时读取整个主题。
 
-```text
-~/.config/upwsh/
-  themes/
-    iWonder.json
-    Glacier.json
-    Ember.json
-    Quiet.json
-    Daylight.json
-  custom/
-    theme.json
-```
+选中无效主题会报错并保留原选择。选择文件损坏或引用不受支持的主题时，已有会话保留上次可用主题，新会话回退到有效的 v2 iWonder。
 
-`themes/名称.json` 保存外观配置。`custom/theme.json` 只记录选择：
+## 从 v1 升级
+
+**只支持 `Version: 2`，不兼容或自动转换 v1。** `Colors`、`Symbols`、`Display` 已删除；不能只把版本号从 1 改成 2。
+
+安装和更新仍保留同名主题文件。为避免部署新渲染器后读到旧默认主题，发现已安装的同名内置主题不是 v2 时，更新会在替换程序文件前停止，指出文件位置。
+
+升级步骤：
+
+1. 将安装目录的整个 `themes/` 备份或移动到安装目录外，例如 `~/.config/upwsh-themes-v1-backup/`，不要覆盖已有备份。
+2. 在项目根目录更新，新模板会填入缺失的位置：
+
+   ```powershell
+   pwsh -NoLogo -NoProfile -File src/scripts/update.ps1 --source src
+   ```
+
+3. 新开 pwsh，执行 `upwsh theme list`，再选择主题。自定义 v1 文件请参考 v2 模板手动重写。
+
+`custom/theme.json` 保留。它若引用已移走的自定义主题，新会话会提示并回退到 iWonder。更新不会替你覆盖、搬走或转换个人主题。后续 v2 更新也只补缺失文件，不覆盖同名文件。
+
+卸载会删除 `themes/`；`--keep-custom` 只保留选择文件，不保留主题文件。卸载前另行备份。
+
+## 最小分段示例
+
+将下面内容保存为 `~/.config/upwsh/themes/My Theme.json`，执行 `upwsh theme install "My Theme"`：
 
 ```json
-{"Theme":"Glacier.json"}
+{
+  "Version": 2,
+  "Name": "My Theme",
+  "Order": ["user", "at", "host", "directory", "symbol", "space"],
+  "Modules": {
+    "user": { "Foreground": "#FFFFFF", "Background": "#2563EB" },
+    "at": {
+      "Type": "text", "Text": "@", "Foreground": "#93C5FD",
+      "Background": "#2563EB", "AttachTo": ["user", "host"]
+    },
+    "host": { "Foreground": "#FDE68A", "Background": "#334155", "Suffix": " " },
+    "directory": { "Foreground": "#EAB308", "Background": "transparent", "Suffix": " " },
+    "symbol": {
+      "Text": "❯", "Foreground": "#22C55E",
+      "Failure": { "Text": "!", "Foreground": "#FCA5A5", "Background": "#7F1D1D" }
+    },
+    "space": { "Type": "text", "Text": " " }
+  }
+}
 ```
 
-没有选择文件时默认使用 iWonder，这是正常状态。选择无效主题时，命令报错并保留原选择；选择文件损坏时，已有会话保留上次可用主题，新会话回退到 iWonder。
+没有隐式空格。用 `Prefix`、`Suffix` 或独立 `text` 段安排间距。模块隐藏时，它自己的前后文字也隐藏。最后的 `space` 使用默认背景，输入开始前渲染器会复位全部 ANSI 样式。
 
-安装或更新会补齐缺失的主题，**不会覆盖同名文件或改变主题选择**。因此，旧版 iWonder 文件不会自动加上新注释；可查看上表链接中的带注释版本，不必覆盖自己的修改。卸载会删除 `themes/`；`--keep-custom` 只保留选择文件，不保留主题文件，卸载前请另行备份自定义主题。
+## 配置项
 
-## 自定义一份主题
+根对象：
 
-在 PowerShell 中复制已安装的模板：
-
-```powershell
-Copy-Item "$HOME/.config/upwsh/themes/iWonder.json" "$HOME/.config/upwsh/themes/My Theme.json"
-notepad "$HOME/.config/upwsh/themes/My Theme.json"
-```
-
-1. 将 `Name` 改为 `My Theme`，与文件名一致，不含 `.json`。
-2. 修改实际的 `Colors`、`Symbols` 和 `Display` 值。
-3. 保存文件，再执行：
-
-```powershell
-upwsh theme install "My Theme"
-```
-
-**修改已选中的主题后，也要再执行一次这条命令。** 程序会重新读取 JSON；平时缓存解析结果，只检查小型选择文件的时间戳和大小，不在每次按键时解析主题。
-
-每个模板末尾的 `_Comment` 都有中文字段说明。它是合法 JSON 元数据，不参与渲染，可保留或删除。修改 `_Comment` 中的文字不会改变外观。使用标准 JSON：字符串加双引号，布尔值写 `true` 或 `false`，不要加引号、尾逗号或 `//` 注释。
-
-## 字段说明
-
-| 字段 | 怎么配置 |
+| 字段 | 规则 |
 | --- | --- |
-| `Version` | 格式版本，保持整数 `1` |
+| `Version` | 整数 `2` |
 | `Name` | 与文件名一致，不含 `.json` |
-| `Colors.UserHost` | 用户名和主机名颜色 |
-| `Colors.Directory` | 目录颜色 |
-| `Colors.Branch` | Git 分支颜色 |
-| `Colors.Duration` | 耗时颜色 |
-| `Colors.Success` | 成功提示字符颜色 |
-| `Colors.Error` | 失败退出码和提示字符颜色 |
-| `Symbols.Success` | 成功提示字符，例如 `❯` 或 `>` |
-| `Symbols.Error` | 失败提示字符，例如 `❯` 或 `!` |
-| `Display.ShowUserHost` | 是否显示 `用户名@主机名` |
-| `Display.ShowGitBranch` | 是否显示分支；`false` 同时跳过渲染时的分支查询 |
-| `Display.ShowDuration` | 是否显示达到门槛的耗时 |
-| `Display.ShowExitCode` | 是否在失败时显示数字退出码 |
-| `Display.DirectoryStyle` | `folder` 只显示末级目录，`path` 显示 Unix 风格路径；家目录显示 `~` |
-| `Display.DirectoryItalic` | 目录是否斜体，需要终端和字体支持 |
-| `Display.SymbolBold` | 成功或失败提示字符是否加粗 |
-| `Display.ErrorBold` | 失败退出码是否加粗 |
-| `Display.DurationMinMs` | 耗时门槛，整数毫秒，范围 `0`–`86400000`；`2000` 为 2 秒 |
-| `_Comment` | 可选说明，不是配置项 |
+| `Order` | 从左到右的模块名称数组，1–128 项，可重复；未列入的段不渲染 |
+| `Modules` | 1–64 个分段设置；内置名称区分大小写，自定义名称以英文字母开头，随后可用英文字母、数字、`_`、`-`，最多 40 字符 |
+| `_Comment` | 可选说明，不参与渲染 |
 
-颜色必须写成 `#RRGGBB`，例如 `#8CC8FF`。提示字符长度为 1–16 个 UTF-16 代码单元，不能包含空白或终端控制字符。主题名以字母或数字开头，支持字母、数字、空格、下划线、短横线，最多 80 个字符，末尾不能有空格。命令中的名称不能包含路径或 `.json` 后缀。
+每段通用选项：
 
-除 `_Comment` 外，模板里的配置项都必须保留。建议复制模板再改，文件不超过 64 KiB。
+| 字段 | 默认值与含义 |
+| --- | --- |
+| `Foreground` | `default`：终端默认文字色；也可填 `#RRGGBB` |
+| `Background` | `transparent`：终端默认背景；也可填 `#RRGGBB` |
+| `Enabled` | `true`；设为 `false` 不显示，也不查询该模块的数据 |
+| `When` | `always`、`success` 或 `failure`；除 `exitCode` 默认 `failure` 外，都默认 `always` |
+| `Bold` / `Italic` | 默认 `false`，是否加粗/斜体 |
+| `Prefix` / `Suffix` | 默认空字符串，使用该段颜色；适合左右留白、括号或标签 |
 
-## 更新本地源码中的主题
+**`transparent` 不是 alpha 透明度，也不是继承上一段背景**，而是显式恢复终端默认背景。终端窗口是否半透明由 WezTerm 等终端控制。颜色只接受六位十六进制，不接受 `#RRGGBBAA`。
 
-在本项目根目录执行：
+内置段及其专有字段：
 
-```powershell
-pwsh -NoLogo -NoProfile -File src/scripts/update.ps1 --source src
+| 名称 | 内容与显示条件 |
+| --- | --- |
+| `user` | 用户名 |
+| `host` | 小写主机名 |
+| `directory` | 当前目录；`Style: "folder"` 为末级目录，`"path"` 为 Unix 风格路径；家目录显示 `~` |
+| `git` | Git 分支；只在文件系统仓库中有值，无仓库或查询失败时隐藏 |
+| `duration` | 上条命令耗时；大于 0 且达到 `MinMs` 才显示。`MinMs` 默认 `2000`，整数范围 `0`–`86400000` |
+| `exitCode` | 默认只显示失败码；有效失败码缺失或为 0 时显示 `1`。显式设 `When: "always"` 可在成功时显示 `0` |
+| `symbol` | `Text` 默认 `❯`；`Failure` 对象可在失败时覆盖 `Text`、`Foreground`、`Background`、`Bold`、`Italic` |
+
+`When` 与数据条件同时满足才显示。例如 `duration.When: "failure"` 表示“失败且耗时达到门槛”。`symbol.Failure` 只覆盖写出的字段，其他值继承成功样式。
+
+## 自定义文字与连接符
+
+自定义名称必须有 `Type: "text"` 和 `Text`。可以放 `@`、空格、三角、缺口等符号，不执行脚本、不插值变量。
+
+`AttachTo` 是可选数组：**数组中的所有内置模块都可见，文字段才显示**。目标必须在 `Order` 中；不支持绑定另一个文字段，避免循环依赖。默认 `[]` 表示独立显示。
+
+例如给耗时加外部括号：
+
+```json
+"timeOpen":  { "Type": "text", "Text": "[", "AttachTo": ["duration"] },
+"duration":  { "Foreground": "#73DACA", "MinMs": 2000 },
+"timeClose": { "Type": "text", "Text": "] ", "AttachTo": ["duration"] }
 ```
 
-更新后新开 pwsh，再执行 `upwsh theme list`。还没安装时，使用 `src/scripts/install.ps1`。
+把 `timeOpen`、`duration`、`timeClose` 连续放进 `Order`。耗时隐藏时两边括号一起消失。若括号不需要不同颜色，更简单的写法是直接给 `duration` 设置 `Prefix: "["` 和 `Suffix: "] "`。
 
-注意：命令行管理的是 `~/.config/upwsh/themes/`，不是仓库的 `src/themes/`。只修改仓库文件，不会改变已安装的同名主题；开发时直接加载 `src/profile.ps1` 才使用源码目录中的主题数据。
+### 箭头自动连接可见段
+
+仅 `text` 的前景/背景支持：
+
+- `previous.background`：前面最近的**可见内置段**背景。
+- `next.background`：后面最近的**可见内置段**背景。
+
+查找时跳过隐藏段及其他 `text` 段，重复引用的连接符按每个位置分别解析。没有邻居时回退到终端默认；当引用颜色用作前景、但邻居背景为 `transparent` 时，回退到 `default`，因为程序不知道终端默认背景的 RGB。
+
+下面是可复制进主题的局部配置（还需保留根对象 `Version`、`Name`）：
+
+```json
+"Order": ["directory", "dirArrow", "git", "gitArrow", "duration", "timeArrow", "exitCode", "errorArrow", "symbol"],
+"Modules": {
+  "directory": { "Foreground": "#FFFFFF", "Background": "#1E40AF", "Prefix": " ", "Suffix": " " },
+  "git": { "Foreground": "#FFFFFF", "Background": "#155E75", "Prefix": " ", "Suffix": " " },
+  "duration": { "Foreground": "#FFFFFF", "Background": "#6B21A8", "Prefix": " ", "Suffix": " " },
+  "exitCode": { "Foreground": "#FFFFFF", "Background": "#991B1B", "Prefix": " ", "Suffix": " " },
+  "symbol": { "Text": " ❯ ", "Foreground": "#22C55E", "Background": "transparent" },
+  "dirArrow": { "Type": "text", "Text": "", "AttachTo": ["directory"], "Foreground": "previous.background", "Background": "next.background" },
+  "gitArrow": { "Type": "text", "Text": "", "AttachTo": ["git"], "Foreground": "previous.background", "Background": "next.background" },
+  "timeArrow": { "Type": "text", "Text": "", "AttachTo": ["duration"], "Foreground": "previous.background", "Background": "next.background" },
+  "errorArrow": { "Type": "text", "Text": "", "AttachTo": ["exitCode"], "Foreground": "previous.background", "Background": "next.background" }
+}
+```
+
+箭头绑定它左边的模块。成功、短耗时、非仓库时，隐藏段连同自己的箭头消失，留下的箭头连接到下一可见段。不要用一个独立、无绑定的箭头夹在每两个条件段之间，那样数据消失后装饰仍会存在。
+
+三角与缺口可拆为连续的两个文字段，分别设置 `Text` 为 ``、``，颜色与 `AttachTo` 相同。它们不会互相影响邻居取色。字符按终端单元格相邻绘制，不能重叠；Powerline 字形的贴合效果取决于终端和字体。
+
+## 校验与开发
+
+模板的 `_Comment` 有中文说明。实际配置写在 `Modules`，修改说明文字不会改变外观。标准 JSON 不使用尾逗号或 `//` 注释；布尔值不加引号。未知字段会报错，避免拼写错误被忽略。
+
+主题名支持字母、数字、空格、`_`、`-`，以字母或数字开头，最多 80 字符，末尾不能有空格。文件不超过 64 KiB。配置文字单项最多 128 个 UTF-16 代码单元，允许空格，但不允许换行或控制字符。
+
+CLI 管理安装目录；仓库的 `src/themes/` 只供源码开发和部署。`src/theme.psm1` 校验并补默认值，`src/prompt.psm1` 先判断可见数据、再渲染文字与连接符。隐藏 Git 段不查询 Git；同一渲染中重复引用 Git 只查询一次。空闲提示符缓存策略不变。

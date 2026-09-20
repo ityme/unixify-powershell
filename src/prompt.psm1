@@ -3,11 +3,34 @@ $script:PromptGitPath = $null
 $script:PromptGitSearchKey = $null
 
 function Get-PromptStyle {
-    param([string]$Color, [bool]$Bold = $false, [bool]$Italic = $false)
+    param([string]$Foreground, [string]$Background, [bool]$Bold, [bool]$Italic)
 
-    $rgb = @(1, 3, 5 | ForEach-Object { [Convert]::ToInt32($Color.Substring($_, 2), 16) }) -join ';'
-    $attributes = $(if ($Bold) { '1;' }) + $(if ($Italic) { '3;' })
-    return "$([char]27)[$($attributes)38;2;${rgb}m"
+    $codes = [Collections.Generic.List[string]]::new()
+    $codes.Add('0')
+    if ($Bold) { $codes.Add('1') }
+    if ($Italic) { $codes.Add('3') }
+    foreach ($channel in @(@($Foreground, '38', '39'), @($Background, '48', '49'))) {
+        if ($channel[0].StartsWith('#')) {
+            $rgb = @(1, 3, 5 | ForEach-Object { [Convert]::ToInt32($channel[0].Substring($_, 2), 16) }) -join ';'
+            $codes.Add("$($channel[1]);2;$rgb")
+        } else { $codes.Add($channel[2]) }
+    }
+    return "$([char]27)[$($codes -join ';')m"
+}
+
+function Test-PromptModuleVisible {
+    param($Module, [bool]$Succeeded)
+    return $Module.Enabled -and ($Module.When -eq 'always' -or
+        ($Succeeded -and $Module.When -eq 'success') -or (-not $Succeeded -and $Module.When -eq 'failure'))
+}
+
+function Resolve-PromptColor {
+    param([string]$Color, $Previous, $Next, [bool]$Background)
+    if ($Color -eq 'previous.background') { $Color = if ($Previous) { $Previous.Background } else { 'transparent' } }
+    elseif ($Color -eq 'next.background') { $Color = if ($Next) { $Next.Background } else { 'transparent' } }
+    # Terminal-default background RGB is unknown; its foreground fallback is terminal-default text.
+    if (-not $Background -and $Color -eq 'transparent') { return 'default' }
+    return $Color
 }
 
 function Get-PromptGitExecutable {
@@ -119,36 +142,83 @@ function Get-UpwshPromptText {
     )
 
     $theme = Get-UpwshTheme
-    $display = $theme.Display
-    $user = if ($env:USERNAME) { $env:USERNAME } else { [Environment]::UserName }
-    $hostName = [Environment]::MachineName.ToLowerInvariant().Split('.')[0]
     $location = $ExecutionContext.SessionState.Path.CurrentLocation
-    $branch = ''
-    if ($location.Provider.Name -eq 'FileSystem') {
-        $path = Get-PromptPathText -Directory $location.ProviderPath -Style $display.DirectoryStyle
-        if ($display.ShowGitBranch) { $branch = Get-PromptGitBranch $location.ProviderPath }
-    } else { $path = $location.Path }
-    $userHost = if ($display.ShowUserHost) { ("$user@$hostName" -replace '[\x00-\x1f\x7f-\x9f]', '') + ' ' } else { '' }
-    $path = ($path -replace '[\x00-\x1f\x7f-\x9f]', '') + ' '
-    $branchText = if ($branch) { ($branch -replace '[\x00-\x1f\x7f-\x9f]', '') + ' ' } else { '' }
-    $duration = if ($display.ShowDuration) { Format-PromptDuration $DurationMs -MinimumMs $display.DurationMinMs } else { '' }
-    $code = if ($Succeeded -or -not $display.ShowExitCode) { '' } elseif ($null -ne $ExitCode -and [string]$ExitCode -notin @('', '0')) { [string]$ExitCode } else { '1' }
-    $code = $code -replace '[\x00-\x1f\x7f-\x9f]', ''
-    $symbol = if ($Succeeded) { $theme.Symbols.Success } else { $theme.Symbols.Error }
+    $values = @{}
+    $styles = @{}
+    # Resolve data once, before decorations. Hidden modules contribute neither padding nor anchors.
+    foreach ($id in $theme.Order) {
+        if ($styles.ContainsKey($id)) { continue }
+        $module = $theme.Modules[$id]
+        if ($module.Type -eq 'text' -or -not (Test-PromptModuleVisible $module $Succeeded)) { continue }
+        $style = @{}
+        foreach ($key in @('Foreground', 'Background', 'Bold', 'Italic')) { $style[$key] = $module[$key] }
+        $value = switch ($module.Type) {
+            'user' { if ($env:USERNAME) { $env:USERNAME } else { [Environment]::UserName } }
+            'host' { [Environment]::MachineName.ToLowerInvariant().Split('.')[0] }
+            'directory' {
+                if ($location.Provider.Name -eq 'FileSystem') { Get-PromptPathText -Directory $location.ProviderPath -Style $module.Style }
+                else { $location.Path }
+            }
+            'git' { if ($location.Provider.Name -eq 'FileSystem') { Get-PromptGitBranch $location.ProviderPath } }
+            'duration' { if ($DurationMs -gt 0) { Format-PromptDuration $DurationMs -MinimumMs $module.MinMs } }
+            'exitCode' {
+                if ($Succeeded) { '0' }
+                elseif ($null -ne $ExitCode -and [string]$ExitCode -notin @('', '0')) { [string]$ExitCode }
+                else { '1' }
+            }
+            'symbol' {
+                if (-not $Succeeded) {
+                    foreach ($key in @('Foreground', 'Background', 'Bold', 'Italic')) {
+                        if ($module.Failure.Contains($key)) { $style[$key] = $module.Failure[$key] }
+                    }
+                }
+                if (-not $Succeeded -and $module.Failure.Contains('Text')) { $module.Failure.Text } else { $module.Text }
+            }
+        }
+        $styles[$id] = $style
+        $value = [string]$value -replace '[\x00-\x1f\x7f-\x9f\u2028\u2029]', ''
+        if ($value.Length) { $values[$id] = $module.Prefix + $value + $module.Suffix }
+    }
+    # Neighbours are visible data modules, not other text decorations. Repeated connectors
+    # resolve independently at their position and skip any number of hidden modules.
+    $nextAt = @{}
+    $next = $null
+    for ($index = $theme.Order.Count - 1; $index -ge 0; $index--) {
+        $nextAt[$index] = $next
+        $id = $theme.Order[$index]
+        if ($values.ContainsKey($id)) { $next = $styles[$id] }
+    }
     $colored = $Color -eq 'Always' -or ($Color -eq 'Auto' -and $Host.Name -eq 'ConsoleHost' -and
         $Host.UI.SupportsVirtualTerminal -and -not [Console]::IsOutputRedirected -and $env:TERM -ne 'dumb' -and $null -eq $env:NO_COLOR)
-    if (-not $colored) { return "$userHost$path$branchText$duration$code$symbol " }
-
-    $reset = "$([char]27)[0m"
-    $palette = $theme.Colors
-    $text = ''
-    if ($userHost) { $text += (Get-PromptStyle $palette.UserHost) + $userHost + $reset }
-    $text += (Get-PromptStyle $palette.Directory -Italic:$display.DirectoryItalic) + $path + $reset
-    if ($branchText) { $text += (Get-PromptStyle $palette.Branch) + $branchText + $reset }
-    if ($duration) { $text += (Get-PromptStyle $palette.Duration) + $duration + $reset }
-    if ($code) { $text += (Get-PromptStyle $palette.Error -Bold:$display.ErrorBold) + $code + $reset }
-    $symbolColor = if ($Succeeded) { $palette.Success } else { $palette.Error }
-    return $text + (Get-PromptStyle $symbolColor -Bold:$display.SymbolBold) + $symbol + $reset + ' '
+    $text = [Text.StringBuilder]::new()
+    $previous = $null
+    for ($index = 0; $index -lt $theme.Order.Count; $index++) {
+        $id = $theme.Order[$index]
+        $module = $theme.Modules[$id]
+        if ($module.Type -eq 'text') {
+            if (-not (Test-PromptModuleVisible $module $Succeeded)) { continue }
+            $attached = $true
+            foreach ($target in $module.AttachTo) { if (-not $values.ContainsKey($target)) { $attached = $false; break } }
+            if (-not $attached -or -not $module.Text.Length) { continue }
+            $value = $module.Prefix + $module.Text + $module.Suffix
+            $style = @{
+                Foreground = Resolve-PromptColor $module.Foreground $previous $nextAt[$index] $false
+                Background = Resolve-PromptColor $module.Background $previous $nextAt[$index] $true
+                Bold = $module.Bold
+                Italic = $module.Italic
+            }
+        } else {
+            if (-not $values.ContainsKey($id)) { continue }
+            $value = $values[$id]
+            $style = $styles[$id]
+            $previous = $style
+        }
+        if ($colored) { [void]$text.Append((Get-PromptStyle @style)) }
+        [void]$text.Append($value)
+    }
+    # Reset before PSReadLine paints input; background must never leak into the command buffer.
+    if ($colored) { [void]$text.Append("$([char]27)[0m") }
+    return $text.ToString()
 }
 
 Export-ModuleMember -Function Get-UpwshPromptText, Get-PromptGitBranch, Get-PromptPathText

@@ -61,20 +61,18 @@ try {
                 $file = Join-Path $themes "$name.json"
                 $data = [IO.File]::ReadAllText($file) | ConvertFrom-Json -AsHashtable
                 Assert-Equal $data.Name $name
-                foreach ($section in @('Colors', 'Symbols', 'Display')) {
-                    foreach ($key in $data[$section].Keys) {
-                        Assert-True (-not [string]::IsNullOrWhiteSpace($data._Comment["$section.$key"])) "missing comment for $name/$section.$key"
-                    }
-                }
+                Assert-Equal $data.Version 2
+                Assert-True ($data._Comment.Contains('AttachTo')) "missing connector documentation in $name"
+                Assert-True ($data._Comment.Contains('Background')) "missing background documentation in $name"
                 Assert-Equal (Invoke-ThemeCli @('theme','install',$name)).Code 0
                 Assert-Equal (Get-UpwshTheme).Name $name
                 $success = if ($name -eq 'Quiet') { '~ > ' } else { "$identity ~ ❯ " }
                 $failure = if ($name -eq 'Quiet') { '~ 7! ' } else { "$identity ~ 2s345ms7❯ " }
                 Assert-Equal (Get-UpwshPromptText -Color Never) $success
                 Assert-Equal (Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 2345 -Color Never) $failure
-                $rgb = @(1, 3, 5 | ForEach-Object { [Convert]::ToInt32($data.Colors.Directory.Substring($_, 2), 16) }) -join ';'
+                $rgb = @(1, 3, 5 | ForEach-Object { [Convert]::ToInt32($data.Modules.directory.Foreground.Substring($_, 2), 16) }) -join ';'
                 $attributes = if ($name -eq 'iWonder') { '3;' } else { '' }
-                Assert-True ((Get-UpwshPromptText -Color Always).Contains("$([char]27)[$($attributes)38;2;${rgb}m~ ")) "wrong directory style for $name"
+                Assert-True ((Get-UpwshPromptText -Color Always).Contains("$([char]27)[0;$($attributes)38;2;${rgb};49m~ ")) "wrong directory style for $name"
                 Assert-Equal (Get-UpwshPromptText -DurationMs 1999 -Color Never) $success
             }
         } finally { $null = Set-UpwshTheme 'iWonder' }
@@ -117,16 +115,13 @@ try {
 
     $alternate = [IO.File]::ReadAllText((Join-Path $themes 'iWonder.json')) | ConvertFrom-Json -AsHashtable
     $alternate.Name = 'Quiet Blue'
-    $alternate.Colors.Directory = '#123456'
-    $alternate.Symbols.Success = '$'
-    $alternate.Symbols.Error = '!'
-    $alternate.Display.ShowUserHost = $false
-    $alternate.Display.ShowGitBranch = $false
-    $alternate.Display.ShowDuration = $false
-    $alternate.Display.ShowExitCode = $false
-    $alternate.Display.DirectoryStyle = 'path'
-    $alternate.Display.DirectoryItalic = $false
-    $alternate.Display.SymbolBold = $false
+    $alternate.Modules.directory.Foreground = '#123456'
+    $alternate.Modules.symbol.Text = '$'
+    $alternate.Modules.symbol.Failure.Text = '!'
+    foreach ($id in @('user', 'host', 'git', 'duration', 'exitCode')) { $alternate.Modules[$id].Enabled = $false }
+    $alternate.Modules.directory.Style = 'path'
+    $alternate.Modules.directory.Italic = $false
+    $alternate.Modules.symbol.Bold = $false
     $alternatePath = Join-Path $themes 'Quiet Blue.json'
     [IO.File]::WriteAllText($alternatePath, ($alternate | ConvertTo-Json -Depth 4))
 
@@ -138,7 +133,7 @@ try {
         Assert-Equal (Get-RenderedPrompt) '~ $ '
         Assert-True ([object]::ReferenceEquals($beforeModule, (Get-Module hook))) 'switch reloaded the runtime'
         Assert-Equal (Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 5000 -Color Never) '~ ! '
-        Assert-True ((Get-UpwshPromptText -Color Always).Contains("$([char]27)[38;2;18;52;86m~ ")) 'theme RGB was not used'
+        Assert-True ((Get-UpwshPromptText -Color Always).Contains("$([char]27)[0;38;2;18;52;86;49m~ ")) 'theme RGB was not used'
         $directory = Join-Path $HOME 'nested\directory'
         [void][IO.Directory]::CreateDirectory($directory)
         Push-Location $directory
@@ -147,7 +142,7 @@ try {
     }
     Test-Theme 'unknown or invalid themes do not replace the active selection' {
         $before = [IO.File]::ReadAllText($selection)
-        [IO.File]::WriteAllText((Join-Path $themes 'Broken.json'), '{"Name":"Broken","Version":1}')
+        [IO.File]::WriteAllText((Join-Path $themes 'Broken.json'), '{"Name":"Broken","Version":2}')
         foreach ($name in @('missing', 'Broken', '../iWonder', 'C:\iWonder', 'iWonder.json')) {
             $result = Invoke-ThemeCli @('theme','install',$name)
             Assert-Equal $result.Code 1
@@ -159,12 +154,28 @@ try {
         $badPath = Join-Path $themes 'Invalid.json'
         $before = [IO.File]::ReadAllText($selection)
         $mutations = @(
-            { param($data) $data.Colors.Directory = 'red' }
-            { param($data) $data.Symbols.Success = "$([char]27)]2;injected$([char]7)" }
-            { param($data) $data.Display.ShowGitBranch = 'true' }
-            { param($data) $data.Display.DurationMinMs = -1 }
-            { param($data) $data.Display.DirectoryStyle = @('folder') }
-            { param($data) $data.Version = '1' }
+            { param($data) $data.Modules.directory.Foreground = 'red' }
+            { param($data) $data.Modules.directory.Background = '#12345678' }
+            { param($data) $data.Modules.directory.Background = 'previous.background' }
+            { param($data) $data.Modules.symbol.Text = "$([char]27)]2;injected$([char]7)" }
+            { param($data) $data.Modules.symbol.Failure.Background = 'red' }
+            { param($data) $data.Modules.directory.Prefix = "bad`nline" }
+            { param($data) $data.Modules.git.Enabled = 'true' }
+            { param($data) $data.Modules.duration.MinMs = -1 }
+            { param($data) $data.Modules.directory.Style = @('folder') }
+            { param($data) $data.Modules.at.AttachTo = @('at') }
+            { param($data) $data.Modules.at.AttachTo = 'user' }
+            { param($data) $data.Modules.at.When = 'sometimes' }
+            { param($data) $data.Modules.at.Command = 'whoami' }
+            { param($data) $data.Modules.at.Type = 'script' }
+            { param($data) $data.Modules.at.Type = @('text') }
+            { param($data) $data.Modules.at.Type = @() }
+            { param($data) $data.Order = @('missing') }
+            { param($data) $data.Order = @('User') }
+            { param($data) $data.Order = 'user' }
+            { param($data) $data.Modules.directory.Forground = '#123456' }
+            { param($data) $data.Version = 1 }
+            { param($data) $data.Version = '2' }
         )
         foreach ($mutate in $mutations) {
             $bad = [IO.File]::ReadAllText((Join-Path $themes 'iWonder.json')) | ConvertFrom-Json -AsHashtable
@@ -202,7 +213,7 @@ try {
         Assert-Equal $child.Text.TrimEnd("`r", "`n") '~ $ '
     }
     Test-Theme 'selecting the same edited theme explicitly reloads its data' {
-        $alternate.Symbols.Success = '»'
+        $alternate.Modules.symbol.Text = '»'
         [IO.File]::WriteAllText($alternatePath, ($alternate | ConvertTo-Json -Depth 4))
         Assert-Equal (Invoke-ThemeCli @('theme','install','Quiet Blue')).Code 0
         Assert-Equal (Get-RenderedPrompt) '~ » '
@@ -232,7 +243,7 @@ try {
         $beforeSelection = [IO.File]::ReadAllText($selection)
         $installedDefault = Join-Path $themes 'iWonder.json'
         $default = [IO.File]::ReadAllText($installedDefault) | ConvertFrom-Json -AsHashtable
-        $default.Colors.Success = '#102030'
+        $default.Modules.symbol.Foreground = '#102030'
         [IO.File]::WriteAllText($installedDefault, ($default | ConvertTo-Json -Depth 4))
         $beforeDefault = [IO.File]::ReadAllText($installedDefault)
         foreach ($name in @('Glacier', 'Ember', 'Quiet', 'Daylight')) {
@@ -247,6 +258,23 @@ try {
         Assert-Equal ([IO.File]::ReadAllText($alternatePath)) $before
         Assert-Equal ([IO.File]::ReadAllText($installedDefault)) $beforeDefault
         Assert-Equal (Get-RenderedPrompt) '~ » '
+    }
+    Test-Theme 'updating over an old bundled theme fails before changing runtime or user files' {
+        $file = Join-Path $themes 'iWonder.json'
+        $saved = [IO.File]::ReadAllText($file)
+        $promptPath = Join-Path $installHome 'prompt.psm1'
+        $beforePrompt = [IO.File]::ReadAllText($promptPath)
+        $beforeSelection = [IO.File]::ReadAllText($selection)
+        try {
+            [IO.File]::WriteAllText($file, '{"Version":1,"Name":"iWonder"}')
+            $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'scripts\update.ps1') -Arguments @('--source', $runtime)
+            Assert-Equal $result.Code 1
+            Assert-True ($result.Text.Contains('Version 2')) $result.Text
+            Assert-True ($result.Text.Contains('Back up')) $result.Text
+            Assert-Equal ([IO.File]::ReadAllText($promptPath)) $beforePrompt
+            Assert-Equal ([IO.File]::ReadAllText($selection)) $beforeSelection
+            Assert-Equal ([IO.File]::ReadAllText($file)) '{"Version":1,"Name":"iWonder"}'
+        } finally { [IO.File]::WriteAllText($file, $saved) }
     }
 } finally { Pop-Location }
 if ($script:Failures.Count) {

@@ -115,7 +115,9 @@ upwsh theme list
 upwsh theme install "Glacier"
 ```
 
-Themes live in `~/.config/upwsh/themes/`; `custom/theme.json` records the selected filename. Switching validates the theme and refreshes the next prompt. Install/update preserve your local themes and selection, adding missing bundled themes. Each bundled JSON includes optional `_Comment` field explanations. Themes change text colors, not the terminal background. See [Themes](docs/themes.md) for configuration and reload instructions.
+Themes live in `~/.config/upwsh/themes/`; `custom/theme.json` records the selected filename. V2 uses `Order` and `Modules` for separate user/host segments, foreground/background colors, and custom text connectors that follow conditional segments. Each bundled JSON includes `_Comment` explanations. Switching refreshes the next prompt.
+
+**V1 themes are no longer supported.** Back up old themes outside the installation before deploying v2; updates preserve existing files and stop if a bundled theme still has an old header. See [Themes](docs/themes.md) for the upgrade steps, transparent backgrounds, and conditional arrows.
 
 ## Personal settings
 

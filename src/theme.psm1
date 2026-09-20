@@ -14,6 +14,29 @@ function Assert-UpwshThemeName {
     }
 }
 
+function Assert-ThemeKeys {
+    param($Data, [string[]]$Allowed, [string]$Context)
+    if ($Data -isnot [Collections.IDictionary]) { throw "expected an object: $Context" }
+    foreach ($key in $Data.Keys) {
+        if ($key -cnotin $Allowed) { throw "unknown setting $Context.$key" }
+    }
+}
+
+function Assert-ThemeText {
+    param($Value, [string]$Context, [int]$Maximum = 128)
+    if ($Value -isnot [string] -or $Value.Length -gt $Maximum -or $Value -match '[\x00-\x1f\x7f-\x9f\u2028\u2029]') {
+        throw "invalid single-line text: $Context"
+    }
+}
+
+function Assert-ThemeColor {
+    param($Value, [string]$Context, [bool]$Background, [bool]$References)
+    $default = if ($Background) { 'transparent' } else { 'default' }
+    if ($Value -is [string] -and ($Value -cmatch '^#[0-9a-fA-F]{6}$' -or $Value -ceq $default -or
+        ($References -and $Value -cin @('previous.background', 'next.background')))) { return }
+    throw "invalid color $Context; use #RRGGBB or $default"
+}
+
 function Read-UpwshTheme {
     param([string]$Name)
     Assert-UpwshThemeName $Name
@@ -22,35 +45,77 @@ function Read-UpwshTheme {
     if ([IO.FileInfo]::new($file).Length -gt 65536) { throw "theme is too large: $Name" }
     $data = [IO.File]::ReadAllText($file) | ConvertFrom-Json -AsHashtable -ErrorAction Stop
     if ($data -isnot [Collections.IDictionary] -or
-        ($data.Version -isnot [int] -and $data.Version -isnot [long]) -or
-        $data.Version -ne 1 -or $data.Name -isnot [string]) {
-        throw "invalid theme header: $Name"
+        ($data.Version -isnot [int] -and $data.Version -isnot [long]) -or $data.Version -ne 2) {
+        throw "theme $Name requires Version 2 (Order/Modules); old formats are not supported"
     }
+    Assert-ThemeKeys $data @('Version', 'Name', 'Order', 'Modules', '_Comment') $Name
+    if ($data.Name -isnot [string]) { throw "invalid theme name: $Name" }
     Assert-UpwshThemeName $data.Name
     if ($data.Name -ine $Name) { throw "theme name does not match its file: $Name" }
-    foreach ($section in @('Colors', 'Symbols', 'Display')) {
-        if ($data[$section] -isnot [Collections.IDictionary]) { throw "missing $section in theme $Name" }
+    if ($data.Modules -isnot [Collections.IDictionary] -or $data.Modules.Count -lt 1 -or $data.Modules.Count -gt 64) {
+        throw "theme $Name requires 1-64 Modules"
     }
-    foreach ($key in @('UserHost', 'Directory', 'Branch', 'Duration', 'Success', 'Error')) {
-        if ($data.Colors[$key] -isnot [string] -or $data.Colors[$key] -notmatch '^#[0-9a-fA-F]{6}$') {
-            throw "invalid color $key in theme $Name; use #RRGGBB"
+    if ($data.Order -isnot [array] -or $data.Order.Count -lt 1 -or $data.Order.Count -gt 128) {
+        throw "theme $Name requires an Order array with 1-128 entries"
+    }
+    $builtins = @('user', 'host', 'directory', 'git', 'duration', 'exitCode', 'symbol')
+    foreach ($id in $data.Modules.Keys) {
+        if ($id -cnotmatch '^[a-zA-Z][a-zA-Z0-9_-]{0,39}$') { throw "invalid module name: $id" }
+        $module = $data.Modules[$id]
+        $type = if ($id -cin $builtins) { $id } else { 'text' }
+        $allowed = @('Type', 'Enabled', 'When', 'Foreground', 'Background', 'Bold', 'Italic', 'Prefix', 'Suffix', '_Comment')
+        switch ($type) {
+            'directory' { $allowed += 'Style' }
+            'duration' { $allowed += 'MinMs' }
+            'symbol' { $allowed += @('Text', 'Failure') }
+            'text' { $allowed += @('Text', 'AttachTo') }
+        }
+        Assert-ThemeKeys $module $allowed "$Name.Modules.$id"
+        if ($type -eq 'text' -and $module.Type -cne 'text') { throw "custom module $id requires Type: text" }
+        if ($module.Contains('Type') -and ($module.Type -isnot [string] -or $module.Type -cne $type)) { throw "invalid Type for module $id" }
+        $module.Type = $type
+        $defaults = @{ Enabled = $true; When = 'always'; Foreground = 'default'; Background = 'transparent'; Bold = $false; Italic = $false; Prefix = ''; Suffix = '' }
+        if ($type -eq 'exitCode') { $defaults.When = 'failure' }
+        if ($type -eq 'directory') { $defaults.Style = 'folder' }
+        if ($type -eq 'duration') { $defaults.MinMs = 2000 }
+        if ($type -eq 'symbol') { $defaults.Text = '❯'; $defaults.Failure = @{} }
+        if ($type -eq 'text') { $defaults.AttachTo = @() }
+        foreach ($key in $defaults.Keys) { if (-not $module.Contains($key)) { $module[$key] = $defaults[$key] } }
+        foreach ($key in @('Enabled', 'Bold', 'Italic')) {
+            if ($module[$key] -isnot [bool]) { throw "invalid boolean $id.$key" }
+        }
+        if ($module.When -isnot [string] -or $module.When -cnotin @('always', 'success', 'failure')) { throw "invalid When for $id" }
+        Assert-ThemeColor $module.Foreground "$id.Foreground" $false ($type -eq 'text')
+        Assert-ThemeColor $module.Background "$id.Background" $true ($type -eq 'text')
+        foreach ($key in @('Prefix', 'Suffix')) { Assert-ThemeText $module[$key] "$id.$key" }
+        if ($type -eq 'directory' -and ($module.Style -isnot [string] -or $module.Style -cnotin @('folder', 'path'))) { throw "invalid directory.Style" }
+        if ($type -eq 'duration' -and (($module.MinMs -isnot [int] -and $module.MinMs -isnot [long]) -or $module.MinMs -lt 0 -or $module.MinMs -gt 86400000)) { throw 'invalid duration.MinMs' }
+        if ($type -in @('symbol', 'text')) { Assert-ThemeText $module.Text "$id.Text" }
+        if ($type -eq 'symbol') {
+            Assert-ThemeKeys $module.Failure @('Text', 'Foreground', 'Background', 'Bold', 'Italic') 'symbol.Failure'
+            foreach ($key in $module.Failure.Keys) {
+                $value = $module.Failure[$key]
+                switch ($key) {
+                    'Text' { Assert-ThemeText $value 'symbol.Failure.Text' }
+                    'Foreground' { Assert-ThemeColor $value 'symbol.Failure.Foreground' $false $false }
+                    'Background' { Assert-ThemeColor $value 'symbol.Failure.Background' $true $false }
+                    default { if ($value -isnot [bool]) { throw "invalid boolean symbol.Failure.$key" } }
+                }
+            }
         }
     }
-    foreach ($key in @('Success', 'Error')) {
-        $symbol = $data.Symbols[$key]
-        if ($symbol -isnot [string] -or $symbol.Length -lt 1 -or $symbol.Length -gt 16 -or $symbol -match '[\s\x00-\x1f\x7f-\x9f]') {
-            throw "invalid symbol $key in theme $Name"
+    foreach ($id in $data.Order) {
+        if ($id -isnot [string] -or $id -cnotin @($data.Modules.Keys)) { throw "unknown module in Order: $id" }
+    }
+    foreach ($id in $data.Modules.Keys) {
+        $module = $data.Modules[$id]
+        if ($module.Type -ne 'text') { continue }
+        if ($module.AttachTo -isnot [array] -or $module.AttachTo.Count -gt 64) { throw "AttachTo must be an array: $id" }
+        foreach ($target in $module.AttachTo) {
+            if ($target -isnot [string] -or $target -cnotin $builtins -or $target -cnotin $data.Order) {
+                throw "AttachTo must name a built-in module in Order: $id"
+            }
         }
-    }
-    foreach ($key in @('ShowUserHost', 'ShowGitBranch', 'ShowDuration', 'ShowExitCode', 'DirectoryItalic', 'SymbolBold', 'ErrorBold')) {
-        if ($data.Display[$key] -isnot [bool]) { throw "invalid boolean $key in theme $Name" }
-    }
-    if ($data.Display.DirectoryStyle -isnot [string] -or $data.Display.DirectoryStyle -cnotin @('folder', 'path')) {
-        throw "invalid DirectoryStyle in theme $Name"
-    }
-    $threshold = $data.Display.DurationMinMs
-    if (($threshold -isnot [int] -and $threshold -isnot [long]) -or $threshold -lt 0 -or $threshold -gt 86400000) {
-        throw "invalid DurationMinMs in theme $Name"
     }
     return $data
 }

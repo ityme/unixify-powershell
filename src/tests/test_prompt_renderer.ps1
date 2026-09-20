@@ -129,15 +129,17 @@ try {
         try {
             $esc = [char]27
             $text = Get-UpwshPromptText -Color Always
-            Assert-Contains $text "$esc[38;2;34;197;94m$identity "
-            Assert-Contains $text "$esc[3;38;2;234;179;8mprompt-repo "
-            Assert-Contains $text "$esc[38;2;6;182;212mdev "
-            Assert-Contains $text "$esc[1;38;2;13;180;71m❯"
+            Assert-Contains $text "$esc[0;38;2;34;197;94;49m$env:USERNAME"
+            Assert-Contains $text "$esc[0;38;2;34;197;94;49m@"
+            Assert-Contains $text "$esc[0;38;2;34;197;94;49m$([Environment]::MachineName.ToLowerInvariant().Split('.')[0]) "
+            Assert-Contains $text "$esc[0;3;38;2;234;179;8;49mprompt-repo "
+            Assert-Contains $text "$esc[0;38;2;6;182;212;49mdev "
+            Assert-Contains $text "$esc[0;1;38;2;13;180;71;49m❯"
             Assert-Equal (Plain $text) "$identity prompt-repo dev ❯ "
             $text = Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 2345 -Color Always
-            Assert-Contains $text "$esc[38;2;115;218;202m2s345ms"
-            Assert-Contains $text "$esc[1;38;2;209;91;113m7"
-            Assert-Contains $text "$esc[1;38;2;209;91;113m❯"
+            Assert-Contains $text "$esc[0;38;2;115;218;202;49m2s345ms"
+            Assert-Contains $text "$esc[0;1;38;2;209;91;113;49m7"
+            Assert-Contains $text "$esc[0;1;38;2;209;91;113;49m❯"
         } finally { Pop-Location }
     }
     Test-PromptRenderer 'redirected output and NO_COLOR stay readable without ANSI' {
