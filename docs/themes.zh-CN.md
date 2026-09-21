@@ -17,15 +17,17 @@ upwsh theme install "pure-default"  # 恢复默认外观
 - **pure-***：`pure-default`（原 iWonder）、`pure-glacier`、`pure-ember`、`pure-quiet`、`pure-daylight`。透明背景，原有外观不变；Daylight 用于浅色终端背景。
 - **colorful-***：`colorful-blue`、`colorful-green`、`colorful-macaron`、`colorful-morandi`、`colorful-cyberpunk`、`colorful-retro`、`colorful-memphis`。用户、主机、目录、Git 使用连续色块；耗时、返回码和提示字符使用透明背景，需要含 Powerline 字形的字体。
 
-主题名称和文件名统一使用小写、短横线。更新不重命名或删除安装目录的旧文件，也不改选择；更新后请显式选择新名字。没有旧名称别名。保留的有效 v2 主题仍可按原文件名使用；无效或已移走的选择会回退到 `pure-default`。
+主题名称和文件名统一使用小写、短横线。更新会刷新内置文件，不会重命名或删除 `custom/themes/` 中的个人主题。没有旧名称别名。
 
 Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON 的 `_Comment.ContrastAdjustments` 列出差异。原 OS / Username 两级配色用于 user / host，没有增加时钟或 OS 模块。整体背景和窗口透明度仍由终端控制。
 
 ## 文件与生效方式
 
-- `~/.config/upwsh/themes/名称.json`：外观配置。
-- `~/.config/upwsh/custom/theme.json`：选择文件，例如 `{"Theme":"colorful-blue.json"}`。
-- 没有选择文件时使用 pure-default。
+内置主题位于 `~/.config/upwsh/themes/`，由 unixify-powershell 管理。每次安装或更新都会用 `src/themes/` 中的新版本强制覆盖。个人主题放在 `~/.config/upwsh/custom/themes/`，更新不会覆盖；同名个人主题优先于内置主题。
+
+选择文件位于 `~/.config/upwsh/custom/theme.json`，例如 `{"Theme":"colorful-blue.json"}`。没有选择文件时使用 pure-default。
+
+布局变更后的第一次更新会把直接放在 `themes/` 下、且不属于内置主题的 JSON 移到 `custom/themes/`。如果目标目录已有同名文件，会保留目标文件，并警告旧文件仍在 `themes/`。需要保留两份时，请先备份安装目录。
 
 选择后下一次提示符生效。在另一个窗口或通过 `upwsh.cmd` 切换时，本窗口下次生成提示符才会读取选择，不在空闲输入过程中自行重绘。**编辑已选中的主题后，也要再执行一次 `upwsh theme install "名称"`**。解析结果有缓存，不在每次按键时读取整个主题。
 
@@ -35,26 +37,13 @@ Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON �
 
 **只支持 `Version: 2`，不兼容或自动转换 v1。** `Colors`、`Symbols`、`Display` 已删除；不能只把版本号从 1 改成 2。
 
-安装和更新仍保留同名主题文件。为避免部署新渲染器后读到旧默认主题，发现已安装的同名内置主题不是 v2 时，更新会在替换程序文件前停止，指出文件位置。
+更新会刷新 `themes/` 下的所有内置主题，补齐缺失文件；`custom/`、`custom/themes/`、工具和个人别名不会被覆盖。布局变更后的第一次更新会迁移旧的非内置主题。新会话会读取选择。自定义 v1 文件请参考 v2 模板手动重写。
 
-升级步骤：
-
-1. 将安装目录的整个 `themes/` 备份或移动到安装目录外，例如 `~/.config/upwsh-themes-v1-backup/`，不要覆盖已有备份。
-2. 在项目根目录更新，新模板会填入缺失的位置：
-
-   ```powershell
-   pwsh -NoLogo -NoProfile -File src/scripts/update.ps1 --source src
-   ```
-
-3. 新开 pwsh，执行 `upwsh theme list`，再选择主题。自定义 v1 文件请参考 v2 模板手动重写。
-
-`custom/theme.json` 保留。它若引用已移走的自定义主题，新会话会提示并回退到 pure-default。更新不会替你覆盖、搬走或转换个人主题。后续 v2 更新也只补缺失文件，不覆盖同名文件。
-
-卸载会删除 `themes/`；`--keep-custom` 只保留选择文件，不保留主题文件。卸载前另行备份。
+卸载会删除 `themes/`；`--keep-custom` 会保留 `custom/`（包括 `custom/themes/`）和选择文件。卸载前另行备份。
 
 ## 最小分段示例
 
-将下面内容保存为 `~/.config/upwsh/themes/My Theme.json`，执行 `upwsh theme install "My Theme"`：
+将下面内容保存为 `~/.config/upwsh/custom/themes/My Theme.json`，执行 `upwsh theme install "My Theme"`：
 
 ```json
 {

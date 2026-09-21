@@ -1,5 +1,6 @@
 # Local theme data and selection. JSON is parsed, never evaluated as PowerShell.
-$script:ThemeRoot = [IO.Path]::Combine($PSScriptRoot, 'themes')
+$script:ThemeBundledRoot = [IO.Path]::Combine($PSScriptRoot, 'themes')
+$script:ThemeCustomRoot = [IO.Path]::Combine($PSScriptRoot, 'custom', 'themes')
 $script:ThemeSelection = [IO.Path]::Combine($PSScriptRoot, 'custom', 'theme.json')
 $script:ThemeCache = $null
 $script:ThemeStamp = $null
@@ -37,11 +38,19 @@ function Assert-ThemeColor {
     throw "invalid color $Context; use #RRGGBB or $default"
 }
 
-function Read-UpwshTheme {
+function Get-UpwshThemeFile {
     param([string]$Name)
     Assert-UpwshThemeName $Name
-    $file = [IO.Path]::Combine($script:ThemeRoot, "$Name.json")
-    if (-not [IO.File]::Exists($file)) { throw "unknown local theme: $Name" }
+    $custom = [IO.Path]::Combine($script:ThemeCustomRoot, "$Name.json")
+    if ([IO.File]::Exists($custom)) { return $custom }
+    $bundled = [IO.Path]::Combine($script:ThemeBundledRoot, "$Name.json")
+    if ([IO.File]::Exists($bundled)) { return $bundled }
+    throw "unknown local theme: $Name"
+}
+
+function Read-UpwshTheme {
+    param([string]$Name)
+    $file = Get-UpwshThemeFile $Name
     if ([IO.FileInfo]::new($file).Length -gt 65536) { throw "theme is too large: $Name" }
     $data = [IO.File]::ReadAllText($file) | ConvertFrom-Json -AsHashtable -ErrorAction Stop
     if ($data -isnot [Collections.IDictionary] -or
@@ -168,12 +177,18 @@ function Get-UpwshThemeList {
     [CmdletBinding()]
     param()
     $active = (Get-UpwshTheme).Name
-    if (-not [IO.Directory]::Exists($script:ThemeRoot)) { return }
-    foreach ($file in Get-ChildItem -LiteralPath $script:ThemeRoot -Filter '*.json' -File | Sort-Object Name) {
+    $files = @{}
+    foreach ($root in @($script:ThemeBundledRoot, $script:ThemeCustomRoot)) {
+        if (-not [IO.Directory]::Exists($root)) { continue }
+        foreach ($file in Get-ChildItem -LiteralPath $root -Filter '*.json' -File) {
+            $files[$file.BaseName] = $file.BaseName
+        }
+    }
+    foreach ($name in @($files.Keys | Sort-Object)) {
         try {
-            $theme = Read-UpwshTheme $file.BaseName
+            $theme = Read-UpwshTheme $name
             [pscustomobject]@{ Name = $theme.Name; Active = $theme.Name -ieq $active }
-        } catch { Write-Warning "upwsh theme: skipping $($file.Name): $($_.Exception.Message)" }
+        } catch { Write-Warning "upwsh theme: skipping $name.json: $($_.Exception.Message)" }
     }
 }
 
@@ -182,7 +197,7 @@ function Set-UpwshTheme {
     param([Parameter(Mandatory)][string]$Name)
     # Fully validate before changing the reference; a bad theme cannot break the current prompt.
     $theme = Read-UpwshTheme $Name
-    [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($script:ThemeSelection))
+    [void][IO.Directory]::CreateDirectory($script:ThemeCustomRoot)
     $temp = $script:ThemeSelection + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         $text = @{ Theme = $theme.Name + '.json' } | ConvertTo-Json -Compress

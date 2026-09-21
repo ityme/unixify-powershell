@@ -150,9 +150,9 @@ Screenshots show sample user/host, branch `dev`, exit code `7`, and duration `2.
 
 For an interactive comparison of all eight command states, download the repository and open **[docs/themes.html](docs/themes.html)** in a browser. It works offline; GitHub may show the HTML source rather than run it.
 
-Themes live in `~/.config/upwsh/themes/`; `custom/theme.json` records the selection. V2 uses `Order` and `Modules` for colors, layout and attached connectors. Each JSON includes Chinese field explanations. Switching refreshes the next prompt; editing requires reselecting the theme.
+Themes live in `~/.config/upwsh/themes/`; personal themes live in `~/.config/upwsh/custom/themes/`; `custom/theme.json` records the selection. V2 uses `Order` and `Modules` for colors, layout and attached connectors. Each JSON includes Chinese field explanations. Switching refreshes the next prompt; editing requires reselecting the theme.
 
-Updates add missing themes and preserve existing files and selection. Old names are not aliases or automatically renamed; select a new name explicitly after updating. **V1 themes are unsupported**: back them up before upgrading. See [Themes](docs/themes.md) for upgrade steps and configuration.
+Updates refresh bundled themes in `themes/` and preserve personal themes in `custom/themes/` plus the selection file. Old names are not aliases or automatically renamed. **V1 themes are unsupported**: back them up before upgrading. See [Themes](docs/themes.md) for upgrade steps and configuration.
 
 ## Personal settings
 

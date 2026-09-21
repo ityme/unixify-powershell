@@ -150,9 +150,9 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 
 想像预览页一样切换八种命令状态，下载仓库后用浏览器打开 **[docs/themes.html](docs/themes.html)**，无需联网或启动服务。GitHub 可能显示 HTML 源码，不直接运行页面。
 
-配置位于 `~/.config/upwsh/themes/`，`custom/theme.json` 记录选择。v2 用 `Order`、`Modules` 配置颜色、排列和连接符，每份 JSON 都有中文字段说明。切换后下一次提示符生效；编辑后需重新选择同一主题。
+内置主题位于 `~/.config/upwsh/themes/`，个人主题位于 `~/.config/upwsh/custom/themes/`，`custom/theme.json` 记录选择。v2 用 `Order`、`Modules` 配置颜色、排列和连接符，每份 JSON 都有中文字段说明。切换后下一次提示符生效；编辑后需重新选择同一主题。
 
-更新只补齐缺失文件，保留原有主题与选择。旧名称没有别名，也不会自动重命名；更新后请显式选择新名称。**不支持 v1 主题**，升级前先备份。升级步骤和配置方式见[主题说明](docs/themes.zh-CN.md)。
+更新会刷新 `themes/` 下的内置主题，保留 `custom/themes/` 中的个人主题和选择文件。旧名称没有别名，也不会自动重命名。**不支持 v1 主题**，升级前先备份。升级步骤和配置方式见[主题说明](docs/themes.zh-CN.md)。
 
 ## 个人配置
 

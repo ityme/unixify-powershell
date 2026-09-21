@@ -19,29 +19,31 @@ The [README gallery](../README.md#themes) introduces all 12 themes with screensh
 - **pure-***: `pure-default` (formerly iWonder), `pure-glacier`, `pure-ember`, `pure-quiet`, `pure-daylight`. Transparent backgrounds; the original appearances are unchanged. Daylight targets light terminal backgrounds.
 - **colorful-***: `colorful-blue`, `colorful-green`, `colorful-macaron`, `colorful-morandi`, `colorful-cyberpunk`, `colorful-retro`, `colorful-memphis`. Connected user/host/directory/Git color blocks, followed by duration, exit code and symbol on transparent backgrounds. Requires Powerline glyphs.
 
-All names and filenames use lowercase hyphenated names. Old installed files and selection are not renamed or deleted; select a new name explicitly after updating. There are no old-name aliases. A retained valid v2 theme still works under its own filename; invalid/removed selections fall back to `pure-default`.
+All names and filenames use lowercase hyphenated names. Updates refresh bundled files and do not rename or delete personal themes under `custom/themes/`. There are no old-name aliases.
 
 Colorful preserves the reference background colors. Some foreground colors were adjusted for readability; each JSON's `_Comment.ContrastAdjustments` lists the differences. The reference OS/username palette steps map to user/host here; no clock or OS module is added. Terminal font, window opacity, and overall background remain terminal settings.
 
 ## Files and upgrading
 
-Themes live in `~/.config/upwsh/themes/`. The optional selection file `custom/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-default is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-default.
+Bundled themes live in `~/.config/upwsh/themes/` and are owned by unixify-powershell. Every install/update replaces these files with the versions from `src/themes/`. Put personal themes in `~/.config/upwsh/custom/themes/`; updates never overwrite that directory. A custom file with the same name takes precedence over its bundled counterpart.
+
+The optional selection file `custom/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-default is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-default.
+
+During the first update after this layout change, non-bundled JSON files still found directly under `themes/` move to `custom/themes/`. Existing files in `custom/themes/` win; a conflicting legacy file stays in `themes/` and the update warns. Back up the install before this migration if you need both copies.
 
 **Only Version 2 is supported.** There is no v1 reader or automatic conversion. `Colors`, `Symbols`, and `Display` no longer exist; changing just the version number is insufficient.
 
-Install/update preserve existing theme files and selection. If an existing bundled filename still has an old header, deployment stops before replacing program files and names the incompatible file. Back up or move the old `themes/` directory outside the installation, without overwriting an existing backup, then update from this repository:
+Install/update refresh every bundled JSON under `themes/`, while preserving `custom/themes/`. During the first update after this layout change, non-bundled JSON files still directly under `themes/` move to `custom/themes/`. If the custom destination already exists, the existing custom file wins and the legacy file stays in place with a warning. Rewrite custom v1 themes from a v2 template before selecting them.
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/scripts/update.ps1 --source src
 ```
 
-Missing v2 presets are installed. Open a new pwsh and select a theme. Rewrite custom themes from a v2 template; a selection referencing a removed custom theme warns and falls back to pure-default. No deployment step overwrites, moves, or converts personal themes. Subsequent updates also add only missing files.
-
-Uninstall removes `themes/`; `--keep-custom` retains the selection file, not the themes. Back up custom themes separately.
+Open a new pwsh and select a theme. Uninstall removes `themes/`; `--keep-custom` retains `custom/`, including `custom/themes/`, and the selection file.
 
 ## Configuration
 
-Save this as `themes/My Theme.json`, then select `My Theme`:
+Save this as `custom/themes/My Theme.json`, then select `My Theme`:
 
 ```json
 {

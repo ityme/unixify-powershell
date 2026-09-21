@@ -326,9 +326,13 @@ if (-not $env:PATH.Contains('C:\keep-path')) { throw 'unrelated path removed' }
 
     Invoke-InstallTest 'uninstall keep-custom keeps only custom files' {
         Install-Fixture $userHome | Out-Null
+        $customTheme = Join-Path $installHome 'custom\themes\personal.json'
+        [void][IO.Directory]::CreateDirectory((Split-Path -Parent $customTheme))
+        [IO.File]::WriteAllText($customTheme, '{}')
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $uninstaller -Arguments @('--keep-custom')
         Assert-Equal $result.Code 0
         Assert-True (Test-Path -LiteralPath (Join-Path $installHome 'custom\alias.ps1')) 'custom removed'
+        Assert-True (Test-Path -LiteralPath $customTheme) 'custom themes removed'
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'profile.ps1'))) 'runtime remained'
     }
 
