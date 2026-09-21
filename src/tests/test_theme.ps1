@@ -68,8 +68,9 @@ try {
                 Assert-Equal (Invoke-ThemeCli @('theme','install',$name)).Code 0
                 Assert-Equal (Get-UpwshTheme).Name $name
                 $colorful = $name.StartsWith('colorful-')
-                $success = if ($colorful) { " $env:USERNAME  $hostName  ~  ❯ " } elseif ($name -eq 'pure-quiet') { '~ > ' } else { "$identity ~ ❯ " }
-                $failure = if ($colorful) { " $env:USERNAME  $hostName  ~  2s345ms 7 ❯ " } elseif ($name -eq 'pure-quiet') { '~ 7! ' } else { "$identity ~ 2s345ms7❯ " }
+                Assert-Equal $data.AddNewline $colorful
+                $success = if ($colorful) { "`n $env:USERNAME  $hostName  ~  ❯ " } elseif ($name -eq 'pure-quiet') { '~ > ' } else { "$identity ~ ❯ " }
+                $failure = if ($colorful) { "`n $env:USERNAME  $hostName  ~  2s345ms7❯ " } elseif ($name -eq 'pure-quiet') { '~ 7! ' } else { "$identity ~ 2s345ms7❯ " }
                 Assert-Equal (Get-UpwshPromptText -Color Never) $success
                 Assert-Equal (Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 2345 -Color Never) $failure
                 $rgb = @(1, 3, 5 | ForEach-Object { [Convert]::ToInt32($data.Modules.directory.Foreground.Substring($_, 2), 16) }) -join ';'
@@ -94,18 +95,31 @@ try {
                     Push-Location $(if ($inRepo) { $repo } else { $HOME })
                     try {
                         foreach ($success in @($true, $false)) {
-                            foreach ($ms in @(0, 2345)) {
-                                $expected = " $env:USERNAME  $hostName  "
-                                $expected += if ($inRepo) { 'colorful-repo  dev ' } else { '~ ' }
-                                if ($ms) { $expected += ' 2s345ms' }
-                                if (-not $success) { $expected += ' 7' }
-                                $expected += ' ❯ '
+                            foreach ($ms in @(0, 2345, 6418)) {
+                                $expected = "`n $env:USERNAME  $hostName  "
+                                $expected += if ($inRepo) { 'colorful-repo  dev  ' } else { '~  ' }
+                                if ($ms -eq 2345) { $expected += '2s345ms' }
+                                if ($ms -eq 6418) { $expected += '6s418ms' }
+                                if (-not $success) { $expected += '7' }
+                                $expected += '❯ '
                                 Assert-Equal (Get-UpwshPromptText -Succeeded $success -ExitCode 7 -DurationMs $ms -Color Never) $expected
                             }
                         }
                     } finally { Pop-Location }
                 }
             }
+        } finally { $null = Set-UpwshTheme 'pure-default' }
+    }
+    Test-Theme 'cached colorful prompt keeps exactly one leading newline across empty input' {
+        try {
+            $null = Set-UpwshTheme 'colorful-blue'
+            $first = Get-RenderedPrompt
+            Assert-True ($first.StartsWith("`n") -or $first.StartsWith("$([char]27)[0m`n")) 'missing leading blank line'
+            for ($i = 0; $i -lt 3; $i++) {
+                Set-HookPromptInput -Line ''
+                Assert-Equal (Get-RenderedPrompt) $first
+            }
+            Assert-Equal @([regex]::Matches($first, "`n")).Count 1
         } finally { $null = Set-UpwshTheme 'pure-default' }
     }
     Test-Theme 'fresh installations do not provide old-name aliases' {
@@ -191,6 +205,9 @@ try {
         $badPath = Join-Path $themes 'Invalid.json'
         $before = [IO.File]::ReadAllText($selection)
         $mutations = @(
+            { param($data) $data.AddNewline = 'true' }
+            { param($data) $data.AddNewline = 1 }
+            { param($data) $data.AddNewline = $null }
             { param($data) $data.Modules.directory.Foreground = 'red' }
             { param($data) $data.Modules.directory.Background = '#12345678' }
             { param($data) $data.Modules.directory.Background = 'previous.background' }

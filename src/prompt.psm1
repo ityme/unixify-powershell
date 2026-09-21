@@ -216,6 +216,11 @@ function Get-UpwshPromptText {
         if ($colored) { [void]$text.Append((Get-PromptStyle @style)) }
         [void]$text.Append($value)
     }
+    if ($theme.AddNewline -and $text.Length) {
+        # The blank line belongs to the returned prompt, so PSReadLine redraws it in place.
+        # Reset a previous command's background before emitting that line.
+        [void]$text.Insert(0, $(if ($colored) { "$([char]27)[0m`n" } else { "`n" }))
+    }
     # Reset before PSReadLine paints input; background must never leak into the command buffer.
     if ($colored) { [void]$text.Append("$([char]27)[0m") }
     return $text.ToString()

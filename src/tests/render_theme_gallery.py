@@ -112,6 +112,10 @@ def main():
         assert ('dev' in plain) == row['Repo']
         assert ('2s345ms' in plain) == (row['Ms'] == 2345 and row['Name'] != 'pure-quiet')
         assert ('7' in plain) != row['Success']
+        assert plain.startswith('\n') == themes[row['Name']]['AddNewline']
+        if row['Name'].startswith('colorful-'):
+            tail = ('2s345ms' if row['Ms'] else '') + ('' if row['Success'] else '7') + '❯ '
+            assert plain.endswith(' ' + tail)
     states = [(repo, success, ms) for repo in [True, False] for success in [True, False] for ms in [0, 2345]]
     options = ''.join(f'<option value="{i}" {"selected" if i == 3 else ""}>{"Git" if repo else "No Git"} · {"success" if success else "exit 7"} · {"2.345 s" if ms else "short command"}</option>' for i, (repo, success, ms) in enumerate(states))
     groups = []
@@ -121,13 +125,13 @@ def main():
             if not name.startswith(series + '-'):
                 continue
             samples = [row for row in renders if row['Name'] == name]
-            examples = ''.join(f'<pre data-state="{i}" tabindex="0" aria-label="{name} prompt" {"hidden" if i != 3 else ""}>{ansi_html(row["Text"])}</pre>' for i, row in enumerate(samples))
+            examples = ''.join(f'<pre data-state="{i}" tabindex="0" aria-label="{name} prompt" {"hidden" if i != 3 else ""}>{ansi_html(row["Text"]).replace(chr(10), '<span></span>' + chr(10))}</pre>' for i, row in enumerate(samples))
             comment = themes[name]['_Comment']
             notes = ''
             if series == 'colorful':
                 notes = '<details><summary>Palette adjustments / 配色调整</summary><ul>' + ''.join('<li>' + html.escape(s) + '</li>' for s in comment['ContrastAdjustments']) + '</ul></details>'
             entries.append(f'<article><h3><a href="../src/themes/{name}.json">{name}</a></h3><p>{html.escape(description)}</p><div class="sample {"light" if name == "pure-daylight" else ""}">{examples}</div>{notes}</article>')
-        introduction = 'Transparent backgrounds, colored text. Default: pure-default.' if series == 'pure' else 'Connected color blocks. Duration, exit code and prompt symbol keep transparent backgrounds.'
+        introduction = 'Transparent backgrounds, colored text. No added blank line. Default: pure-default.' if series == 'pure' else 'Connected color blocks with one blank line before each prompt. Duration, exit code and symbol join without extra spaces.'
         groups.append(f'<section id="{series}"><h2>{series}-*</h2><p>{introduction}</p>' + ''.join(entries) + '</section>')
     page = '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>upwsh theme gallery</title><style>

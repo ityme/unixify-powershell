@@ -10,6 +10,7 @@
     "directoryArrow",
     "git",
     "gitArrow",
+    "statusSpace",
     "duration",
     "exitCode",
     "symbol",
@@ -81,26 +82,30 @@
       "Foreground": "#73daca",
       "Background": "transparent",
       "MinMs": 2000,
-      "Prefix": " "
+      "Prefix": ""
     },
     "exitCode": {
       "Foreground": "#d15b71",
       "Background": "transparent",
       "When": "failure",
       "Bold": true,
-      "Prefix": " "
+      "Prefix": ""
     },
     "symbol": {
       "Text": "❯",
       "Foreground": "#0db447",
       "Background": "transparent",
       "Bold": true,
-      "Prefix": " ",
+      "Prefix": "",
       "Failure": {
         "Foreground": "#d15b71"
       }
     },
     "inputSpace": {
+      "Type": "text",
+      "Text": " "
+    },
+    "statusSpace": {
       "Type": "text",
       "Text": " "
     }
@@ -133,6 +138,9 @@
     "Mapping": "user←os, host←user, directory←dir, git←env；不增加时钟/OS 数据，目录保持 folder。耗时用 fg_notify，不使用未被参考格式引用的 bg_duration。",
     "ContrastAdjustments": [
       "host 文字 #FFFFFF → #000000（对比 4.32 → 4.86:1）"
-    ]
-  }
+    ],
+    "AddNewline": "提示符前是否增加一个空行；pure 系列关闭，colorful 系列开启。",
+    "StatusSpacing": "statusSpace 在色块末尾插入一个空格；duration、exitCode、symbol 直接相连，例如 6s418ms1❯。"
+  },
+  "AddNewline": true
 }

@@ -48,7 +48,9 @@ function Read-UpwshTheme {
         ($data.Version -isnot [int] -and $data.Version -isnot [long]) -or $data.Version -ne 2) {
         throw "theme $Name requires Version 2 (Order/Modules); old formats are not supported"
     }
-    Assert-ThemeKeys $data @('Version', 'Name', 'Order', 'Modules', '_Comment') $Name
+    Assert-ThemeKeys $data @('Version', 'Name', 'AddNewline', 'Order', 'Modules', '_Comment') $Name
+    if (-not $data.Contains('AddNewline')) { $data.Add('AddNewline', $false) }
+    if ($data.AddNewline -isnot [bool]) { throw "invalid AddNewline in theme $Name" }
     if ($data.Name -isnot [string]) { throw "invalid theme name: $Name" }
     Assert-UpwshThemeName $data.Name
     if ($data.Name -ine $Name) { throw "theme name does not match its file: $Name" }

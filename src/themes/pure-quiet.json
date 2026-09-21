@@ -100,6 +100,8 @@
     "symbol.Failure": "失败时覆盖 Text、Foreground、Background、Bold、Italic；未写的值继承 symbol。",
     "Reload": "放入 ~/.config/upwsh/themes/ 后执行 upwsh theme install \"名称\"。编辑已选主题后再次执行；下一次提示符生效。",
     "_Comment": "本对象只作说明，可删除。修改它不会改变实际配置。JSON 不使用 // 注释。",
-    "Theme": "隐藏用户名和耗时，只留目录、分支与状态；失败显示数字和 !。"
-  }
+    "Theme": "隐藏用户名和耗时，只留目录、分支与状态；失败显示数字和 !。",
+    "AddNewline": "提示符前是否增加一个空行；pure 系列关闭，colorful 系列开启。"
+  },
+  "AddNewline": false
 }

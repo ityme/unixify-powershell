@@ -62,6 +62,8 @@ Save this as `themes/My Theme.json`, then select `My Theme`:
 }
 ```
 
+The optional root boolean `AddNewline` adds one blank line before a nonempty prompt; omitted means `false`. Bundled pure themes disable it, colorful themes enable it. This is a whole terminal row; finer line spacing belongs in terminal settings.
+
 `Order` accepts 1–128 names and can repeat a segment. Only listed segments render. `Modules` accepts 1–64 definitions. Built-in identifiers are case-sensitive; custom identifiers start with an ASCII letter, followed by letters, digits, `_`, or `-`, up to 40 characters.
 
 | Common field | Default and meaning |
@@ -74,7 +76,7 @@ Save this as `themes/My Theme.json`, then select `My Theme`:
 | `Prefix`, `Suffix` | Empty strings; render only with visible content, in that segment's style |
 | `_Comment` | Optional documentation, ignored by rendering |
 
-There are no implicit spaces. Use prefix/suffix or a separate text segment. `transparent` explicitly resets the background; it does not inherit the preceding segment or specify alpha opacity. Six-digit colors only; `#RRGGBBAA` is invalid. The renderer resets all styles before command input.
+There are no implicit spaces. Colorful uses one `statusSpace` after the color strip, then joins duration, exit code and symbol: `6s418ms1❯`, `1❯`, or `❯`. Use prefix/suffix or a separate text segment. `transparent` explicitly resets the background; it does not inherit the preceding segment or specify alpha opacity. Six-digit colors only; `#RRGGBBAA` is invalid. The renderer resets all styles before command input.
 
 | Built-in segment | Content and settings |
 | --- | --- |

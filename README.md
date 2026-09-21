@@ -144,6 +144,8 @@ upwsh theme install "pure-default"
 
 Colorful follows the approved `starship-colorful.toml` palette reference. User, host, folder and Git form a connected strip; duration, exit code and `❯` keep transparent backgrounds. Missing Git, short commands and successful commands hide their conditional segments without leaving orphan arrows. Foreground readability corrections are recorded in each JSON's `_Comment.ContrastAdjustments`.
 
+Colorful enables `AddNewline` for one blank line before the prompt; pure disables it. One space follows the color strip, then duration, exit code and symbol join as in pure: ` 6s418ms1❯`.
+
 Screenshots show sample user/host, branch `dev`, exit code `7`, and duration `2.345s`; Quiet hides duration. Dark previews use `#1a1b26`, Daylight uses white. Terminal backgrounds are not changed by selecting a theme. **Colorful needs Powerline glyphs**, for example JetBrainsMono Nerd Font.
 
 For an interactive comparison of all eight command states, download the repository and open **[docs/themes.html](docs/themes.html)** in a browser. It works offline; GitHub may show the HTML source rather than run it.

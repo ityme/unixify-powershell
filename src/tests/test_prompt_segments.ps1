@@ -197,6 +197,22 @@ try {
             Assert-Equal (Get-UpwshPromptText -Color Auto) '$(throw "do not execute")'
         } finally { $env:NO_COLOR = $saved }
     }
+    Test-Segments 'AddNewline is opt-in, resets background and never accumulates on repeated renders' {
+        $data = New-Theme
+        Use-Theme $data
+        $plain = Get-UpwshPromptText -Color Never
+        $colored = Get-UpwshPromptText -Color Always
+        Assert-Equal (Get-UpwshTheme).AddNewline $false
+        $data.AddNewline = $true
+        Use-Theme $data
+        for ($i = 0; $i -lt 3; $i++) {
+            Assert-Equal (Get-UpwshPromptText -Color Never) ("`n" + $plain)
+            Assert-Equal (Get-UpwshPromptText -Color Always) ("$esc[0m`n" + $colored)
+        }
+        $data.AddNewline = $false
+        Use-Theme $data
+        Assert-Equal (Get-UpwshPromptText -Color Never) $plain
+    }
     Test-Segments 'failed render never mutates the next successful symbol style' {
         Use-Theme (New-Theme)
         $before = Get-UpwshPromptText -Color Always
