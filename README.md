@@ -112,8 +112,8 @@ Two families, 12 local themes. **`pure-default`** is the default (formerly iWond
 
 ```powershell
 upwsh theme list
-upwsh theme install "colorful-blue"
-upwsh theme install "pure-default"
+upwsh theme use "colorful-blue"
+upwsh theme use "pure-default"
 ```
 
 ### pure-* · transparent backgrounds

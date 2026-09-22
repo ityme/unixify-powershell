@@ -60,7 +60,7 @@ try {
         $custom.Modules.symbol.Text = '$'
         [IO.File]::WriteAllText($customPath, ($custom | ConvertTo-Json -Depth 8))
         try {
-            Assert-Equal (Invoke-ThemeCli @('theme','install','colorful-blue')).Code 0
+            Assert-Equal (Invoke-ThemeCli @('theme','use','colorful-blue')).Code 0
             Assert-Equal (Get-UpwshPromptText -Color Never) "`n $env:USERNAME  $hostName  ~  $ "
             Assert-True ((Invoke-ThemeCli @('theme','list')).Text.Contains('* colorful-blue')) 'custom active theme missing'
         } finally { Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-default' }
@@ -74,7 +74,7 @@ try {
         $custom.Name = 'colorful-blue'
         [IO.File]::WriteAllText($customPath, ($custom | ConvertTo-Json -Depth 8))
         try {
-            Assert-Equal (Invoke-ThemeCli @('theme','install','colorful-blue')).Code 0
+            Assert-Equal (Invoke-ThemeCli @('theme','use','colorful-blue')).Code 0
             Assert-Equal (Get-UpwshPromptText -Color Never) "`n $env:USERNAME  $hostName  ~  $ "
         } finally { Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-default' }
     }
@@ -91,7 +91,7 @@ try {
                 Assert-Equal $data.Version 2
                 Assert-True ($data._Comment.Contains('AttachTo')) "missing connector documentation in $name"
                 Assert-True ($data._Comment.Contains('Background')) "missing background documentation in $name"
-                Assert-Equal (Invoke-ThemeCli @('theme','install',$name)).Code 0
+                Assert-Equal (Invoke-ThemeCli @('theme','use',$name)).Code 0
                 Assert-Equal (Get-UpwshTheme).Name $name
                 $colorful = $name.StartsWith('colorful-')
                 Assert-Equal $data.AddNewline $colorful
@@ -173,19 +173,19 @@ try {
     Test-Theme 'invalid theme command shapes show usage' {
         $cases = @(
             ,@('theme')
-            ,@('theme','install')
+            ,@('theme','use')
             ,@('theme','list','extra')
             ,@('theme','unknown')
         )
         foreach ($tokens in $cases) {
             $result = Invoke-ThemeCli $tokens
             Assert-Equal $result.Code 2
-            Assert-True ($result.Text.Contains('upwsh theme')) 'missing theme usage'
+            Assert-True ($result.Text.Contains('upwsh theme use')) 'missing theme usage'
         }
         Assert-Equal (Invoke-ThemeCli @('theme','--help')).Code 0
     }
     Test-Theme 'selecting pure-default persists only a local filename reference' {
-        $result = Invoke-ThemeCli @('theme','install','pure-default')
+        $result = Invoke-ThemeCli @('theme','use','pure-default')
         Assert-Equal $result.Code 0
         Assert-Equal (([IO.File]::ReadAllText($selection) | ConvertFrom-Json).Theme) 'pure-default.json'
     }
@@ -206,7 +206,7 @@ try {
     Test-Theme 'theme install refreshes current prompt without reloading modules' {
         $beforeModule = Get-Module hook
         $null = Get-RenderedPrompt
-        $result = Invoke-ThemeCli @('theme','install','Quiet Blue')
+        $result = Invoke-ThemeCli @('theme','use','Quiet Blue')
         Assert-Equal $result.Code 0
         Assert-Equal (Get-RenderedPrompt) '~ $ '
         Assert-True ([object]::ReferenceEquals($beforeModule, (Get-Module hook))) 'switch reloaded the runtime'
@@ -222,7 +222,7 @@ try {
         $before = [IO.File]::ReadAllText($selection)
         [IO.File]::WriteAllText((Join-Path $themes 'Broken.json'), '{"Name":"Broken","Version":2}')
         foreach ($name in @('missing', 'Broken', '../pure-default', 'C:\pure-default', 'pure-default.json')) {
-            $result = Invoke-ThemeCli @('theme','install',$name)
+            $result = Invoke-ThemeCli @('theme','use',$name)
             Assert-Equal $result.Code 1
             Assert-Equal ([IO.File]::ReadAllText($selection)) $before
         }
@@ -263,11 +263,11 @@ try {
             $bad.Name = 'Invalid'
             & $mutate $bad
             [IO.File]::WriteAllText($badPath, ($bad | ConvertTo-Json -Depth 4))
-            Assert-Equal (Invoke-ThemeCli @('theme','install','Invalid')).Code 1
+            Assert-Equal (Invoke-ThemeCli @('theme','use','Invalid')).Code 1
             Assert-Equal ([IO.File]::ReadAllText($selection)) $before
         }
         [IO.File]::WriteAllText($badPath, 'not json')
-        Assert-Equal (Invoke-ThemeCli @('theme','install','Invalid')).Code 1
+        Assert-Equal (Invoke-ThemeCli @('theme','use','Invalid')).Code 1
         Assert-Equal ([IO.File]::ReadAllText($selection)) $before
         $listed = @(Get-UpwshThemeList -WarningAction SilentlyContinue)
         Assert-True ('Invalid' -notin $listed.Name -and 'Broken' -notin $listed.Name) 'invalid theme was listed'
@@ -281,12 +281,12 @@ try {
         } finally { & $module { param($body) Set-Item Function:Get-PromptGitBranch $body } $saved }
     }
     Test-Theme 'theme selection from -File is picked up on the next parent prompt' {
-        $result = Invoke-UpwshTestProcess -UserHome $HOME -File $entry -Arguments @('theme','install','pure-default')
+        $result = Invoke-UpwshTestProcess -UserHome $HOME -File $entry -Arguments @('theme','use','pure-default')
         Assert-Equal $result.Code 0
         Assert-Equal (Get-RenderedPrompt) "$identity ~ ❯ "
     }
     Test-Theme 'new pwsh loads the selected theme' {
-        $result = Invoke-ThemeCli @('theme','install','Quiet Blue')
+        $result = Invoke-ThemeCli @('theme','use','Quiet Blue')
         Assert-Equal $result.Code 0
         $command = '. ' + (ConvertTo-TestLiteral (Join-Path $installHome 'profile.ps1')) + '; Get-UpwshPromptText -Color Never'
         $child = Invoke-UpwshTestProcess -UserHome $HOME -Command $command
@@ -296,7 +296,7 @@ try {
     Test-Theme 'selecting the same edited theme explicitly reloads its data' {
         $alternate.Modules.symbol.Text = '»'
         [IO.File]::WriteAllText($alternatePath, ($alternate | ConvertTo-Json -Depth 4))
-        Assert-Equal (Invoke-ThemeCli @('theme','install','Quiet Blue')).Code 0
+        Assert-Equal (Invoke-ThemeCli @('theme','use','Quiet Blue')).Code 0
         Assert-Equal (Get-RenderedPrompt) '~ » '
     }
     Test-Theme 'malformed reference is recoverable without breaking an existing prompt' {
@@ -305,7 +305,7 @@ try {
         $theme = Get-UpwshTheme -Reload -WarningVariable warnings -WarningAction SilentlyContinue
         Assert-Equal $theme.Name 'Quiet Blue'
         Assert-True ($warnings.Count -gt 0) 'invalid reference was silent'
-        Assert-Equal (Invoke-ThemeCli @('theme','install','pure-default')).Code 0
+        Assert-Equal (Invoke-ThemeCli @('theme','use','pure-default')).Code 0
         Assert-Equal (Get-RenderedPrompt) "$identity ~ ❯ "
     }
     Test-Theme 'a malformed reference in a fresh shell falls back to pure-default' {
@@ -319,7 +319,7 @@ try {
         } finally { [IO.File]::WriteAllText($selection, $saved) }
     }
     Test-Theme 'update replaces bundled themes and preserves custom themes' {
-        Assert-Equal (Invoke-ThemeCli @('theme','install','Quiet Blue')).Code 0
+        Assert-Equal (Invoke-ThemeCli @('theme','use','Quiet Blue')).Code 0
         $before = [IO.File]::ReadAllText($alternatePath)
         $beforeSelection = [IO.File]::ReadAllText($selection)
         $installedDefault = Join-Path $themes 'pure-default.json'

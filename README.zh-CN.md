@@ -112,8 +112,8 @@ upwsh tool uninstall rg
 
 ```powershell
 upwsh theme list
-upwsh theme install "colorful-blue"
-upwsh theme install "pure-default"
+upwsh theme use "colorful-blue"
+upwsh theme use "pure-default"
 ```
 
 ### pure-* · 透明背景

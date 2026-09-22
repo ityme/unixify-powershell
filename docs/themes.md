@@ -6,8 +6,8 @@
 
 ```powershell
 upwsh theme list
-upwsh theme install "colorful-blue"
-upwsh theme install "pure-default"
+upwsh theme use "colorful-blue"
+upwsh theme use "pure-default"
 ```
 
 `list` marks the active theme with `*`. `install` selects an existing local theme, not a download. Editing the selected theme requires running the same selection command again. The next prompt uses the new data; another session's selection does not redraw an idle input line.

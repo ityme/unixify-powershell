@@ -141,19 +141,19 @@ try {
         $result = Invoke-Upwsh -Tokens @('--nope')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'unknown option'
-        Assert-Contains $result.Text 'load'
+        Assert-True ($result.Text -cnotmatch 'These are common upwsh commands') 'error printed full help'
     }
 
     Invoke-UpwshTest 'load and tool together is an error' {
-        $result = Invoke-Upwsh -Tokens @('-l', '-t')
+        $result = Invoke-Upwsh -Tokens @('load', 'tool')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use only one of load, unload, tool, install, uninstall, or update'
+        Assert-Contains $result.Text 'use only one of load, unload, tool, theme, install, uninstall, or update'
     }
 
     Invoke-UpwshTest 'load and unload together is an error' {
         $result = Invoke-Upwsh -Tokens @('load', 'unload')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use only one of load, unload, tool, install, uninstall, or update'
+        Assert-Contains $result.Text 'use only one of load, unload, tool, theme, install, uninstall, or update'
     }
 
     Invoke-UpwshTest 'load before install fails without writing a hook' {
@@ -194,16 +194,34 @@ try {
         } finally { [IO.File]::WriteAllBytes($shim, $beforeShim) }
     }
 
-    Invoke-UpwshTest 'load short flag hooks the profile' {
+    Invoke-UpwshTest 'legacy load short flag is rejected' {
         $result = Invoke-Upwsh -Tokens @('-l')
-        Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'state    installed'
+        Assert-Equal $result.Code 2
+        Assert-Contains $result.Text 'unknown option'
     }
 
     Invoke-UpwshTest 'load again reports installed' {
         $result = Invoke-Upwsh -Tokens @('load')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'state    installed'
+    }
+
+    Invoke-UpwshTest 'tool install requires names or --all' {
+        $missing = Invoke-Upwsh -Tokens @('tool', 'install')
+        Assert-Equal $missing.Code 2
+        Assert-Contains $missing.Text 'tool install <name>'
+        $all = Invoke-Upwsh -Tokens @('tool', 'install', '--all', '--check')
+        Assert-Equal $all.Code 2
+        Assert-Contains $all.Text 'unknown option'
+    }
+
+    Invoke-UpwshTest 'lifecycle options are validated before delegation' {
+        $result = Invoke-Upwsh -Tokens @('update', '--nope')
+        Assert-Equal $result.Code 2
+        Assert-Contains $result.Text 'unknown option'
+        $missing = Invoke-Upwsh -Tokens @('install', '--source')
+        Assert-Equal $missing.Code 2
+        Assert-Contains $missing.Text 'missing value for --source'
     }
 
     Invoke-UpwshTest 'load -u is unknown' {
@@ -244,7 +262,7 @@ try {
     Invoke-UpwshTest 'tool uninstall without a name prints usage' {
         $result = Invoke-Upwsh -Tokens @('tool', 'uninstall')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'missing tool name'
+        Assert-Contains $result.Text 'tool uninstall <name>'
     }
 
     Invoke-UpwshTest 'unknown tool command prints usage' {
@@ -317,7 +335,7 @@ try {
         $savedPath = $env:PATH
         try {
             $env:PATH = $toolBin
-            $result = Invoke-Upwsh -Tokens @('-t', 'list', 'rg')
+            $result = Invoke-Upwsh -Tokens @('tool', 'list', 'rg')
             Assert-Equal $result.Code 0
             Assert-Contains $result.Text 'rg'
             Assert-Contains $result.Text 'uninstalled'

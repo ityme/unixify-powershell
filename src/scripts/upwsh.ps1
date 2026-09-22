@@ -9,7 +9,7 @@
 #   upwsh tool install eza rg
 #   upwsh tool uninstall eza
 #   upwsh theme list
-#   upwsh theme install pure-default
+#   upwsh theme use pure-default
 
 $ErrorActionPreference = 'Stop'
 $script:Arguments = @($args)
@@ -30,13 +30,14 @@ install this runtime
    update           Update installed files; keep custom, tools, and startup loading state
 
 install a listed CLI tool
-   tool install     Download listed CLI tools; names limit the list
+   tool install     Download named tools; --all installs the supported list
    tool uninstall   Remove the named tools from UPWSH_HOME\\tool\\bin
    tool list        List supported tools and whether the shell has them
 
 select a local prompt theme
    theme list       List installed themes; * marks the active theme
-   theme install    Select a local theme by name and refresh the prompt
+   theme use        Select a local theme by name and refresh the prompt
+   theme install    Compatibility alias for theme use
 
 'upwsh --help' prints this overview.
 
@@ -83,15 +84,15 @@ function ConvertFrom-UpwshArguments {
             $result.Help = $true
             return $result
         }
-        '^(--load|-l|load)$' {
+        '^load$' {
             $result.Command = 'load'
             $index = 1
         }
-        '^(--unload|unload)$' {
+        '^unload$' {
             $result.Command = 'unload'
             $index = 1
         }
-        '^(--tool|-t|tool)$' {
+        '^tool$' {
             $result.Command = 'tool'
             $index = 1
         }
@@ -124,12 +125,12 @@ function ConvertFrom-UpwshArguments {
             $result.Help = $true
         } elseif ($rest.Count -eq 1 -and $rest[0] -eq 'list') {
             $result.Action = 'list'
-        } elseif ($rest.Count -eq 2 -and $rest[0] -eq 'install' -and -not $rest[1].StartsWith('-')) {
-            $result.Action = 'install'
+        } elseif ($rest.Count -eq 2 -and $rest[0] -in @('use', 'install') -and -not $rest[1].StartsWith('-')) {
+            $result.Action = 'use'
             $result.Only = @([string]$rest[1])
         } else {
             $result.Help = $true
-            $result.Error = 'usage: upwsh theme list | upwsh theme install <name>'
+            $result.Error = 'usage: upwsh theme list | upwsh theme use <name>'
         }
         return $result
     }
@@ -165,9 +166,25 @@ function ConvertFrom-UpwshArguments {
     }
 
     if ($result.Command -in @('install', 'uninstall', 'update')) {
+        $allowed = @('--help', '-h', '--check', '-c', '--profile', '-p', '--current-host', '--ref', '--repo', '--source')
+        if ($result.Command -eq 'uninstall') { $allowed = @('--help', '-h', '--check', '-c', '--profile', '-p', '--current-host', '--keep-custom') }
         while ($index -lt $tokens.Count) {
-            $result.Rest = @($result.Rest + [string]$tokens[$index])
-            $index++
+            $token = [string]$tokens[$index]
+            if ($token -notin $allowed) {
+                $result.Help = $true
+                $result.Error = "unknown option: $token"
+                return $result
+            }
+            $result.Rest = @($result.Rest + $token)
+            if ($token -in @('--profile', '-p', '--ref', '--repo', '--source')) {
+                if ($index + 1 -ge $tokens.Count) {
+                    $result.Help = $true
+                    $result.Error = "missing value for $token"
+                    return $result
+                }
+                $result.Rest = @($result.Rest + [string]$tokens[$index + 1])
+                $index += 2
+            } else { $index++ }
         }
         return $result
     }
@@ -179,13 +196,13 @@ function ConvertFrom-UpwshArguments {
                 $result.Help = $true
                 return $result
             }
-            '^(--load|-l|load|--unload|unload|--tool|-t|tool|install|uninstall|update)$' {
+            '^(load|unload|tool|theme|install|uninstall|update)$' {
                 $result.Help = $true
-                $result.Error = 'use only one of load, unload, tool, install, uninstall, or update'
+                $result.Error = 'use only one of load, unload, tool, theme, install, uninstall, or update'
                 return $result
             }
             default {
-                if ($result.Command -eq 'tool' -and -not $token.StartsWith('-')) {
+                if ($result.Command -eq 'tool' -and ($token -eq '--all' -or -not $token.StartsWith('-'))) {
                     $result.Only = @($result.Only + $token)
                     $index++
                 } else {
@@ -197,9 +214,14 @@ function ConvertFrom-UpwshArguments {
         }
     }
 
-    if ($result.Command -eq 'tool' -and $result.Action -eq 'uninstall' -and $result.Only.Count -eq 0) {
+    if ($result.Command -eq 'tool' -and $result.Action -in @('install', 'uninstall') -and $result.Only.Count -eq 0) {
         $result.Help = $true
-        $result.Error = 'missing tool name'
+        $result.Error = 'usage: upwsh tool ' + $result.Action + ' <name>... | upwsh tool install --all'
+        return $result
+    }
+    if ($result.Command -eq 'tool' -and $result.Action -eq 'list' -and $result.Only -contains '--all') {
+        $result.Help = $true
+        $result.Error = 'usage: upwsh tool list'
         return $result
     }
 
@@ -294,13 +316,10 @@ $scriptInvocation = $MyInvocation
 if ($parsed.Help -or -not $parsed.Command) {
     if ($parsed.Error) {
         Write-Output "upwsh: $($parsed.Error)"
-        Write-Output ''
-    }
-    Get-UpwshUsage
-    if ($parsed.Error) {
         Complete-Upwsh 2 $scriptInvocation
         return
     }
+    Get-UpwshUsage
     Complete-Upwsh 0 $scriptInvocation
     return
 }
