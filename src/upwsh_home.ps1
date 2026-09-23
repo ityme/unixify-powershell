@@ -7,6 +7,25 @@ function Get-UpwshHome {
     [IO.Path]::GetFullPath([IO.Path]::Combine($HOME, '.config', 'upwsh'))
 }
 
+function Write-UpwshStatus {
+    param(
+        [Parameter(ValueFromRemainingArguments)]
+        [object[]]$Pairs
+    )
+
+    if ($null -eq $Pairs -or $Pairs.Count -eq 0) {
+        return
+    }
+    if ($Pairs.Count % 2 -ne 0) {
+        throw 'Write-UpwshStatus requires key/value pairs'
+    }
+    for ($index = 0; $index -lt $Pairs.Count; $index += 2) {
+        $key = [string]$Pairs[$index]
+        $value = [string]$Pairs[$index + 1]
+        Write-Output ('{0,-8}  {1}' -f $key, $value)
+    }
+}
+
 function Get-UpwshBin {
     [IO.Path]::Combine((Get-UpwshHome), 'bin')
 }
@@ -158,7 +177,7 @@ function Write-UpwshCommandShim {
     if (-not [IO.File]::Exists($shim) -or [IO.File]::ReadAllText($shim) -cne $text) {
         [IO.File]::WriteAllText($shim, $text)
     }
-    Write-Output "cmd     $shim"
+    Write-UpwshStatus cmd $shim
 }
 
 function Add-UpwshUserEnvironment {
@@ -169,9 +188,9 @@ function Add-UpwshUserEnvironment {
     Write-UpwshCommandShim
 
     if ($env:UPWSH_SKIP_PERSIST_PATH) {
-        Write-Output "home    $upwshHome"
+        Write-UpwshStatus home $upwshHome
         foreach ($spec in $specs) {
-            Write-Output "path    $($spec.Literal)"
+            Write-UpwshStatus path $spec.Literal
         }
         return
     }
@@ -179,7 +198,7 @@ function Add-UpwshUserEnvironment {
     $userHome = [Environment]::GetEnvironmentVariable('UPWSH_HOME', 'User')
     if ($userHome -ne $upwshHome) {
         [Environment]::SetEnvironmentVariable('UPWSH_HOME', $upwshHome, 'User')
-        Write-Output "home    $upwshHome"
+        Write-UpwshStatus home $upwshHome
     }
 
     $entries = @(
@@ -192,7 +211,7 @@ function Add-UpwshUserEnvironment {
         Set-UpwshUserPath $updated
         [Environment]::SetEnvironmentVariable('UPWSH_HOME', $upwshHome, 'User')
         foreach ($spec in $specs) {
-            Write-Output "path    $($spec.Literal)"
+            Write-UpwshStatus path $spec.Literal
         }
     }
 }
@@ -214,14 +233,13 @@ function Remove-UpwshUserEnvironment {
     }
 
     if ($env:UPWSH_SKIP_PERSIST_PATH) {
-        Write-Output 'home    removed'
-        Write-Output 'path    removed'
+        Write-UpwshStatus home removed path removed
         return
     }
 
     if ($null -ne (Get-UpwshUserEnvironmentValue 'UPWSH_HOME')) {
         if (Remove-UpwshUserEnvironmentValue 'UPWSH_HOME') {
-            Write-Output 'home    removed'
+            Write-UpwshStatus home removed
         }
     }
 
@@ -233,6 +251,6 @@ function Remove-UpwshUserEnvironment {
     $updated = $entries -join ';'
     if ("$previous" -ne $updated) {
         Set-UpwshUserPath $updated
-        Write-Output 'path    removed'
+        Write-UpwshStatus path removed
     }
 }

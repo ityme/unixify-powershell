@@ -167,8 +167,8 @@ try {
         $result = Invoke-Upwsh -Tokens @('install')
         Assert-Equal $result.Code 0
         Assert-True (Test-Path -LiteralPath $installedProfile) 'install missed runtime'
-        Assert-Contains $result.Text 'command  upwsh'
-        Assert-Contains $result.Text 'state    installed'
+        Assert-Contains $result.Text 'command   upwsh'
+        Assert-Contains $result.Text 'state     installed'
         Assert-Contains $result.Text 'upwsh tool install'
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
@@ -178,11 +178,11 @@ try {
     Invoke-UpwshTest 'load hooks the installed profile' {
         $result = Invoke-Upwsh -Tokens @('load')
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'state    installed'
+        Assert-Contains $result.Text 'state     installed'
         Assert-Contains $result.Text $hook
         Assert-Contains $result.Text $installedProfile
-        Assert-True (-not $result.Text.Contains('path    ')) 'load wrote persistent Path'
-        Assert-True (-not $result.Text.Contains('cmd     ')) 'load rewrote shim'
+        Assert-True (-not $result.Text.Contains('path      ')) 'load wrote persistent Path'
+        Assert-True (-not $result.Text.Contains('cmd       ')) 'load rewrote shim'
         Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'load removed installed shim'
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
@@ -209,7 +209,7 @@ try {
     Invoke-UpwshTest 'load again reports installed' {
         $result = Invoke-Upwsh -Tokens @('load')
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'state    installed'
+        Assert-Contains $result.Text 'state     installed'
     }
 
     Invoke-UpwshTest 'windows amd64 asset matching accepts eza gnu zip' {
@@ -260,9 +260,9 @@ try {
     Invoke-UpwshTest 'unload removes the hook' {
         $result = Invoke-Upwsh -Tokens @('unload')
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'state    removed'
-        Assert-True ($result.Text -notlike '*home    removed*') 'unload removed UPWSH_HOME'
-        Assert-True ($result.Text -notlike '*path    removed*') 'unload removed Path'
+        Assert-Contains $result.Text 'state     removed'
+        Assert-True ($result.Text -notlike '*home      removed*') 'unload removed UPWSH_HOME'
+        Assert-True ($result.Text -notlike '*path      removed*') 'unload removed Path'
         Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'unload deleted upwsh.cmd'
         $text = [IO.File]::ReadAllText($hook)
         Assert-True ($text -notlike '*unixify-powershell*') "unload left the marker:`n$text"

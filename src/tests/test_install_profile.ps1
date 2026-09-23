@@ -98,7 +98,7 @@ try {
 
     Invoke-InstallProfileTest 'check on missing profile reports missing' {
         $output = Invoke-Installer -ProfilePath $hook -Check
-        Assert-Contains $output 'state    missing'
+        Assert-Contains $output 'state     missing'
         Assert-Contains $output $hook
         Assert-Contains $output $installedProfile
         Assert-True (-not (Test-Path -LiteralPath $hook)) 'check created a profile file'
@@ -107,7 +107,7 @@ try {
     Invoke-InstallProfileTest 'install creates a marked hook to the installed runtime' {
         $output = Invoke-Installer -ProfilePath $hook
         $text = [IO.File]::ReadAllText($hook)
-        Assert-Contains $output 'state    installed'
+        Assert-Contains $output 'state     installed'
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text '# <<< unixify-powershell <<<'
         Assert-Contains $text $installedProfile
@@ -145,7 +145,7 @@ try {
 
     Invoke-InstallProfileTest 'check reports installed target' {
         $output = Invoke-Installer -ProfilePath $hook -Check
-        Assert-Contains $output 'state    installed'
+        Assert-Contains $output 'state     installed'
         Assert-Contains $output $installedProfile
     }
 
@@ -155,7 +155,7 @@ try {
         Invoke-Installer -ProfilePath $customHook | Out-Null
         $output = Invoke-Installer -ProfilePath $customHook -Uninstall
         $text = [IO.File]::ReadAllText($customHook)
-        Assert-Contains $output 'state    removed'
+        Assert-Contains $output 'state     removed'
         Assert-Contains $text 'keep-me'
         Assert-True ($text -notlike '*unixify-powershell*') "marker remained:`n$text"
     }
@@ -163,7 +163,7 @@ try {
     Invoke-InstallProfileTest 'uninstall on missing hook is a no-op' {
         $missing = Join-Path $root 'missing.ps1'
         $output = Invoke-Installer -ProfilePath $missing -Uninstall
-        Assert-Contains $output 'state    missing'
+        Assert-Contains $output 'state     missing'
         Assert-True (-not (Test-Path -LiteralPath $missing)) 'uninstall created a file'
     }
 
@@ -172,7 +172,7 @@ try {
         $output = Invoke-Installer -ProfilePath $hook -Destination $deployRoot -Deploy
         $deployedProfile = Join-Path $deployRoot 'profile.ps1'
         $text = [IO.File]::ReadAllText($hook)
-        Assert-Contains $output 'state    deployed'
+        Assert-Contains $output 'state     deployed'
         Assert-True (Test-Path -LiteralPath $deployedProfile -PathType Leaf) 'deploy missed profile.ps1'
         Assert-True (
             Test-Path -LiteralPath (Join-Path $deployRoot 'scripts\install_profile.ps1')
@@ -192,7 +192,7 @@ try {
         New-Item -ItemType Directory -Path $fillCustom -Force | Out-Null
         $output = Invoke-Installer -ProfilePath $hook -Destination $fillRoot -Deploy
         $sample = Join-Path $fillCustom 'alias.ps1'
-        Assert-Contains $output 'state    deployed'
+        Assert-Contains $output 'state     deployed'
         Assert-True (Test-Path -LiteralPath $sample -PathType Leaf) (
             'deploy left an empty custom without alias.ps1'
         )

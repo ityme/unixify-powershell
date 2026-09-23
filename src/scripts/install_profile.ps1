@@ -126,9 +126,7 @@ function Write-InstallStatus {
         [string]$State
     )
 
-    Write-Output ("profile  {0}" -f $HookPath)
-    Write-Output ("target   {0}" -f $TargetPath)
-    Write-Output ("state    {0}" -f $State)
+    Write-UpwshStatus profile $HookPath target $TargetPath state $State
 }
 
 if ($Deploy -and ($Uninstall -or $Check)) {

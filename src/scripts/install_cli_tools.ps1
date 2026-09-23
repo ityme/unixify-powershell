@@ -123,11 +123,11 @@ function Uninstall-CliTool {
 
     $target = Join-Path $Destination $Tool.Exe
     if (-not (Test-Path -LiteralPath $target)) {
-        Write-Output "skip  $($Tool.Name) (missing $target)"
+        Write-UpwshStatus skip "$($Tool.Name)  missing"
         return
     }
     Remove-Item -LiteralPath $target -Force
-    Write-Output "ok    $($Tool.Name) removed $target"
+    Write-UpwshStatus ok "$($Tool.Name)  removed"
 }
 
 function Install-CliTool {
@@ -135,7 +135,7 @@ function Install-CliTool {
 
     $target = Join-Path $Destination $Tool.Exe
     if (Test-Path -LiteralPath $target) {
-        Write-Output "skip  $($Tool.Name) (already $target)"
+        Write-UpwshStatus skip "$($Tool.Name)  already installed"
         return
     }
 
@@ -151,7 +151,7 @@ function Install-CliTool {
     New-Item -ItemType Directory -Path $tempRoot | Out-Null
     try {
         $download = Join-Path $tempRoot $asset.name
-        Write-Output "get   $($Tool.Name) $($release.tag_name) ($($asset.name))"
+        Write-UpwshStatus get "$($Tool.Name)  $($release.tag_name)  $($asset.name)"
         Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $download -UseBasicParsing
 
         if ($asset.name -like '*.zip') {
@@ -168,7 +168,7 @@ function Install-CliTool {
 
         New-Item -ItemType Directory -Path $Destination -Force | Out-Null
         Copy-Item -LiteralPath $extracted.FullName -Destination $target -Force
-        Write-Output "ok    $($Tool.Name) -> $target"
+        Write-UpwshStatus ok "$($Tool.Name)  $target"
     } finally {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -208,7 +208,7 @@ if ($List) {
 }
 
 New-Item -ItemType Directory -Path $Dir -Force | Out-Null
-Write-Output "dir   $Dir"
+Write-UpwshStatus dir $Dir
 foreach ($tool in $selected) {
     if ($Uninstall) {
         Uninstall-CliTool -Tool $tool -Destination $Dir
@@ -231,6 +231,6 @@ if (-not $Uninstall) {
         }
     }
     if (-not $onPath) {
-        Write-Output "warn  $Dir is not on PATH"
+        Write-UpwshStatus warn 'tool bin is not on PATH'
     }
 }

@@ -310,9 +310,11 @@ function Install-UpwshRuntime {
             }
         }
     }
-    Write-Output "home     $targetPath"
-    Write-Output "source   $sourcePath"
-    Write-Output 'state    deployed'
-    $output
-    Write-Output 'command  upwsh'
+    Write-UpwshStatus home $targetPath source $sourcePath state deployed
+    if ($output.Count -gt 0) {
+        Write-Output ''
+        $output
+    }
+    Write-Output ''
+    Write-UpwshStatus command upwsh
 }

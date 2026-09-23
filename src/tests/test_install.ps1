@@ -53,7 +53,7 @@ try {
     Invoke-InstallTest 'source script installs into the fixed user home' {
         $result = Install-Fixture $userHome
         Assert-Contains $result.Text $runtimeRoot
-        Assert-Contains $result.Text 'state    deployed'
+        Assert-Contains $result.Text 'state     deployed'
         Assert-Contains $result.Text '%UPWSH_HOME%\bin'
         Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
         foreach ($file in @('profile.ps1', 'git_completion.psm1', 'bin\upwsh.cmd', 'custom\alias.ps1')) {
@@ -62,10 +62,10 @@ try {
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'tests'))) 'tests were deployed'
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text (Join-Path $installHome 'profile.ps1')
-        Assert-Contains $result.Text 'command  upwsh'
-        Assert-Contains $result.Text 'state    installed'
-        Assert-Contains $result.Text 'missing  '
-        Assert-Contains $result.Text 'install  upwsh tool install '
+        Assert-Contains $result.Text 'command   upwsh'
+        Assert-Contains $result.Text 'state     installed'
+        Assert-Contains $result.Text 'missing   '
+        Assert-Contains $result.Text 'next      upwsh tool install '
         Assert-Contains $result.Text 'eza'
         Assert-True ($result.Text -notlike '*Open a new pwsh*') 'install asked to open a new pwsh'
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'tool\bin\eza.exe'))) 'install downloaded eza'
@@ -82,8 +82,8 @@ try {
             PATH = "$toolDir;$env:PATH"
         }
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'state    installed'
-        Assert-True (-not $result.Text.Contains('missing  ')) 'hinted while tools were present'
+        Assert-Contains $result.Text 'state     installed'
+        Assert-True (-not $result.Text.Contains('missing   ')) 'hinted while tools were present'
         Assert-True (-not $result.Text.Contains('upwsh tool install')) 'install command printed while tools were present'
     }
 
@@ -118,7 +118,7 @@ try {
         $checkHome = Join-Path $root 'check-user'
         $result = Invoke-UpwshTestProcess -UserHome $checkHome -File $installer -Arguments @('--check')
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'state    missing'
+        Assert-Contains $result.Text 'state     missing'
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $checkHome '.config\upwsh'))) 'check deployed runtime'
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $checkHome 'test-profile.ps1'))) 'check wrote profile'
     }
@@ -202,7 +202,7 @@ exit $LASTEXITCODE
         Assert-Equal $result.Code 0
         Assert-True (-not ([IO.File]::ReadAllText($hook)).Contains('# >>> unixify-powershell >>>')) 'hook remained'
         Assert-True (Test-Path -LiteralPath (Join-Path $installHome 'bin\upwsh.cmd')) 'unload removed shim'
-        Assert-True (-not $result.Text.Contains('path    removed')) 'unload removed Path'
+        Assert-True (-not $result.Text.Contains('path      removed')) 'unload removed Path'
     }
 
     Invoke-InstallTest 'load from the project still targets the installed profile' {
@@ -245,7 +245,7 @@ exit $LASTEXITCODE
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installer -Arguments @('--source', $project)
         Assert-True ($result.Code -eq 0) $result.Text
         Assert-Contains ([IO.File]::ReadAllText($hook)) (Join-Path $installHome 'profile.ps1')
-        Assert-Contains $result.Text 'state    installed'
+        Assert-Contains $result.Text 'state     installed'
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
         Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
     }
@@ -312,15 +312,15 @@ exit 0
     Invoke-InstallTest 'uninstall check does not delete installed files' {
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $uninstaller -Arguments @('--check')
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'tree     present'
+        Assert-Contains $result.Text 'tree      present'
         Assert-True (Test-Path -LiteralPath $installedCommand) 'check deleted files'
     }
 
     Invoke-InstallTest 'uninstall ignores a stale UPWSH_HOME and leaves the project untouched' {
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File (Join-Path $projectSrc 'scripts\upwsh.ps1') -Arguments @('uninstall') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
         Assert-Equal $result.Code 0
-        Assert-Contains $result.Text 'home    removed'
-        Assert-Contains $result.Text 'path    removed'
+        Assert-Contains $result.Text 'home      removed'
+        Assert-Contains $result.Text 'path      removed'
         Assert-True (-not (Test-Path -LiteralPath $installHome)) 'install tree remained'
         Assert-True (Test-Path -LiteralPath (Join-Path $projectSrc 'profile.ps1')) 'source was deleted'
         Assert-True (-not ([IO.File]::ReadAllText($hook)).Contains('# >>> unixify-powershell >>>')) 'hook remained'
@@ -364,7 +364,7 @@ Write-Output ('UPWSH:' + ((Get-Command upwsh -ErrorAction SilentlyContinue).Comm
         $result = Invoke-UpwshTestProcess -UserHome $pipeUser -Command $command -Environment @{ UPWSH_SOURCE = $project; UPWSH_SKIP_SESSION_LOAD = $null }
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'AFTER_IEX:0'
-        Assert-Contains $result.Text 'state    deployed'
+        Assert-Contains $result.Text 'state     deployed'
         Assert-Contains $result.Text 'UPWSH:Function'
         Assert-Contains ([IO.File]::ReadAllText((Join-Path $pipeUser 'test-profile.ps1'))) (Join-Path $pipeUser '.config\upwsh\profile.ps1')
     }

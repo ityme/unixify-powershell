@@ -177,6 +177,20 @@ function unixpath {
 }
 # END GENERATED PATH CONVERTERS
 
+if (-not (Get-Command Write-UpwshStatus -ErrorAction SilentlyContinue)) {
+    function Write-UpwshStatus {
+        param(
+            [Parameter(ValueFromRemainingArguments)]
+            [object[]]$Pairs
+        )
+        if ($null -eq $Pairs -or $Pairs.Count -eq 0) { return }
+        if ($Pairs.Count % 2 -ne 0) { throw 'Write-UpwshStatus requires key/value pairs' }
+        for ($index = 0; $index -lt $Pairs.Count; $index += 2) {
+            Write-Output ('{0,-8}  {1}' -f [string]$Pairs[$index], [string]$Pairs[$index + 1])
+        }
+    }
+}
+
 function Test-CommandToolPresent {
     param([string]$Name, [string]$ToolBin)
 
@@ -206,8 +220,9 @@ function Get-MissingCommandToolHint {
         return @()
     }
     @(
-        ('missing  ' + ($missing -join ' '))
-        ('install  upwsh tool install ' + ($missing -join ' '))
+        ''
+        ('{0,-8}  {1}' -f 'missing', ($missing -join ', '))
+        ('{0,-8}  {1}' -f 'next', ('upwsh tool install ' + ($missing -join ' ')))
     )
 }
 
@@ -463,8 +478,7 @@ try {
         throw 'runtime is not installed; run upwsh install first'
     }
     if ($parsed.Check) {
-        Write-Output "home     $directory"
-        Write-Output ('state    ' + $(if ($installed) { 'installed' } else { 'missing' }))
+        Write-UpwshStatus home $directory state $(if ($installed) { 'installed' } else { 'missing' })
         Complete-Install 0 $scriptInvocation
         return
     }

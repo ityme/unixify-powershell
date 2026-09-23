@@ -136,6 +136,20 @@ function unixpath {
 }
 # END GENERATED PATH CONVERTERS
 
+if (-not (Get-Command Write-UpwshStatus -ErrorAction SilentlyContinue)) {
+    function Write-UpwshStatus {
+        param(
+            [Parameter(ValueFromRemainingArguments)]
+            [object[]]$Pairs
+        )
+        if ($null -eq $Pairs -or $Pairs.Count -eq 0) { return }
+        if ($Pairs.Count % 2 -ne 0) { throw 'Write-UpwshStatus requires key/value pairs' }
+        for ($index = 0; $index -lt $Pairs.Count; $index += 2) {
+            Write-Output ('{0,-8}  {1}' -f [string]$Pairs[$index], [string]$Pairs[$index + 1])
+        }
+    }
+}
+
 function Get-UninstallHome {
     [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
 }
@@ -173,8 +187,7 @@ function Remove-UninstallEnvironment {
             }
         }
     }
-    Write-Output 'home    removed'
-    Write-Output 'path    removed'
+    Write-UpwshStatus home removed path removed
 }
 
 function Get-UninstallHookPath {
@@ -233,8 +246,7 @@ function Remove-ProfileHookFallback {
     $removed = [regex]::Replace($text, $pattern, '')
     $removed = $removed.TrimEnd() + $(if ($removed.Trim()) { "`r`n" } else { '' })
     [IO.File]::WriteAllText($Path, $removed)
-    Write-Output ("profile  {0}" -f $Path)
-    Write-Output 'state    removed'
+    Write-UpwshStatus profile $Path state removed
 }
 
 function Complete-Uninstall {
@@ -324,18 +336,16 @@ if (
     }
 }
 
-Write-Output ("home     {0}" -f $directory)
-Write-Output ("profile  {0}" -f $hookPath)
+Write-UpwshStatus home $directory profile $hookPath
 if ($parsed.Check) {
     $state = if (Test-ProfileHook $hookPath) { 'installed' } else { 'missing' }
-    Write-Output ("hook     {0}" -f $state)
     $treeState = if (Test-Path -LiteralPath $directory) { 'present' } else { 'missing' }
     if ($keepTree -and $treeState -eq 'present') {
         $treeState = 'kept'
     }
-    Write-Output ("tree     {0}" -f $treeState)
+    Write-UpwshStatus hook $state tree $treeState
     if ($parsed.KeepCustom) {
-        Write-Output 'custom   keep'
+        Write-UpwshStatus custom keep
     }
     Complete-Uninstall 0 $scriptInvocation
     return
@@ -369,7 +379,7 @@ if (-not $env:UPWSH_SKIP_SESSION_LOAD) {
 }
 
 if ($keepTree) {
-    Write-Output ("tree     kept {0}" -f $directory)
+    Write-UpwshStatus tree "kept  $directory"
 } elseif (Test-Path -LiteralPath $directory) {
     $custom = Join-Path $directory 'custom'
     $savedCustom = $null
@@ -384,11 +394,11 @@ if ($keepTree) {
     } else {
         Remove-Item -LiteralPath $directory -Recurse -Force
     }
-    Write-Output ("tree     removed {0}" -f $directory)
+    Write-UpwshStatus tree "removed  $directory"
     if ($savedCustom) {
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
         Move-Item -LiteralPath $savedCustom -Destination $custom
-        Write-Output ("custom   kept {0}" -f $custom)
+        Write-UpwshStatus custom "kept  $custom"
     }
 }
 

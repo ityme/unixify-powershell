@@ -292,7 +292,7 @@ function Invoke-UpwshTheme {
         }
     } else {
         $selected = & $module { param($name) Set-UpwshTheme $name } $Parsed.Only[0]
-        Write-Output "theme    $selected"
+        Write-UpwshStatus theme $selected
     }
 }
 
