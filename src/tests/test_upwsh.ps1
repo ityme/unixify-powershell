@@ -212,6 +212,24 @@ try {
         Assert-Contains $result.Text 'state    installed'
     }
 
+    Invoke-UpwshTest 'windows amd64 asset matching accepts eza gnu zip' {
+        $tools = Join-Path $PSScriptRoot '..\scripts\install_cli_tools.ps1'
+        $parser = [Management.Automation.Language.Parser]::ParseFile($tools, [ref]$null, [ref]$null)
+        $fn = $parser.EndBlock.Find({
+                param($node)
+                $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-WindowsAmd64Asset'
+            }, $true)
+        Assert-True ($null -ne $fn) 'missing Test-WindowsAmd64Asset'
+        Invoke-Expression $fn.Extent.Text
+        Assert-True (Test-WindowsAmd64Asset 'eza.exe_x86_64-pc-windows-gnu.zip') 'rejected eza windows gnu zip'
+        Assert-True (-not (Test-WindowsAmd64Asset 'eza_x86_64-unknown-linux-gnu.zip')) 'accepted linux gnu zip'
+        Assert-True (-not (Test-WindowsAmd64Asset 'eza_aarch64-unknown-linux-gnu.zip')) 'accepted aarch64 zip'
+        Assert-True (Test-WindowsAmd64Asset 'bat-x86_64-pc-windows-msvc.zip') 'rejected msvc zip'
+        Assert-True (Test-WindowsAmd64Asset 'lazygit_0.65.1_windows_x86_64.zip') 'rejected lazygit amd64 zip'
+        Assert-True (-not (Test-WindowsAmd64Asset 'lazygit_0.65.1_windows_32-bit.zip')) 'accepted lazygit 32-bit zip'
+        Assert-True (-not (Test-WindowsAmd64Asset 'tssh_0.1.26_windows_i386.zip')) 'accepted tssh i386 zip'
+    }
+
     Invoke-UpwshTest 'tool install requires names or --all' {
         $missing = Invoke-Upwsh -Tokens @('tool', 'install')
         Assert-Equal $missing.Code 2

@@ -42,10 +42,13 @@ function Test-WindowsAmd64Asset {
     if ($Name -match '\.(sha256|sha256sum|sig|deb|rpm|txt|json)$') {
         return $false
     }
-    if ($Name -match 'arm|aarch64|i686|386|darwin|linux|musl|gnu') {
+    if ($Name -match 'arm|aarch64|i686|i386|386|32-bit|win32|darwin|linux|musl') {
         return $false
     }
-    return $Name -match 'windows|win64|msvc'
+    if ($Name -match 'gnu' -and $Name -notmatch 'windows|win64|pc-windows') {
+        return $false
+    }
+    return $Name -match 'windows|win64|msvc|pc-windows'
 }
 
 function Get-GitHubLatestRelease {
