@@ -7,7 +7,7 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 function Import-ShellModule {
     param([Parameter(Mandatory)][string]$Name)
 
-    Import-Module ([IO.Path]::Combine($PSScriptRoot, $Name)) -Global -DisableNameChecking
+    Import-Module ([IO.Path]::Combine($PSScriptRoot, $Name)) -Global -Force -DisableNameChecking
 }
 
 . ([IO.Path]::Combine($PSScriptRoot, 'upwsh_home.ps1'))

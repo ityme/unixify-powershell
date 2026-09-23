@@ -357,6 +357,12 @@ try {
         Assert-Equal $result.Code 0
         Assert-Equal (Get-Command upwsh -ErrorAction Stop).CommandType.ToString() 'Function'
         Assert-True ((Get-Command prompt).Definition -like '*Get-UpwshThemeRevision*') 'install did not load the prompt'
+        $unloaded = Invoke-Upwsh -LoadSession -Tokens @('uninstall')
+        Assert-Equal $unloaded.Code 0
+        Assert-True ((Get-Command prompt).Definition -notlike '*Get-UpwshThemeRevision*') 'uninstall left the theme prompt'
+        $reloaded = Invoke-Upwsh -LoadSession -Tokens @('install')
+        Assert-Equal $reloaded.Code 0
+        Assert-True ((Get-Command prompt).Definition -like '*Get-UpwshThemeRevision*') 'reinstall did not restore the theme prompt'
     }
 
     Invoke-UpwshTest 'load applies only the installed runtime in this session' {
