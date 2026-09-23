@@ -30,10 +30,9 @@ ityme@win project dev ❯
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-安装位置为 `~/.config/upwsh`，会把 `upwsh` 加入 Path，并在当前 pwsh 中定义 `upwsh` 命令。安装本身不启用提示符。然后执行：
+安装位置为 `~/.config/upwsh`，会把 `upwsh` 加入 Path，在当前 pwsh 中定义 `upwsh` 命令，并加载 profile。然后安装 `ls`、`ll`、`tree` 所需的 eza：
 
 ```powershell
-upwsh load
 upwsh tool install eza
 ```
 
@@ -87,13 +86,13 @@ Git 单词唯一匹配时，补全后自动加空格。每段都只有一个匹�
 
 | 命令 | 作用 |
 | --- | --- |
-| `upwsh install` | 安装或修复文件、Path 和 `upwsh` 命令；不启用提示符 |
-| `upwsh update` | 更新已有安装，保留个人配置、工具和启用/停用状态 |
+| `upwsh install` | 安装或修复文件、Path 和 `upwsh` 命令，然后 load |
+| `upwsh update` | 更新已有安装，保留个人配置、工具和 profile 钩子 |
 | `upwsh load` | 启用启动时自动加载，并加载当前 pwsh |
 | `upwsh unload` | 停止自动加载，并恢复当前会话的默认提示符 |
-| `upwsh uninstall` | 删除安装、自动加载配置及项目添加的环境变量和 Path 项 |
+| `upwsh uninstall` | 先 unload，再删除安装及项目添加的环境变量和 Path 项 |
 
-仓库内的 `upwsh install` / `upwsh update` 默认 `--local`。`irm | iex` 默认 `--remote`。`load` 让当前窗口的主题生效；`unload` 恢复默认提示符。卸载时需要保留个人配置，可用 `upwsh uninstall --keep-custom`。
+仓库内的 `upwsh install` / `upwsh update` 默认 `--local`。`irm | iex` 默认 `--remote`。安装会加载当前窗口；卸载会先 unload。卸载时需要保留个人配置，可用 `upwsh uninstall --keep-custom`。
 
 安装目录固定为 `~/.config/upwsh`，`UPWSH_HOME` 记录这个位置。原生提示符由 `src/prompt.psm1` 提供，会随当前文件夹和 Git 分支变化。命令帮助见 `upwsh --help`。
 
@@ -165,7 +164,7 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 function global:work { cd (winpath '/i/my work') }
 ```
 
-重复安装和更新会保留已有文件，并补齐缺失的模板。修改后执行 `upwsh load` 让当前 pwsh 生效。
+重复安装和更新会保留已有文件，并补齐缺失的模板。安装还会加载当前 pwsh。
 
 终端状态上报也可在 `custom/` 中配置。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
 
@@ -175,7 +174,6 @@ function global:work { cd (winpath '/i/my work') }
 git clone https://github.com/ityme/unixify-powershell.git
 cd unixify-powershell
 upwsh install
-upwsh load
 ```
 
 本项目内的 `upwsh install` / `upwsh update` 默认 `--local`。用 `--remote` 下载，或用 `--source`、`--ref`、`--repo` 指定来源。管道安装默认 `--remote`，并读取 `UPWSH_SOURCE`、`UPWSH_REF`、`UPWSH_REPO`。

@@ -1,4 +1,4 @@
-# 安装或修复 ~/.config/upwsh。不启用启动加载；安装后运行 upwsh load。
+# 安装或修复 ~/.config/upwsh，然后 load。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 #   pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 
@@ -34,8 +34,7 @@ A network install can run:
 
 Environment: UPWSH_REF UPWSH_REPO UPWSH_SOURCE
 Install or repair ~/.config/upwsh. UPWSH_HOME records this fixed location.
-Install does not enable startup loading; run upwsh load after install.
-upwsh install defaults to --local. irm | iex defaults to --remote.
+Install then runs upwsh load. upwsh install defaults to --local. irm | iex defaults to --remote.
 The upwsh command is UPWSH_HOME\\bin\\upwsh.cmd.
 CLI tools go in UPWSH_HOME\\tool\\bin.
 '@
@@ -476,11 +475,16 @@ try {
     if (-not [IO.File]::Exists($deploy)) { throw 'invalid runtime: missing scripts\_deploy.ps1' }
     . $deploy
     Install-UpwshRuntime -Source $runtimeRoot -Destination $directory
-    if (-not $env:UPWSH_SKIP_SESSION_LOAD) {
-        $commandPath = Join-Path $directory 'upwsh.psm1'
-        if ([IO.File]::Exists($commandPath)) {
-            Import-Module $commandPath -Global -Force -DisableNameChecking
+    $commandPath = Join-Path $directory 'upwsh.psm1'
+    if (-not $env:UPWSH_SKIP_SESSION_LOAD -and [IO.File]::Exists($commandPath)) {
+        Import-Module $commandPath -Global -Force -DisableNameChecking
+    }
+    if (-not $script:UpdateOnly) {
+        $loader = Join-Path $directory 'scripts\upwsh.ps1'
+        if (-not [IO.File]::Exists($loader)) {
+            throw "missing $loader"
         }
+        & $loader load
     }
     Complete-Install 0 $scriptInvocation
 } catch {

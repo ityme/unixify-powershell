@@ -345,7 +345,12 @@ $savedProfile = $env:UPWSH_PROFILE
 try {
     $env:UPWSH_PROFILE = $hookPath
     $env:UPWSH_HOME = $directory
-    Remove-ProfileHookFallback -Path $hookPath
+    $loader = Join-Path $directory 'scripts\upwsh.ps1'
+    if ([IO.File]::Exists($loader)) {
+        & $loader unload
+    } else {
+        Remove-ProfileHookFallback -Path $hookPath
+    }
     Remove-UninstallEnvironment -InstallHome $directory
 } finally {
     $env:UPWSH_PROFILE = $savedProfile

@@ -163,12 +163,15 @@ try {
         Assert-True (-not (Test-Path -LiteralPath $hook)) 'failed load wrote a hook'
     }
 
-    Invoke-UpwshTest 'install deploys before load' {
+    Invoke-UpwshTest 'install deploys and loads' {
         $result = Invoke-Upwsh -Tokens @('install')
         Assert-Equal $result.Code 0
         Assert-True (Test-Path -LiteralPath $installedProfile) 'install missed runtime'
-        Assert-True (-not (Test-Path -LiteralPath $hook)) 'install wrote a profile hook'
         Assert-Contains $result.Text 'command  upwsh'
+        Assert-Contains $result.Text 'state    installed'
+        $text = [IO.File]::ReadAllText($hook)
+        Assert-Contains $text '# >>> unixify-powershell >>>'
+        Assert-Contains $text $installedProfile
     }
 
     Invoke-UpwshTest 'load hooks the installed profile' {
@@ -349,11 +352,11 @@ try {
         }
     }
 
-    Invoke-UpwshTest 'install defines upwsh without loading the prompt' {
+    Invoke-UpwshTest 'install defines upwsh and loads the prompt' {
         $result = Invoke-Upwsh -LoadSession -Tokens @('install')
         Assert-Equal $result.Code 0
         Assert-Equal (Get-Command upwsh -ErrorAction Stop).CommandType.ToString() 'Function'
-        Assert-True ((Get-Command prompt).Definition -notlike '*Get-UpwshThemeRevision*') 'install loaded the prompt'
+        Assert-True ((Get-Command prompt).Definition -like '*Get-UpwshThemeRevision*') 'install did not load the prompt'
     }
 
     Invoke-UpwshTest 'load applies only the installed runtime in this session' {

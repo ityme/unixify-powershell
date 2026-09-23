@@ -30,10 +30,9 @@ Run in PowerShell 7 (`pwsh`):
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-This installs into `~/.config/upwsh`, adds `upwsh` to Path, and defines `upwsh` in the current pwsh. It does not enable the prompt. Then run:
+This installs into `~/.config/upwsh`, adds `upwsh` to Path, defines `upwsh` in the current pwsh, and loads the profile. Then install eza for `ls`, `ll`, and `tree`:
 
 ```powershell
-upwsh load
 upwsh tool install eza
 ```
 
@@ -87,13 +86,13 @@ Changes made in another window, such as switching a branch in the same working t
 
 | Command | Purpose |
 | --- | --- |
-| `upwsh install` | Install or repair files, Path, and the `upwsh` command; does not enable the prompt |
-| `upwsh update` | Update an existing installation, keeping custom settings, tools, and enabled/disabled state |
+| `upwsh install` | Install or repair files, Path, and the `upwsh` command, then load |
+| `upwsh update` | Update an existing installation, keeping custom settings, tools, and the profile hook |
 | `upwsh load` | Enable startup loading of `~/.config/upwsh/profile.ps1` and load this pwsh |
 | `upwsh unload` | Disable startup loading and drop the current-session prompt |
-| `upwsh uninstall` | Remove the installation, startup configuration, and managed environment variables and Path entries |
+| `upwsh uninstall` | Unload, then remove the installation and managed environment variables and Path entries |
 
-`upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. `load` enables the theme in the current pwsh; `unload` restores the default prompt. To uninstall while keeping personal settings, use `upwsh uninstall --keep-custom`.
+`upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. Install loads the current pwsh; uninstall unloads it. To uninstall while keeping personal settings, use `upwsh uninstall --keep-custom`.
 
 The install directory is fixed at `~/.config/upwsh`; `UPWSH_HOME` records it. The native prompt in `src/prompt.psm1` follows the current folder and Git branch. Run `upwsh --help` for command help.
 
@@ -165,7 +164,7 @@ For example, put this in `custom/work.ps1`:
 function global:work { cd (winpath '/i/my work') }
 ```
 
-Reinstall and update preserve your files and fill in missing template files. Run `upwsh load` to apply the prompt in the current pwsh.
+Reinstall and update preserve your files and fill in missing template files. Install also loads the current pwsh.
 
 Terminal status reporting is configurable from `custom/` too. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
 
@@ -175,7 +174,6 @@ Terminal status reporting is configurable from `custom/` too. Full command text 
 git clone https://github.com/ityme/unixify-powershell.git
 cd unixify-powershell
 upwsh install
-upwsh load
 ```
 
 `upwsh install` and `upwsh update` from this project default to `--local`. Use `--remote` to download, or override the source with `--source`, `--ref`, or `--repo`. Piped installs default to `--remote` and honor `UPWSH_SOURCE`, `UPWSH_REF`, and `UPWSH_REPO`.

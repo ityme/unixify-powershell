@@ -60,9 +60,10 @@ try {
             Assert-True (Test-Path -LiteralPath (Join-Path $installHome $file) -PathType Leaf) "missing $file"
         }
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'tests'))) 'tests were deployed'
-        Assert-True (-not (Test-Path -LiteralPath $hook)) 'install wrote a profile hook'
+        $text = [IO.File]::ReadAllText($hook)
+        Assert-Contains $text (Join-Path $installHome 'profile.ps1')
         Assert-Contains $result.Text 'command  upwsh'
-        Assert-True ($result.Text -notlike '*enabled  *') 'install reported profile enablement'
+        Assert-Contains $result.Text 'state    installed'
         Assert-True ($result.Text -notlike '*Open a new pwsh*') 'install asked to open a new pwsh'
     }
 
@@ -214,19 +215,19 @@ exit $LASTEXITCODE
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $newUser '.config\upwsh'))) 'update created an installation'
     }
 
-    Invoke-InstallTest 'install and update leave the profile hook unchanged' {
+    Invoke-InstallTest 'update leaves the profile hook unchanged and install reloads it' {
         [IO.File]::WriteAllText($hook, "# personal profile`r`n")
-        foreach ($entry in @($updater, $installer)) {
-            $result = Invoke-UpwshTestProcess -UserHome $userHome -File $entry -Arguments @('--source', $project)
-            Assert-True ($result.Code -eq 0) $result.Text
-            Assert-True ($result.Text -notlike '*enabled  *') 'install/update reported profile enablement'
-            Assert-Equal ([IO.File]::ReadAllText($hook)) "# personal profile`r`n"
-            Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
-            Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
-        }
-        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('load')
-        Assert-Equal $result.Code 0
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $updater -Arguments @('--source', $project)
+        Assert-True ($result.Code -eq 0) $result.Text
+        Assert-Equal ([IO.File]::ReadAllText($hook)) "# personal profile`r`n"
+        Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
+        Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installer -Arguments @('--source', $project)
+        Assert-True ($result.Code -eq 0) $result.Text
         Assert-Contains ([IO.File]::ReadAllText($hook)) (Join-Path $installHome 'profile.ps1')
+        Assert-Contains $result.Text 'state    installed'
+        Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
+        Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
     }
 
     Invoke-InstallTest 'bad source and failed download leave the working installation intact' {
@@ -345,7 +346,7 @@ Write-Output ('UPWSH:' + ((Get-Command upwsh -ErrorAction SilentlyContinue).Comm
         Assert-Contains $result.Text 'AFTER_IEX:0'
         Assert-Contains $result.Text 'state    deployed'
         Assert-Contains $result.Text 'UPWSH:Function'
-        Assert-True (-not (Test-Path -LiteralPath (Join-Path $pipeUser 'test-profile.ps1'))) 'piped install wrote a profile hook'
+        Assert-Contains ([IO.File]::ReadAllText((Join-Path $pipeUser 'test-profile.ps1'))) (Join-Path $pipeUser '.config\upwsh\profile.ps1')
     }
 
     Invoke-InstallTest 'piped update keeps custom and uses local source' {

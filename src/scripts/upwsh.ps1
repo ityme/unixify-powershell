@@ -25,7 +25,7 @@ hook the current user's pwsh
    unload           Stop $PROFILE from loading it and drop the current-session profile
 
 install this runtime
-   install          Install or repair ~/.config/upwsh; does not enable the profile
+   install          Install or repair ~/.config/upwsh, then load
    uninstall        Unload, drop UPWSH_HOME and Path, then delete the install tree
    update           Update installed files; keep custom, tools, and startup loading state
 

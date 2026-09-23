@@ -39,7 +39,7 @@ Install/update refresh every bundled JSON under `themes/`, while preserving `cus
 pwsh -NoLogo -NoProfile -File src/scripts/update.ps1 --source src
 ```
 
-Run `upwsh load`, then select a theme. Uninstall removes `themes/`; `--keep-custom` retains `custom/`, including `custom/themes/`, and the selection file.
+Install loads the current pwsh. Then select a theme. Uninstall removes `themes/`; `--keep-custom` retains `custom/`, including `custom/themes/`, and the selection file.
 
 ## Configuration
 
