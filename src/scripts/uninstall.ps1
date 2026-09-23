@@ -137,6 +137,26 @@ function unixpath {
 # END GENERATED PATH CONVERTERS
 
 if (-not (Get-Command Write-UpwshStatus -ErrorAction SilentlyContinue)) {
+    function Test-UpwshStatusColor {
+        if ($env:NO_COLOR -or $env:UPWSH_TEST_ISOLATED) { return $false }
+        if ($null -eq $PSStyle -or $PSStyle.OutputRendering -eq 'PlainText') { return $false }
+        try { if ([Console]::IsOutputRedirected) { return $false } } catch { return $false }
+        return [bool]$Host.UI.SupportsVirtualTerminal
+    }
+    function Get-UpwshStatusValueColor {
+        param([string]$Key, [string]$Value)
+        switch -Regex ($Key) {
+            '^(ok|command|theme)$' { return $PSStyle.Foreground.Green }
+            '^(warn|missing|skip)$' { return $PSStyle.Foreground.Yellow }
+            '^(next|get)$' { return $PSStyle.Foreground.Cyan }
+        }
+        $token = ($Value -split '\s+', 2)[0]
+        switch -Regex ($token) {
+            '^(installed|deployed|present|keep|kept)$' { return $PSStyle.Foreground.Green }
+            '^(missing|removed)$' { return $PSStyle.Foreground.Yellow }
+            default { return '' }
+        }
+    }
     function Write-UpwshStatus {
         param(
             [Parameter(ValueFromRemainingArguments)]
@@ -144,8 +164,17 @@ if (-not (Get-Command Write-UpwshStatus -ErrorAction SilentlyContinue)) {
         )
         if ($null -eq $Pairs -or $Pairs.Count -eq 0) { return }
         if ($Pairs.Count % 2 -ne 0) { throw 'Write-UpwshStatus requires key/value pairs' }
+        $color = Test-UpwshStatusColor
         for ($index = 0; $index -lt $Pairs.Count; $index += 2) {
-            Write-Output ('{0,-8}  {1}' -f [string]$Pairs[$index], [string]$Pairs[$index + 1])
+            $key = [string]$Pairs[$index]
+            $value = [string]$Pairs[$index + 1]
+            $label = '{0,-8}' -f $key
+            if ($color) {
+                $label = "$($PSStyle.Foreground.Cyan)$label$($PSStyle.Reset)"
+                $valueColor = Get-UpwshStatusValueColor -Key $key -Value $value
+                if ($valueColor) { $value = "$valueColor$value$($PSStyle.Reset)" }
+            }
+            Write-Output ("$label  $value")
         }
     }
 }

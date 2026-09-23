@@ -212,6 +212,14 @@ try {
         Assert-Contains $result.Text 'state     installed'
     }
 
+    Invoke-UpwshTest 'status lines stay plain when output is captured' {
+        $result = Invoke-Upwsh -Tokens @('install', '--help')
+        Assert-Equal $result.Code 0
+        Assert-True ($result.Text -notmatch '\x1b\[') 'help output contained ANSI color'
+        $loaded = Invoke-Upwsh -Tokens @('load')
+        Assert-True ($loaded.Text -notmatch '\x1b\[') 'load output contained ANSI color'
+    }
+
     Invoke-UpwshTest 'windows amd64 asset matching accepts eza gnu zip' {
         $tools = Join-Path $PSScriptRoot '..\scripts\install_cli_tools.ps1'
         $parser = [Management.Automation.Language.Parser]::ParseFile($tools, [ref]$null, [ref]$null)
