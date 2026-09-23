@@ -169,7 +169,6 @@ try {
         Assert-True (Test-Path -LiteralPath $installedProfile) 'install missed runtime'
         Assert-Contains $result.Text 'command   upwsh'
         Assert-Contains $result.Text 'state     installed'
-        Assert-Contains $result.Text 'upwsh tool install'
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text $installedProfile

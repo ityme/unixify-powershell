@@ -31,21 +31,21 @@ function global:du {
 }
 
 # 用途：安装常用 CLI。无参数、--help 或参数错误时显示用法。
-# 示例：tools list
-# 示例：tools install eza rg
-# 示例：tools uninstall eza
+# 示例：tool list
+# 示例：tool install eza rg
+# 示例：tool uninstall eza
 function Get-ToolsUsage {
     @'
-usage: tools [-h | --help] <command> [<name>...]
+usage: tool [-h | --help] <command> [<name>...]
 
-These are common tools commands used in various situations:
+These are common tool commands used in various situations:
 
 install listed CLI tools
    install          Download listed CLI tools; names limit the list
    uninstall        Remove the named tools from UPWSH_HOME\\tool\\bin
    list             List supported tools and whether the shell has them
 
-'tools --help' prints this overview. uninstall requires names.
+'tool --help' prints this overview. uninstall requires names.
 
 Listed tools: bat btm delta dust eza fd fzf hyperfine jq lazygit procs
 rg shfmt starship tssh yazi yq zoxide
@@ -112,11 +112,11 @@ function ConvertFrom-ToolsArguments {
     }
 }
 
-function global:tools {
+function global:tool {
     $parsed = ConvertFrom-ToolsArguments -Tokens $args
     if ($parsed.Help) {
         if ($parsed.Error) {
-            Write-Output "tools: $($parsed.Error)"
+            Write-Output "tool: $($parsed.Error)"
             Write-Output ''
         }
         Get-ToolsUsage
@@ -140,6 +140,8 @@ function global:tools {
     }
     & $installer @installerArgs
 }
+
+Set-Alias -Name tools -Value tool -Scope Global -Force
 
 Export-ModuleMember -Function @()
 

@@ -1,8 +1,8 @@
-# 由 tools / upwsh tool 调用。可执行文件装到 $UPWSH_HOME\tool\bin。
-#   tools --help
-#   tools list
-#   tools install eza rg
-#   tools uninstall eza
+# 由 tool / upwsh tool 调用。可执行文件装到 $UPWSH_HOME\tool\bin。
+#   tool --help
+#   tool list
+#   tool install eza rg
+#   tool uninstall eza
 
 [CmdletBinding()]
 param(
