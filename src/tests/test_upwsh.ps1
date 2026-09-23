@@ -117,6 +117,7 @@ try {
         Assert-Contains $result.Text 'tool install'
         Assert-Contains $result.Text 'tool uninstall'
         Assert-Contains $result.Text 'tool list'
+        Assert-Contains $result.Text 'tool update'
         Assert-Contains $result.Text '   install'
         Assert-Contains $result.Text '   uninstall'
         Assert-Contains $result.Text '   update'
@@ -244,6 +245,21 @@ try {
         $all = Invoke-Upwsh -Tokens @('tool', 'install', '--all', '--check')
         Assert-Equal $all.Code 2
         Assert-Contains $all.Text 'unknown option'
+        $both = Invoke-Upwsh -Tokens @('tool', 'install', 'eza', '--all')
+        Assert-Equal $both.Code 2
+        Assert-Contains $both.Text 'use names or --all'
+    }
+
+    Invoke-UpwshTest 'tool update requires names or --all' {
+        $missing = Invoke-Upwsh -Tokens @('tool', 'update')
+        Assert-Equal $missing.Code 2
+        Assert-Contains $missing.Text 'tool update <name>'
+        $all = Invoke-Upwsh -Tokens @('tool', 'update', '--all', '--check')
+        Assert-Equal $all.Code 2
+        Assert-Contains $all.Text 'unknown option'
+        $both = Invoke-Upwsh -Tokens @('tool', 'update', 'eza', '--all')
+        Assert-Equal $both.Code 2
+        Assert-Contains $both.Text 'use names or --all'
     }
 
     Invoke-UpwshTest 'lifecycle options are validated before delegation' {
@@ -303,6 +319,35 @@ try {
         $result = Invoke-Upwsh -Tokens @('tool', '--deploy')
         Assert-Equal $result.Code 2
         Assert-Contains $result.Text 'unknown tool command: --deploy'
+    }
+
+    Invoke-UpwshTest 'tool --all is parsed without treating it as a tool name' {
+        $parser = [Management.Automation.Language.Parser]::ParseFile($upwsh, [ref]$null, [ref]$null)
+        $newResult = $parser.EndBlock.Find({
+                param($node)
+                $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'New-UpwshParseResult'
+            }, $true)
+        $convert = $parser.EndBlock.Find({
+                param($node)
+                $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'ConvertFrom-UpwshArguments'
+            }, $true)
+        Assert-True ($null -ne $newResult) 'missing New-UpwshParseResult'
+        Assert-True ($null -ne $convert) 'missing ConvertFrom-UpwshArguments'
+        Invoke-Expression $newResult.Extent.Text
+        Invoke-Expression $convert.Extent.Text
+        $installAll = ConvertFrom-UpwshArguments -Tokens @('tool', 'install', '--all')
+        Assert-Equal $installAll.Action 'install'
+        Assert-True ([bool]$installAll.All) 'install --all did not set All'
+        Assert-Equal $installAll.Only.Count 0
+        Assert-True (-not $installAll.Help) 'install --all parsed as help'
+        $updateAll = ConvertFrom-UpwshArguments -Tokens @('tool', 'update', '--all')
+        Assert-Equal $updateAll.Action 'update'
+        Assert-True ([bool]$updateAll.All) 'update --all did not set All'
+        Assert-Equal $updateAll.Only.Count 0
+        $listAll = ConvertFrom-UpwshArguments -Tokens @('tool', 'list', '--all')
+        Assert-True $listAll.Help 'list --all did not fail'
+        $uninstallAll = ConvertFrom-UpwshArguments -Tokens @('tool', 'uninstall', '--all')
+        Assert-True $uninstallAll.Help 'uninstall --all did not fail'
     }
 
     Invoke-UpwshTest 'install help is forwarded' {
@@ -404,6 +449,8 @@ try {
         Assert-True ($result.Path -like "*$bin*") 'load did not add bin to PATH'
         Assert-True ($result.Path -like "*$toolBin*") 'load did not add tool\\bin to PATH'
         Assert-True (Test-Path -LiteralPath $shim -PathType Leaf) 'session load missed upwsh.cmd'
+        Assert-True ($null -eq (Get-Command tool -CommandType Function, Alias -ErrorAction SilentlyContinue)) 'load defined tool'
+        Assert-True ($null -eq (Get-Command tools -CommandType Function, Alias -ErrorAction SilentlyContinue)) 'load defined tools'
     }
 
     Invoke-UpwshTest 'profile function forwards to the script' {
@@ -414,6 +461,7 @@ try {
             $output = upwsh --help | Out-String
             Assert-Contains $output 'load'
             Assert-Contains $output 'tool install'
+            Assert-Contains $output 'tool update'
             $command = Get-Command upwsh -ErrorAction Stop
             Assert-Equal $command.CommandType.ToString() 'Function'
         } finally {

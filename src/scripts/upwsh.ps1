@@ -7,6 +7,9 @@
 #   upwsh update
 #   upwsh tool list
 #   upwsh tool install eza rg
+#   upwsh tool install --all
+#   upwsh tool update eza
+#   upwsh tool update --all
 #   upwsh tool uninstall eza
 #   upwsh theme list
 #   upwsh theme use pure-classic
@@ -30,9 +33,10 @@ install this runtime
    update           Update installed files; keep custom, tools, and startup loading state
 
 install a listed CLI tool
-   tool install     Download named tools; --all installs the supported list
-   tool uninstall   Remove the named tools from UPWSH_HOME\\tool\\bin
    tool list        List supported tools and whether the shell has them
+   tool install     Download named tools; --all installs the supported list
+   tool update      Replace named tools with the latest release; --all updates installed tools
+   tool uninstall   Remove the named tools from UPWSH_HOME\\tool\\bin
 
 select a local prompt theme
    theme list       List installed themes; * marks the active theme
@@ -60,6 +64,7 @@ function New-UpwshParseResult {
         Action  = ''
         Only    = @()
         Rest    = @()
+        All     = $false
     }
 }
 
@@ -156,6 +161,9 @@ function ConvertFrom-UpwshArguments {
             '^(--list|list)$' {
                 $result.Action = 'list'
             }
+            '^(--update|update)$' {
+                $result.Action = 'update'
+            }
             default {
                 $result.Help = $true
                 $result.Error = "unknown tool command: $action"
@@ -197,13 +205,22 @@ function ConvertFrom-UpwshArguments {
                 $result.Help = $true
                 return $result
             }
+            '^--all$' {
+                if ($result.Command -ne 'tool') {
+                    $result.Help = $true
+                    $result.Error = "unknown option: $token"
+                    return $result
+                }
+                $result.All = $true
+                $index++
+            }
             '^(load|unload|tool|theme|install|uninstall|update)$' {
                 $result.Help = $true
                 $result.Error = 'use only one of load, unload, tool, theme, install, uninstall, or update'
                 return $result
             }
             default {
-                if ($result.Command -eq 'tool' -and ($token -eq '--all' -or -not $token.StartsWith('-'))) {
+                if ($result.Command -eq 'tool' -and -not $token.StartsWith('-')) {
                     $result.Only = @($result.Only + $token)
                     $index++
                 } else {
@@ -215,14 +232,29 @@ function ConvertFrom-UpwshArguments {
         }
     }
 
-    if ($result.Command -eq 'tool' -and $result.Action -in @('install', 'uninstall') -and $result.Only.Count -eq 0) {
-        $result.Help = $true
-        $result.Error = 'usage: upwsh tool ' + $result.Action + ' <name>... | upwsh tool install --all'
-        return $result
-    }
-    if ($result.Command -eq 'tool' -and $result.Action -eq 'list' -and $result.Only -contains '--all') {
+    if ($result.Command -eq 'tool' -and $result.All -and $result.Action -eq 'list') {
         $result.Help = $true
         $result.Error = 'usage: upwsh tool list'
+        return $result
+    }
+    if ($result.Command -eq 'tool' -and $result.All -and $result.Action -eq 'uninstall') {
+        $result.Help = $true
+        $result.Error = 'usage: upwsh tool uninstall <name>...'
+        return $result
+    }
+    if ($result.Command -eq 'tool' -and $result.All -and $result.Only.Count -gt 0) {
+        $result.Help = $true
+        $result.Error = 'use names or --all'
+        return $result
+    }
+    if ($result.Command -eq 'tool' -and $result.Action -in @('install', 'update') -and -not $result.All -and $result.Only.Count -eq 0) {
+        $result.Help = $true
+        $result.Error = 'usage: upwsh tool ' + $result.Action + ' <name>... | upwsh tool ' + $result.Action + ' --all'
+        return $result
+    }
+    if ($result.Command -eq 'tool' -and $result.Action -eq 'uninstall' -and $result.Only.Count -eq 0) {
+        $result.Help = $true
+        $result.Error = 'usage: upwsh tool uninstall <name>...'
         return $result
     }
 
@@ -273,6 +305,17 @@ function Invoke-UpwshTool {
         }
         'uninstall' {
             $installerArgs.Uninstall = $true
+        }
+        'update' {
+            $installerArgs.Update = $true
+            if ($Parsed.All) {
+                $installerArgs.InstalledOnly = $true
+            }
+        }
+        'install' {
+            if ($Parsed.All) {
+                $installerArgs.Only = @()
+            }
         }
     }
     & $installer @installerArgs

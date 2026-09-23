@@ -104,6 +104,8 @@ Git 单词唯一匹配时，补全后自动加空格。每段都只有一个匹�
 ```powershell
 upwsh tool list
 upwsh tool install eza rg fd fzf
+upwsh tool update eza
+upwsh tool update --all
 upwsh tool uninstall rg
 ```
 

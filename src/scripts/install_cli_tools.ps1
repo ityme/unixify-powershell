@@ -1,14 +1,18 @@
-# 由 tool / upwsh tool 调用。可执行文件装到 $UPWSH_HOME\tool\bin。
-#   tool --help
-#   tool list
-#   tool install eza rg
-#   tool uninstall eza
+# 由 upwsh tool 调用。可执行文件装到 $UPWSH_HOME\tool\bin。
+#   upwsh tool list
+#   upwsh tool install eza rg
+#   upwsh tool install --all
+#   upwsh tool update eza
+#   upwsh tool update --all
+#   upwsh tool uninstall eza
 
 [CmdletBinding()]
 param(
     [string[]]$Only = @(),
     [switch]$List,
-    [switch]$Uninstall
+    [switch]$Uninstall,
+    [switch]$Update,
+    [switch]$InstalledOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -131,10 +135,10 @@ function Uninstall-CliTool {
 }
 
 function Install-CliTool {
-    param($Tool, [string]$Destination)
+    param($Tool, [string]$Destination, [switch]$Force)
 
     $target = Join-Path $Destination $Tool.Exe
-    if (Test-Path -LiteralPath $target) {
+    if (-not $Force -and (Test-Path -LiteralPath $target)) {
         Write-UpwshStatus skip "$($Tool.Name)  already installed"
         return
     }
@@ -191,11 +195,21 @@ if ($names.Count -gt 0) {
     }
 }
 
-if ($List -and $Uninstall) {
-    throw 'Use either -List or -Uninstall, not both.'
+if (([int][bool]$List + [int][bool]$Uninstall + [int][bool]$Update) -gt 1) {
+    throw 'Use only one of -List, -Uninstall, or -Update.'
 }
 if ($Uninstall -and $names.Count -eq 0) {
     throw 'missing tool name'
+}
+if ($Update -and $InstalledOnly) {
+    $selected = @(
+        $selected |
+            Where-Object { Test-Path -LiteralPath (Join-Path $Dir $_.Exe) }
+    )
+    if ($selected.Count -eq 0) {
+        Write-UpwshStatus skip 'no installed tools to update'
+        return
+    }
 }
 
 if ($List) {
@@ -214,7 +228,7 @@ foreach ($tool in $selected) {
         Uninstall-CliTool -Tool $tool -Destination $Dir
         continue
     }
-    Install-CliTool -Tool $tool -Destination $Dir
+    Install-CliTool -Tool $tool -Destination $Dir -Force:$Update
 }
 
 if (-not $Uninstall) {

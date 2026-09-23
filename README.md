@@ -104,6 +104,8 @@ Install tools as needed into `~/.config/upwsh/tool/bin`:
 ```powershell
 upwsh tool list
 upwsh tool install eza rg fd fzf
+upwsh tool update eza
+upwsh tool update --all
 upwsh tool uninstall rg
 ```
 

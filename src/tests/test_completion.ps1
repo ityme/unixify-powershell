@@ -196,24 +196,11 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
         $command = Get-Command cp -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Function'
     }
-    Invoke-CompletionTest 'tool with no args prints usage' {
-        $output = tool | Out-String
-        Assert-True ($output -match 'usage: tool') 'tool help missing command name'
-        Assert-True ($output -match 'install') 'tool help missing install'
-        Assert-True ($output -match 'uninstall') 'tool help missing uninstall'
-        Assert-True ($output -match 'list') 'tool help missing list'
-        Assert-True ($output -cnotmatch '--check') 'tool help still lists --check'
-        Assert-True ($output -cnotmatch '--directory') 'tool help still lists --directory'
-        Assert-True ($output -cnotmatch '--only') 'tool help still lists --only'
-        $alias = Get-Command tools -ErrorAction Stop
-        Assert-Equal $alias.CommandType.ToString() 'Alias'
-        Assert-Equal $alias.Definition 'tool'
-    }
-    Invoke-CompletionTest 'tool unknown option prints usage' {
-        $output = tool --nope | Out-String
-        Assert-True ($output -match 'unknown option') 'bad option did not report an error'
-        Assert-True ($output -match 'install') 'bad option did not show usage'
-        Assert-True ($output -match 'tool:') 'error used the old command name'
+    Invoke-CompletionTest 'profile does not define tool or tools commands' {
+        $tool = Get-Command tool -CommandType Function, Alias -ErrorAction SilentlyContinue
+        Assert-True ($null -eq $tool) 'tool command still defined'
+        $tools = Get-Command tools -CommandType Function, Alias -ErrorAction SilentlyContinue
+        Assert-True ($null -eq $tools) 'tools command still defined'
     }
     Invoke-CompletionTest 'vim is an alias of nvim' {
         $command = Get-Command vim -ErrorAction Stop
