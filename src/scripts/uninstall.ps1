@@ -355,6 +355,14 @@ if (Test-ProfileHook $hookPath) {
     Remove-ProfileHookFallback -Path $hookPath
 }
 
+if (-not $env:UPWSH_SKIP_SESSION_LOAD) {
+    Remove-Item Function:global:PSConsoleHostReadLine -ErrorAction SilentlyContinue
+    Remove-Item Function:global:upwsh -ErrorAction SilentlyContinue
+    function global:prompt {
+        "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
+    }
+}
+
 if ($keepTree) {
     Write-Output ("tree     kept {0}" -f $directory)
 } elseif (Test-Path -LiteralPath $directory) {

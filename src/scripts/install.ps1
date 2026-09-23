@@ -1,4 +1,4 @@
-# 安装或修复 ~/.config/upwsh。首次启用，重复安装保留启用状态和用户数据。
+# 安装或修复 ~/.config/upwsh。不启用启动加载；安装后运行 upwsh load。
 #   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 #   pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
 
@@ -13,20 +13,20 @@ $script:UpdateOnly = $UpwshSetupMode -eq 'update'
 function Get-InstallUsage {
     @'
 usage: install.ps1 [-h | --help] [-c | --check]
-                   [-p | --profile <path>] [--current-host]
-                   [--ref <ref>] [--repo <owner/name>] [--source <dir>]
+                   [--local | --remote] [--source <dir>]
+                   [--ref <ref>] [--repo <owner/name>]
 
 These are common install.ps1 commands used in various situations:
 
 install this runtime
-   --profile        pwsh profile to edit, default CurrentUserAllHosts
-   --current-host   Write $PROFILE.CurrentUserCurrentHost
+   --local          Use the local project at the current directory or script location
+   --remote         Download the runtime; default for irm | iex
    --source         Local source tree, skip download
    --ref            Git branch or tag to download
    --repo           GitHub repository, default ityme/unixify-powershell
 
 inspect without writing
-   --check          Show hook status without copying files
+   --check          Show installation status without copying files
 
 A network install can run:
 
@@ -34,9 +34,8 @@ A network install can run:
 
 Environment: UPWSH_REF UPWSH_REPO UPWSH_SOURCE
 Install or repair ~/.config/upwsh. UPWSH_HOME records this fixed location.
-First install enables startup loading; reinstall preserves its state, custom, and tools.
-Open a new pwsh after installation.
-Without source options, use the local project at the current directory or script location.
+Install does not enable startup loading; run upwsh load after install.
+upwsh install defaults to --local. irm | iex defaults to --remote.
 The upwsh command is UPWSH_HOME\\bin\\upwsh.cmd.
 CLI tools go in UPWSH_HOME\\tool\\bin.
 '@
@@ -44,14 +43,14 @@ CLI tools go in UPWSH_HOME\\tool\\bin.
 
 function New-InstallParseResult {
     [pscustomobject]@{
-        Help        = $false
-        Error       = $null
-        Check       = $false
-        CurrentHost = $false
-        Profile     = $null
-        Ref         = $null
-        Repo        = $null
-        Source      = $null
+        Help   = $false
+        Error  = $null
+        Check  = $false
+        Local  = $false
+        Remote = $false
+        Ref    = $null
+        Repo   = $null
+        Source = $null
     }
 }
 
@@ -76,18 +75,13 @@ function ConvertFrom-InstallArguments {
                 $result.Check = $true
                 $index++
             }
-            '^--current-host$' {
-                $result.CurrentHost = $true
+            '^--local$' {
+                $result.Local = $true
                 $index++
             }
-            '^(--profile|-p)$' {
-                if ($index + 1 -ge $tokens.Count) {
-                    $result.Help = $true
-                    $result.Error = 'missing profile path'
-                    return $result
-                }
-                $result.Profile = [string]$tokens[$index + 1]
-                $index += 2
+            '^--remote$' {
+                $result.Remote = $true
+                $index++
             }
             '^--ref$' {
                 if ($index + 1 -ge $tokens.Count) {
@@ -122,6 +116,19 @@ function ConvertFrom-InstallArguments {
                 return $result
             }
         }
+    }
+
+    if ($result.Local -and $result.Remote) {
+        $result.Help = $true
+        $result.Error = 'use only one of --local or --remote'
+    }
+    if ($result.Remote -and $result.Source) {
+        $result.Help = $true
+        $result.Error = 'use only one of --remote or --source'
+    }
+    if ($result.Local -and ($result.Ref -or $result.Repo)) {
+        $result.Help = $true
+        $result.Error = '--local cannot be used with --ref or --repo'
     }
 
     return $result
@@ -339,6 +346,30 @@ function Get-DownloadedRuntime {
     }
 }
 
+function Test-InstallFileEntry {
+    if (-not $PSCommandPath) {
+        return $false
+    }
+    $cli = [Environment]::GetCommandLineArgs()
+    for ($index = 0; $index -lt $cli.Count; $index++) {
+        $token = [string]$cli[$index]
+        $candidate = $null
+        if (($token -eq '-File' -or $token -eq '-f') -and $index + 1 -lt $cli.Count) {
+            $candidate = [string]$cli[$index + 1]
+        } elseif ($token -match '^-File:(.+)$') {
+            $candidate = $Matches[1]
+        }
+        if ($candidate) {
+            try {
+                return [IO.Path]::GetFullPath($candidate) -eq $PSCommandPath
+            } catch {
+                return $false
+            }
+        }
+    }
+    return $false
+}
+
 function Complete-Install {
     param(
         [int]$Code,
@@ -347,7 +378,7 @@ function Complete-Install {
 
     $ErrorActionPreference = $script:SavedErrorActionPreference
     $global:LASTEXITCODE = $Code
-    if ($PSCommandPath -and $Invocation.CommandOrigin -eq 'Runspace') {
+    if (Test-InstallFileEntry) {
         exit $Code
     }
 }
@@ -390,19 +421,8 @@ $source = if ($parsed.Source) {
     $null
 }
 $directory = Get-DefaultDestination
-$hookPath = if ($parsed.Profile) {
-    [IO.Path]::GetFullPath((winpath $parsed.Profile))
-} elseif ($parsed.CurrentHost) {
-    $PROFILE.CurrentUserCurrentHost
-} elseif ($env:UPWSH_PROFILE) {
-    [IO.Path]::GetFullPath((winpath $env:UPWSH_PROFILE))
-} else {
-    $PROFILE.CurrentUserAllHosts
-}
 $installed = [IO.File]::Exists((Join-Path $directory 'profile.ps1')) -or
     [IO.File]::Exists((Join-Path $directory 'scripts\upwsh.ps1'))
-$hookText = if ([IO.File]::Exists($hookPath)) { [IO.File]::ReadAllText($hookPath) } else { '' }
-$enabled = $hookText.Contains('# >>> unixify-powershell >>>')
 $workRoot = $null
 try {
     if ($script:UpdateOnly -and -not $installed) {
@@ -410,9 +430,7 @@ try {
     }
     if ($parsed.Check) {
         Write-Output "home     $directory"
-        Write-Output "profile  $hookPath"
         Write-Output ('state    ' + $(if ($installed) { 'installed' } else { 'missing' }))
-        Write-Output ('enabled  ' + $enabled.ToString().ToLowerInvariant())
         Complete-Install 0 $scriptInvocation
         return
     }
@@ -429,14 +447,19 @@ try {
             return
         }
     }
-    $forceRemote = [bool]$ref -or [bool]$parsed.Repo -or [bool]$env:UPWSH_REPO
+    $piped = -not $PSCommandPath
+    $wantRemote = $parsed.Remote -or [bool]$ref -or [bool]$parsed.Repo -or [bool]$env:UPWSH_REPO -or
+        ($piped -and -not $parsed.Local -and -not $source)
     $sibling = $null
-    if (-not $source -and -not $forceRemote) {
+    if (-not $source -and -not $wantRemote) {
         $sibling = Get-LocalProjectRuntimeRoot
+    }
+    if ($parsed.Local -and -not $source -and -not $sibling) {
+        throw 'no local project found; run from the repository or pass --source'
     }
     if ($source) {
         $runtimeRoot = Resolve-RuntimeRoot (winpath $source)
-    } elseif ($sibling) {
+    } elseif ($sibling -and -not $wantRemote) {
         $runtimeRoot = $sibling
     } else {
         $downloaded = Get-DownloadedRuntime -Repo $repo -Ref $ref
@@ -452,7 +475,13 @@ try {
     $deploy = Join-Path $runtimeRoot 'scripts\_deploy.ps1'
     if (-not [IO.File]::Exists($deploy)) { throw 'invalid runtime: missing scripts\_deploy.ps1' }
     . $deploy
-    Install-UpwshRuntime -Source $runtimeRoot -Destination $directory -ProfilePath $hookPath -Enable:($enabled -or -not $installed)
+    Install-UpwshRuntime -Source $runtimeRoot -Destination $directory
+    if (-not $env:UPWSH_SKIP_SESSION_LOAD) {
+        $commandPath = Join-Path $directory 'upwsh.psm1'
+        if ([IO.File]::Exists($commandPath)) {
+            Import-Module $commandPath -Global -Force -DisableNameChecking
+        }
+    }
     Complete-Install 0 $scriptInvocation
 } catch {
     Write-Output "unixify-powershell: $($_.Exception.Message)"

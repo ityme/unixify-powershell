@@ -32,8 +32,8 @@ try {
     if ($wantsHelp) {
         Invoke-UpwshUpdateInstall -Path $install -Tokens $updateArguments | ForEach-Object {
             $_.Replace('install.ps1', 'update.ps1').Replace('install this runtime', 'update this runtime').Replace(
-                'First install enables startup loading; reinstall preserves its state, custom, and tools.',
-                'Requires an installed runtime; preserves startup loading, custom, and tools.'
+                'Install does not enable startup loading; run upwsh load after install.',
+                'Requires an installed runtime; preserves custom, tools, and startup loading state.'
             )
         }
     } else {

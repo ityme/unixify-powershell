@@ -10,7 +10,7 @@ $source = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 foreach ($file in @('theme.psm1', 'prompt.psm1', 'path.psm1', 'path_convert.ps1')) {
     Copy-Item -LiteralPath (Join-Path $source $file) -Destination $runtime
 }
-Copy-Item -LiteralPath (Join-Path $source 'themes\pure-default.json') -Destination (Join-Path $runtime 'themes')
+Copy-Item -LiteralPath (Join-Path $source 'themes\pure-classic.json') -Destination (Join-Path $runtime 'themes')
 Import-Module (Join-Path $runtime 'path.psm1') -DisableNameChecking
 Import-Module (Join-Path $runtime 'theme.psm1')
 Import-Module (Join-Path $runtime 'prompt.psm1')

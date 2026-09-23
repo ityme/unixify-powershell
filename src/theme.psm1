@@ -143,7 +143,7 @@ function Get-UpwshTheme {
     $stamp = Get-UpwshThemeStamp
     if (-not $Reload -and $script:ThemeCache -and $script:ThemeStamp -ceq $stamp) { return $script:ThemeCache }
     try {
-        $name = 'pure-default'
+        $name = 'pure-classic'
         if ([IO.File]::Exists($script:ThemeSelection)) {
             if ([IO.FileInfo]::new($script:ThemeSelection).Length -gt 4096) { throw 'theme selection file is too large' }
             $selection = [IO.File]::ReadAllText($script:ThemeSelection) | ConvertFrom-Json -AsHashtable -ErrorAction Stop
@@ -157,10 +157,10 @@ function Get-UpwshTheme {
         $script:ThemeWarningStamp = $null
     } catch {
         if ($script:ThemeWarningStamp -cne $stamp) {
-            Write-Warning "upwsh theme: $($_.Exception.Message); keeping the previous theme or pure-default"
+            Write-Warning "upwsh theme: $($_.Exception.Message); keeping the previous theme or pure-classic"
             $script:ThemeWarningStamp = $stamp
         }
-        $theme = if ($script:ThemeCache) { $script:ThemeCache } else { Read-UpwshTheme 'pure-default' }
+        $theme = if ($script:ThemeCache) { $script:ThemeCache } else { Read-UpwshTheme 'pure-classic' }
     }
     $script:ThemeCache = $theme
     $script:ThemeStamp = $stamp

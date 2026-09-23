@@ -30,9 +30,10 @@ ityme@win project dev ❯
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-安装位置为 `~/.config/upwsh`，首次安装会设置 PowerShell 启动时自动加载。**新开一个 pwsh**，再安装 `ls`、`ll`、`tree` 所需的 eza：
+安装位置为 `~/.config/upwsh`，会把 `upwsh` 加入 Path，并在当前 pwsh 中定义 `upwsh` 命令。安装本身不启用提示符。然后执行：
 
 ```powershell
+upwsh load
 upwsh tool install eza
 ```
 
@@ -86,13 +87,13 @@ Git 单词唯一匹配时，补全后自动加空格。每段都只有一个匹�
 
 | 命令 | 作用 |
 | --- | --- |
-| `upwsh install` | 安装或修复；首次安装自动启用 |
+| `upwsh install` | 安装或修复文件、Path 和 `upwsh` 命令；不启用提示符 |
 | `upwsh update` | 更新已有安装，保留个人配置、工具和启用/停用状态 |
-| `upwsh load` | 启用启动时自动加载 `~/.config/upwsh/profile.ps1` |
-| `upwsh unload` | 停止自动加载，保留文件、工具和 `upwsh` 命令 |
+| `upwsh load` | 启用启动时自动加载，并加载当前 pwsh |
+| `upwsh unload` | 停止自动加载，并恢复当前会话的默认提示符 |
 | `upwsh uninstall` | 删除安装、自动加载配置及项目添加的环境变量和 Path 项 |
 
-安装或更新后，新开 pwsh 生效。通过已加载的 `upwsh` 函数调用 `load`，还会加载当前会话；`unload` 不撤销当前会话中已加载的功能。卸载时需要保留个人配置，可用 `upwsh uninstall --keep-custom`。
+仓库内的 `upwsh install` / `upwsh update` 默认 `--local`。`irm | iex` 默认 `--remote`。`load` 让当前窗口的主题生效；`unload` 恢复默认提示符。卸载时需要保留个人配置，可用 `upwsh uninstall --keep-custom`。
 
 安装目录固定为 `~/.config/upwsh`，`UPWSH_HOME` 记录这个位置。原生提示符由 `src/prompt.psm1` 提供，会随当前文件夹和 Git 分支变化。命令帮助见 `upwsh --help`。
 
@@ -108,12 +109,12 @@ upwsh tool uninstall rg
 
 ## 主题
 
-两个系列，共 12 套本地主题。默认 **`pure-default`**（原 iWonder）。切换无需重启 pwsh：
+两个系列，共 12 套本地主题。默认 **`pure-classic`**（原 iWonder）。切换无需重启 pwsh：
 
 ```powershell
 upwsh theme list
 upwsh theme use "colorful-blue"
-upwsh theme use "pure-default"
+upwsh theme use "pure-classic"
 ```
 
 ### pure-* · 透明背景
@@ -122,7 +123,7 @@ upwsh theme use "pure-default"
 
 | 主题 | 外观 |
 | --- | --- |
-| [pure-default](src/themes/pure-default.json) | 原有绿色用户/主机、黄色斜体目录、青色分支 |
+| [pure-classic](src/themes/pure-classic.json) | 原有绿色用户/主机、黄色斜体目录、青色分支 |
 | [pure-glacier](src/themes/pure-glacier.json) | 冰蓝目录、淡紫分支 |
 | [pure-ember](src/themes/pure-ember.json) | 琥珀目录、暖白分支 |
 | [pure-quiet](src/themes/pure-quiet.json) | 极简，隐藏用户/主机和耗时；成功 `>`，失败 `!` |
@@ -164,7 +165,7 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 function global:work { cd (winpath '/i/my work') }
 ```
 
-重复安装和更新会保留已有文件，并补齐缺失的模板。修改后新开 pwsh 生效。
+重复安装和更新会保留已有文件，并补齐缺失的模板。修改后执行 `upwsh load` 让当前 pwsh 生效。
 
 终端状态上报也可在 `custom/` 中配置。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
 
@@ -173,9 +174,10 @@ function global:work { cd (winpath '/i/my work') }
 ```powershell
 git clone https://github.com/ityme/unixify-powershell.git
 cd unixify-powershell
-pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
+upwsh install
+upwsh load
 ```
 
-装好后，在本项目内执行 `upwsh install` 或 `upwsh update`，会使用本地 `src/`；在项目外执行则下载源码。可用 `--source`、`--ref`、`--repo` 指定来源，管道安装对应使用 `UPWSH_SOURCE`、`UPWSH_REF`、`UPWSH_REPO`。
+本项目内的 `upwsh install` / `upwsh update` 默认 `--local`。用 `--remote` 下载，或用 `--source`、`--ref`、`--repo` 指定来源。管道安装默认 `--remote`，并读取 `UPWSH_SOURCE`、`UPWSH_REF`、`UPWSH_REPO`。
 
 测试、性能测量和路径转换接口维护见[开发说明](docs/development.md)。

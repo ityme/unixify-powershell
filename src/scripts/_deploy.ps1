@@ -50,7 +50,7 @@ function Test-UpwshRuntime {
     foreach ($name in @(
         'profile.ps1', 'path_convert.ps1', 'upwsh_home.ps1', 'alias.ps1',
         'path.psm1', 'unix.psm1', 'fs.psm1', 'proc.psm1', 'text.psm1', 'sys.psm1',
-        'tools.psm1', 'upwsh.psm1', 'completion.psm1', 'git_completion.psm1', 'theme.psm1', 'themes\pure-default.json', 'prompt.psm1', 'term.psm1', 'hook.psm1',
+        'tools.psm1', 'upwsh.psm1', 'completion.psm1', 'git_completion.psm1', 'theme.psm1', 'themes\pure-classic.json', 'prompt.psm1', 'term.psm1', 'hook.psm1',
         'scripts\install.ps1', 'scripts\update.ps1', 'scripts\uninstall.ps1',
         'scripts\upwsh.ps1', 'scripts\install_profile.ps1', 'scripts\install_cli_tools.ps1',
         'scripts\_deploy.ps1', 'scripts\_relaunch.ps1'
@@ -182,9 +182,7 @@ function Set-UpwshDeploymentFile {
 function Install-UpwshRuntime {
     param(
         [string]$Source,
-        [string]$Destination,
-        [string]$ProfilePath,
-        [bool]$Enable
+        [string]$Destination
     )
 
     $sourcePath = [IO.Path]::GetFullPath($Source).TrimEnd('\', '/')
@@ -193,7 +191,6 @@ function Install-UpwshRuntime {
         throw 'the installed runtime cannot be its own source; use a local project or a download'
     }
     if (Test-Path -LiteralPath (Join-Path $targetPath '.git')) { throw 'refusing to replace a git checkout' }
-    if (Test-Path -LiteralPath $ProfilePath -PathType Container) { throw "profile path is a directory: $ProfilePath" }
     Test-UpwshRuntime $sourcePath
 
     $parent = Split-Path -Parent $targetPath
@@ -201,8 +198,6 @@ function Install-UpwshRuntime {
     $id = [guid]::NewGuid().ToString('N')
     $stage = Join-Path $parent ".upwsh-stage-$id"
     $backup = Join-Path $parent ".upwsh-backup-$id"
-    $hadProfile = [IO.File]::Exists($ProfilePath)
-    $profileBytes = if ($hadProfile) { [IO.File]::ReadAllBytes($ProfilePath) } else { $null }
     $environment = Get-UpwshEnvironmentSnapshot
     $configurationStarted = $false
     $rollbackFailed = $false
@@ -261,10 +256,6 @@ function Install-UpwshRuntime {
         $configurationStarted = $true
         . (Join-Path $targetPath 'upwsh_home.ps1')
         foreach ($line in @(Add-UpwshUserEnvironment)) { $output.Add($line) }
-        # Disabled installations keep their profile bytes unchanged.
-        if ($Enable) {
-            foreach ($line in @(& (Join-Path $targetPath 'scripts\install_profile.ps1') -ProfilePath $ProfilePath)) { $output.Add($line) }
-        }
     } catch {
         $failure = $_
         $rollbackErrors = [Collections.Generic.List[string]]::new()
@@ -297,18 +288,6 @@ function Install-UpwshRuntime {
             catch { $rollbackErrors.Add("$($created[$index]): $($_.Exception.Message)") }
         }
         if ($configurationStarted) {
-            try {
-                if ($hadProfile) { [IO.File]::WriteAllBytes($ProfilePath, $profileBytes) }
-                elseif ([IO.File]::Exists($ProfilePath)) { [IO.File]::Delete($ProfilePath) }
-            } catch {
-                $rollbackErrors.Add("profile: $($_.Exception.Message)")
-                if ($hadProfile) {
-                    try {
-                        [IO.File]::WriteAllBytes("$backup.profile.ps1", $profileBytes)
-                        $rollbackErrors.Add("original profile saved at $backup.profile.ps1")
-                    } catch { $rollbackErrors.Add("profile backup: $($_.Exception.Message)") }
-                }
-            }
             try { Restore-UpwshEnvironment $environment }
             catch { $rollbackErrors.Add("environment: $($_.Exception.Message)") }
         }
@@ -335,6 +314,5 @@ function Install-UpwshRuntime {
     Write-Output "source   $sourcePath"
     Write-Output 'state    deployed'
     $output
-    Write-Output ('enabled  ' + $Enable.ToString().ToLowerInvariant())
-    Write-Output 'Open a new pwsh to use the installed version.'
+    Write-Output 'command  upwsh'
 }

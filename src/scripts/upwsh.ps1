@@ -9,7 +9,7 @@
 #   upwsh tool install eza rg
 #   upwsh tool uninstall eza
 #   upwsh theme list
-#   upwsh theme use pure-default
+#   upwsh theme use pure-classic
 
 $ErrorActionPreference = 'Stop'
 $script:Arguments = @($args)
@@ -21,11 +21,11 @@ usage: upwsh [-h | --help] <command> [<args>]
 These are common upwsh commands used in various situations:
 
 hook the current user's pwsh
-   load             Enable startup loading; load this pwsh when called in-process
-   unload           Stop $PROFILE from loading it; leave files, Path, and upwsh
+   load             Enable startup loading and load this pwsh
+   unload           Stop $PROFILE from loading it and drop the current-session profile
 
 install this runtime
-   install          Install or repair ~/.config/upwsh; first install enables loading
+   install          Install or repair ~/.config/upwsh; does not enable the profile
    uninstall        Unload, drop UPWSH_HOME and Path, then delete the install tree
    update           Update installed files; keep custom, tools, and startup loading state
 
@@ -166,8 +166,9 @@ function ConvertFrom-UpwshArguments {
     }
 
     if ($result.Command -in @('install', 'uninstall', 'update')) {
-        $allowed = @('--help', '-h', '--check', '-c', '--profile', '-p', '--current-host', '--ref', '--repo', '--source')
+        $allowed = @('--help', '-h', '--check', '-c', '--local', '--remote', '--ref', '--repo', '--source')
         if ($result.Command -eq 'uninstall') { $allowed = @('--help', '-h', '--check', '-c', '--profile', '-p', '--current-host', '--keep-custom') }
+        if ($result.Command -eq 'update') { $allowed = @('--help', '-h', '--check', '-c', '--local', '--remote', '--ref', '--repo', '--source') }
         while ($index -lt $tokens.Count) {
             $token = [string]$tokens[$index]
             if ($token -notin $allowed) {
@@ -228,6 +229,13 @@ function ConvertFrom-UpwshArguments {
     return $result
 }
 
+function Restore-UpwshDefaultPrompt {
+    Remove-Item Function:global:PSConsoleHostReadLine -ErrorAction SilentlyContinue
+    function global:prompt {
+        "PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) "
+    }
+}
+
 function Invoke-UpwshLoad {
     param($Parsed)
 
@@ -237,14 +245,14 @@ function Invoke-UpwshLoad {
         $installerArgs.Uninstall = $true
     }
     & $installer @installerArgs
+    if ($env:UPWSH_SKIP_SESSION_LOAD) {
+        return
+    }
     if ($Parsed.Command -eq 'unload') {
+        Restore-UpwshDefaultPrompt
         return
     }
     . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
-    if ($env:UPWSH_SKIP_SESSION_LOAD -or $scriptInvocation.CommandOrigin -eq 'Runspace') {
-        Write-Output 'Open a new pwsh to load the runtime.'
-        return
-    }
     $runtimeProfile = Join-Path (Get-UpwshHome) 'profile.ps1'
     if (Test-Path -LiteralPath $runtimeProfile -PathType Leaf) {
         . $runtimeProfile

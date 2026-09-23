@@ -167,6 +167,8 @@ try {
         $result = Invoke-Upwsh -Tokens @('install')
         Assert-Equal $result.Code 0
         Assert-True (Test-Path -LiteralPath $installedProfile) 'install missed runtime'
+        Assert-True (-not (Test-Path -LiteralPath $hook)) 'install wrote a profile hook'
+        Assert-Contains $result.Text 'command  upwsh'
     }
 
     Invoke-UpwshTest 'load hooks the installed profile' {
@@ -222,6 +224,9 @@ try {
         $missing = Invoke-Upwsh -Tokens @('install', '--source')
         Assert-Equal $missing.Code 2
         Assert-Contains $missing.Text 'missing value for --source'
+        $conflict = Invoke-Upwsh -Tokens @('install', '--local', '--remote')
+        Assert-Equal $conflict.Code 2
+        Assert-Contains $conflict.Text 'use only one of --local or --remote'
     }
 
     Invoke-UpwshTest 'load -u is unknown' {
@@ -344,11 +349,19 @@ try {
         }
     }
 
+    Invoke-UpwshTest 'install defines upwsh without loading the prompt' {
+        $result = Invoke-Upwsh -LoadSession -Tokens @('install')
+        Assert-Equal $result.Code 0
+        Assert-Equal (Get-Command upwsh -ErrorAction Stop).CommandType.ToString() 'Function'
+        Assert-True ((Get-Command prompt).Definition -notlike '*Get-UpwshThemeRevision*') 'install loaded the prompt'
+    }
+
     Invoke-UpwshTest 'load applies only the installed runtime in this session' {
         $sentinel = Join-Path $installHome 'custom\zz-installed.ps1'
         [IO.File]::WriteAllText($sentinel, 'Set-Alias -Name installed_only -Value Get-Date -Scope Global -Force')
         $result = Invoke-Upwsh -LoadSession -Tokens @('load')
         Assert-Equal (Get-Command installed_only -ErrorAction Stop).Definition 'Get-Date'
+        Assert-True ((Get-Command prompt).Definition -like '*Get-UpwshThemeRevision*') 'load did not enable the prompt'
         Assert-Equal $result.Code 0
         $command = Get-Command vim -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Alias'

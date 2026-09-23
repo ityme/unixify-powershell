@@ -9,12 +9,12 @@
 ```powershell
 upwsh theme list                 # * 标记当前主题
 upwsh theme use "colorful-blue" # 选择已有的本地主题，不下载
-upwsh theme use "pure-default"  # 恢复默认外观
+upwsh theme use "pure-classic"  # 恢复默认外观
 ```
 
 [README 主题画廊](../README.zh-CN.md#主题)包含全部 12 套主题的介绍和预览图；下载仓库后用浏览器打开 [themes.html](themes.html)，可离线切换八种命令状态。
 
-- **pure-***：`pure-default`（原 iWonder）、`pure-glacier`、`pure-ember`、`pure-quiet`、`pure-daylight`。透明背景，原有外观不变；Daylight 用于浅色终端背景。
+- **pure-***：`pure-classic`（原 iWonder）、`pure-glacier`、`pure-ember`、`pure-quiet`、`pure-daylight`。透明背景，原有外观不变；Daylight 用于浅色终端背景。
 - **colorful-***：`colorful-blue`、`colorful-green`、`colorful-macaron`、`colorful-morandi`、`colorful-cyberpunk`、`colorful-retro`、`colorful-memphis`。用户、主机、目录、Git 使用连续色块；耗时、返回码和提示字符使用透明背景，需要含 Powerline 字形的字体。
 
 主题名称和文件名统一使用小写、短横线。更新会刷新内置文件，不会重命名或删除 `custom/themes/` 中的个人主题。没有旧名称别名。
@@ -25,13 +25,13 @@ Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON �
 
 内置主题位于 `~/.config/upwsh/themes/`，由 unixify-powershell 管理。每次安装或更新都会用 `src/themes/` 中的新版本强制覆盖。个人主题放在 `~/.config/upwsh/custom/themes/`，更新不会覆盖；同名个人主题优先于内置主题。
 
-选择文件位于 `~/.config/upwsh/custom/theme.json`，例如 `{"Theme":"colorful-blue.json"}`。没有选择文件时使用 pure-default。
+选择文件位于 `~/.config/upwsh/custom/theme.json`，例如 `{"Theme":"colorful-blue.json"}`。没有选择文件时使用 pure-classic。
 
 布局变更后的第一次更新会把直接放在 `themes/` 下、且不属于内置主题的 JSON 移到 `custom/themes/`。如果目标目录已有同名文件，会保留目标文件，并警告旧文件仍在 `themes/`。需要保留两份时，请先备份安装目录。
 
 选择后下一次提示符生效。在另一个窗口或通过 `upwsh.cmd` 切换时，本窗口下次生成提示符才会读取选择，不在空闲输入过程中自行重绘。**编辑已选中的主题后，也要再执行一次 `upwsh theme use "名称"`**。解析结果有缓存，不在每次按键时读取整个主题。
 
-选中无效主题会报错并保留原选择。选择文件损坏或引用不受支持的主题时，已有会话保留上次可用主题，新会话回退到有效的 v2 pure-default。
+选中无效主题会报错并保留原选择。选择文件损坏或引用不受支持的主题时，已有会话保留上次可用主题，新会话回退到有效的 v2 pure-classic。
 
 ## 从 v1 升级
 

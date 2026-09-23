@@ -96,7 +96,6 @@ Test-DeployLock 'locked program file fails safely and identifies the file' {
     $locked = Join-Path $target 'path.psm1'
     $beforeProgram = [IO.File]::ReadAllText($locked)
     $beforeAlias = [IO.File]::ReadAllText((Join-Path $target 'alias.ps1'))
-    $beforeHook = [IO.File]::ReadAllText($hook)
     [IO.File]::AppendAllText((Join-Path $source 'alias.ps1'), "`n# change before locked file`n")
     [IO.File]::AppendAllText((Join-Path $source 'path.psm1'), "`n# change locked file`n")
     $rootHandle = Hold-Directory $target
@@ -107,7 +106,6 @@ Test-DeployLock 'locked program file fails safely and identifies the file' {
         Assert-True ($result.Text.Contains('path.psm1')) $result.Text
         Assert-Equal ([IO.File]::ReadAllText($locked)) $beforeProgram
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'alias.ps1'))) $beforeAlias
-        Assert-Equal ([IO.File]::ReadAllText($hook)) $beforeHook
         Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal settings'
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'running-tool-fixture'
     } finally { $fileHandle.Dispose(); $rootHandle.Dispose() }
@@ -115,22 +113,18 @@ Test-DeployLock 'locked program file fails safely and identifies the file' {
 
 Test-DeployLock 'configuration failure restores files while the root directory stays locked' {
     $before = [IO.File]::ReadAllText((Join-Path $target 'alias.ps1'))
-    $beforeHook = [IO.File]::ReadAllText($hook)
+    $beforeHome = [IO.File]::ReadAllText((Join-Path $target 'upwsh_home.ps1'))
     $obsolete = Join-Path $target 'obsolete-on-failed-update.ps1'
     [IO.File]::WriteAllText($obsolete, '# restore obsolete on failure')
     [IO.File]::WriteAllText((Join-Path $source 'custom\new-default.ps1'), '# new template')
-    [IO.File]::WriteAllText((Join-Path $source 'scripts\install_profile.ps1'), @'
-param([string]$ProfilePath)
-[IO.File]::WriteAllText($ProfilePath, 'partial profile')
-throw 'fixture configuration failure'
-'@)
+    [IO.File]::WriteAllText((Join-Path $source 'upwsh_home.ps1'), "throw 'fixture configuration failure'`n")
     $handle = Hold-Directory $target
     try {
         $result = Install-Source $source
         Assert-Equal $result.Code 1
         Assert-True ($result.Text.Contains('fixture configuration failure')) $result.Text
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'alias.ps1'))) $before
-        Assert-Equal ([IO.File]::ReadAllText($hook)) $beforeHook
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'upwsh_home.ps1'))) $beforeHome
         Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal settings'
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'running-tool-fixture'
         Assert-Equal ([IO.File]::ReadAllText($obsolete)) '# restore obsolete on failure'
@@ -139,16 +133,13 @@ throw 'fixture configuration failure'
     } finally { $handle.Dispose() }
 }
 
-Test-DeployLock 'failed first installation removes new files and restores the existing profile' {
+Test-DeployLock 'failed first installation removes new files' {
     $freshUser = Join-Path $HOME 'fresh-user'
     [void][IO.Directory]::CreateDirectory($freshUser)
-    $freshProfile = Join-Path $freshUser 'test-profile.ps1'
-    [IO.File]::WriteAllText($freshProfile, '# keep original profile')
     $result = Invoke-UpwshTestProcess -UserHome $freshUser -File $installer -Arguments @('--source', $source)
     Assert-Equal $result.Code 1
     Assert-True ($result.Text.Contains('fixture configuration failure')) $result.Text
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $freshUser '.config\upwsh'))) 'failed first install left a partial runtime'
-    Assert-Equal ([IO.File]::ReadAllText($freshProfile)) '# keep original profile'
 }
 
 if ($script:Failures.Count) {

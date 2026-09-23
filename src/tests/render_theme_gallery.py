@@ -10,7 +10,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 CATALOG = {
-    'pure-default': 'Original green / yellow / cyan, italic folder.',
+    'pure-classic': 'Original green / yellow / cyan, italic folder.',
     'pure-glacier': 'Ice-blue folder and lavender branch.',
     'pure-ember': 'Amber folder and warm-white branch.',
     'pure-quiet': 'No user/host or duration; > on success, ! on failure.',
@@ -131,7 +131,7 @@ def main():
             if series == 'colorful':
                 notes = '<details><summary>Palette adjustments / 配色调整</summary><ul>' + ''.join('<li>' + html.escape(s) + '</li>' for s in comment['ContrastAdjustments']) + '</ul></details>'
             entries.append(f'<article><h3><a href="../src/themes/{name}.json">{name}</a></h3><p>{html.escape(description)}</p><div class="sample {"light" if name == "pure-daylight" else ""}">{examples}</div>{notes}</article>')
-        introduction = 'Transparent backgrounds, colored text. No added blank line. Default: pure-default.' if series == 'pure' else 'Connected color blocks with one blank line before each prompt. Duration, exit code and symbol join without extra spaces.'
+        introduction = 'Transparent backgrounds, colored text. No added blank line. Default: pure-classic.' if series == 'pure' else 'Connected color blocks with one blank line before each prompt. Duration, exit code and symbol join without extra spaces.'
         groups.append(f'<section id="{series}"><h2>{series}-*</h2><p>{introduction}</p>' + ''.join(entries) + '</section>')
     page = '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>upwsh theme gallery</title><style>

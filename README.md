@@ -30,9 +30,10 @@ Run in PowerShell 7 (`pwsh`):
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-This installs into `~/.config/upwsh` and configures PowerShell to load it at startup. **Open a new pwsh**, then install eza for `ls`, `ll`, and `tree`:
+This installs into `~/.config/upwsh`, adds `upwsh` to Path, and defines `upwsh` in the current pwsh. It does not enable the prompt. Then run:
 
 ```powershell
+upwsh load
 upwsh tool install eza
 ```
 
@@ -86,13 +87,13 @@ Changes made in another window, such as switching a branch in the same working t
 
 | Command | Purpose |
 | --- | --- |
-| `upwsh install` | Install or repair; first install enables startup loading |
+| `upwsh install` | Install or repair files, Path, and the `upwsh` command; does not enable the prompt |
 | `upwsh update` | Update an existing installation, keeping custom settings, tools, and enabled/disabled state |
-| `upwsh load` | Enable startup loading of `~/.config/upwsh/profile.ps1` |
-| `upwsh unload` | Disable startup loading; keep files, tools, and the `upwsh` command |
+| `upwsh load` | Enable startup loading of `~/.config/upwsh/profile.ps1` and load this pwsh |
+| `upwsh unload` | Disable startup loading and drop the current-session prompt |
 | `upwsh uninstall` | Remove the installation, startup configuration, and managed environment variables and Path entries |
 
-Open a new pwsh after installing or updating. When you call the loaded `upwsh` function, `load` also applies the profile to that session. `unload` leaves the current session unchanged. To uninstall while keeping personal settings, use `upwsh uninstall --keep-custom`.
+`upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. `load` enables the theme in the current pwsh; `unload` restores the default prompt. To uninstall while keeping personal settings, use `upwsh uninstall --keep-custom`.
 
 The install directory is fixed at `~/.config/upwsh`; `UPWSH_HOME` records it. The native prompt in `src/prompt.psm1` follows the current folder and Git branch. Run `upwsh --help` for command help.
 
@@ -108,12 +109,12 @@ upwsh tool uninstall rg
 
 ## Themes
 
-Two families, 12 local themes. **`pure-default`** is the default (formerly iWonder). Switch without restarting pwsh:
+Two families, 12 local themes. **`pure-classic`** is the default (formerly iWonder). Switch without restarting pwsh:
 
 ```powershell
 upwsh theme list
 upwsh theme use "colorful-blue"
-upwsh theme use "pure-default"
+upwsh theme use "pure-classic"
 ```
 
 ### pure-* · transparent backgrounds
@@ -122,7 +123,7 @@ upwsh theme use "pure-default"
 
 | Theme | Appearance |
 | --- | --- |
-| [pure-default](src/themes/pure-default.json) | Original green user/host, yellow italic folder, cyan branch |
+| [pure-classic](src/themes/pure-classic.json) | Original green user/host, yellow italic folder, cyan branch |
 | [pure-glacier](src/themes/pure-glacier.json) | Ice-blue folder, lavender branch |
 | [pure-ember](src/themes/pure-ember.json) | Amber folder, warm-white branch |
 | [pure-quiet](src/themes/pure-quiet.json) | Minimal: hides user/host and duration; `>` on success, `!` on failure |
@@ -164,7 +165,7 @@ For example, put this in `custom/work.ps1`:
 function global:work { cd (winpath '/i/my work') }
 ```
 
-Reinstall and update preserve your files and fill in missing template files. Open a new pwsh to load your changes.
+Reinstall and update preserve your files and fill in missing template files. Run `upwsh load` to apply the prompt in the current pwsh.
 
 Terminal status reporting is configurable from `custom/` too. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
 
@@ -173,9 +174,10 @@ Terminal status reporting is configurable from `custom/` too. Full command text 
 ```powershell
 git clone https://github.com/ityme/unixify-powershell.git
 cd unixify-powershell
-pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
+upwsh install
+upwsh load
 ```
 
-Once installed, run `upwsh install` or `upwsh update` from this project to deploy local `src/` changes. Outside the project, the commands download the source. You can override the source with `--source`, `--ref`, or `--repo`; piped installs use `UPWSH_SOURCE`, `UPWSH_REF`, and `UPWSH_REPO`.
+`upwsh install` and `upwsh update` from this project default to `--local`. Use `--remote` to download, or override the source with `--source`, `--ref`, or `--repo`. Piped installs default to `--remote` and honor `UPWSH_SOURCE`, `UPWSH_REF`, and `UPWSH_REPO`.
 
 See [Development](docs/development.md) for tests, performance benchmarks, and converter maintenance.

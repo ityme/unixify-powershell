@@ -7,7 +7,7 @@
 ```powershell
 upwsh theme list
 upwsh theme use "colorful-blue"
-upwsh theme use "pure-default"
+upwsh theme use "pure-classic"
 ```
 
 `list` marks the active theme with `*`. `install` selects an existing local theme, not a download. Editing the selected theme requires running the same selection command again. The next prompt uses the new data; another session's selection does not redraw an idle input line.
@@ -16,7 +16,7 @@ upwsh theme use "pure-default"
 
 The [README gallery](../README.md#themes) introduces all 12 themes with screenshots. Open [themes.html](themes.html) locally to compare all eight command states offline.
 
-- **pure-***: `pure-default` (formerly iWonder), `pure-glacier`, `pure-ember`, `pure-quiet`, `pure-daylight`. Transparent backgrounds; the original appearances are unchanged. Daylight targets light terminal backgrounds.
+- **pure-***: `pure-classic` (formerly iWonder), `pure-glacier`, `pure-ember`, `pure-quiet`, `pure-daylight`. Transparent backgrounds; the original appearances are unchanged. Daylight targets light terminal backgrounds.
 - **colorful-***: `colorful-blue`, `colorful-green`, `colorful-macaron`, `colorful-morandi`, `colorful-cyberpunk`, `colorful-retro`, `colorful-memphis`. Connected user/host/directory/Git color blocks, followed by duration, exit code and symbol on transparent backgrounds. Requires Powerline glyphs.
 
 All names and filenames use lowercase hyphenated names. Updates refresh bundled files and do not rename or delete personal themes under `custom/themes/`. There are no old-name aliases.
@@ -27,7 +27,7 @@ Colorful preserves the reference background colors. Some foreground colors were 
 
 Bundled themes live in `~/.config/upwsh/themes/` and are owned by unixify-powershell. Every install/update replaces these files with the versions from `src/themes/`. Put personal themes in `~/.config/upwsh/custom/themes/`; updates never overwrite that directory. A custom file with the same name takes precedence over its bundled counterpart.
 
-The optional selection file `custom/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-default is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-default.
+The optional selection file `custom/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-classic is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-classic.
 
 During the first update after this layout change, non-bundled JSON files still found directly under `themes/` move to `custom/themes/`. Existing files in `custom/themes/` win; a conflicting legacy file stays in `themes/` and the update warns. Back up the install before this migration if you need both copies.
 
@@ -39,7 +39,7 @@ Install/update refresh every bundled JSON under `themes/`, while preserving `cus
 pwsh -NoLogo -NoProfile -File src/scripts/update.ps1 --source src
 ```
 
-Open a new pwsh and select a theme. Uninstall removes `themes/`; `--keep-custom` retains `custom/`, including `custom/themes/`, and the selection file.
+Run `upwsh load`, then select a theme. Uninstall removes `themes/`; `--keep-custom` retains `custom/`, including `custom/themes/`, and the selection file.
 
 ## Configuration
 

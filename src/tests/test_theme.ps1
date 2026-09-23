@@ -45,10 +45,10 @@ Push-Location $HOME
 try {
     $identity = "$env:USERNAME@$([Environment]::MachineName.ToLowerInvariant().Split('.')[0])"
     $hostName = [Environment]::MachineName.ToLowerInvariant().Split('.')[0]
-    Test-Theme 'default theme list marks pure-default active without creating a selection' {
+    Test-Theme 'default theme list marks pure-classic active without creating a selection' {
         $result = Invoke-ThemeCli @('theme','list')
         Assert-Equal $result.Code 0
-        Assert-True ($result.Text.Contains('* pure-default')) $result.Text
+        Assert-True ($result.Text.Contains('* pure-classic')) $result.Text
         Assert-True (-not [IO.File]::Exists($selection)) 'list wrote selection'
         Assert-Equal (Get-UpwshPromptText -Color Never) "$identity ~ ❯ "
     }
@@ -63,7 +63,7 @@ try {
             Assert-Equal (Invoke-ThemeCli @('theme','use','colorful-blue')).Code 0
             Assert-Equal (Get-UpwshPromptText -Color Never) "`n $env:USERNAME  $hostName  ~  $ "
             Assert-True ((Invoke-ThemeCli @('theme','list')).Text.Contains('* colorful-blue')) 'custom active theme missing'
-        } finally { Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-default' }
+        } finally { Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-classic' }
     }
     Test-Theme 'theme selection uses custom themes before bundled themes' {
         $customRoot = Join-Path $installHome 'custom\themes'
@@ -76,10 +76,10 @@ try {
         try {
             Assert-Equal (Invoke-ThemeCli @('theme','use','colorful-blue')).Code 0
             Assert-Equal (Get-UpwshPromptText -Color Never) "`n $env:USERNAME  $hostName  ~  $ "
-        } finally { Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-default' }
+        } finally { Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-classic' }
     }
     Test-Theme 'all bundled themes are installed, documented and render their settings' {
-        $expected = @('colorful-blue', 'colorful-cyberpunk', 'colorful-green', 'colorful-macaron', 'colorful-memphis', 'colorful-morandi', 'colorful-retro', 'pure-daylight', 'pure-default', 'pure-ember', 'pure-glacier', 'pure-quiet')
+        $expected = @('colorful-blue', 'colorful-cyberpunk', 'colorful-green', 'colorful-macaron', 'colorful-memphis', 'colorful-morandi', 'colorful-retro', 'pure-classic', 'pure-daylight', 'pure-ember', 'pure-glacier', 'pure-quiet')
         $listed = @(Get-UpwshThemeList)
         Assert-Equal ($listed.Name -join ',') ($expected -join ',')
         Assert-Equal @($listed | Where-Object Active).Count 1
@@ -100,7 +100,7 @@ try {
                 Assert-Equal (Get-UpwshPromptText -Color Never) $success
                 Assert-Equal (Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 2345 -Color Never) $failure
                 $rgb = @(1, 3, 5 | ForEach-Object { [Convert]::ToInt32($data.Modules.directory.Foreground.Substring($_, 2), 16) }) -join ';'
-                $attributes = if ($name -eq 'pure-default') { '3;' } else { '' }
+                $attributes = if ($name -eq 'pure-classic') { '3;' } else { '' }
                 $background = if ($colorful) {
                     '48;2;' + (@(1, 3, 5 | ForEach-Object { [Convert]::ToInt32($data.Modules.directory.Background.Substring($_, 2), 16) }) -join ';')
                 } else { '49' }
@@ -108,7 +108,7 @@ try {
                 Assert-True ((Get-UpwshPromptText -Color Always).Contains("$([char]27)[0;$($attributes)38;2;$rgb;${background}m$prefix~ ")) "wrong directory style for $name"
                 Assert-Equal (Get-UpwshPromptText -DurationMs 1999 -Color Never) $success
             }
-        } finally { $null = Set-UpwshTheme 'pure-default' }
+        } finally { $null = Set-UpwshTheme 'pure-classic' }
     }
     Test-Theme 'colorful presets render all Git, duration and failure combinations' {
         $repo = Join-Path $HOME 'colorful-repo'
@@ -134,7 +134,7 @@ try {
                     } finally { Pop-Location }
                 }
             }
-        } finally { $null = Set-UpwshTheme 'pure-default' }
+        } finally { $null = Set-UpwshTheme 'pure-classic' }
     }
     Test-Theme 'cached colorful prompt keeps exactly one leading newline across empty input' {
         try {
@@ -146,13 +146,13 @@ try {
                 Assert-Equal (Get-RenderedPrompt) $first
             }
             Assert-Equal @([regex]::Matches($first, "`n")).Count 1
-        } finally { $null = Set-UpwshTheme 'pure-default' }
+        } finally { $null = Set-UpwshTheme 'pure-classic' }
     }
     Test-Theme 'fresh installations do not provide old-name aliases' {
         foreach ($name in @('iWonder', 'Glacier', 'Ember', 'Quiet', 'Daylight', 'blue_iWonder')) {
             Assert-Equal (Invoke-ThemeCli @('theme', 'install', $name)).Code 1
         }
-        Assert-Equal (Get-UpwshTheme).Name 'pure-default'
+        Assert-Equal (Get-UpwshTheme).Name 'pure-classic'
     }
     Test-Theme 'comment metadata is optional and does not affect rendering' {
         $file = Join-Path $themes 'pure-glacier.json'
@@ -167,7 +167,7 @@ try {
             Assert-Equal (Get-UpwshPromptText -Succeeded $false -ExitCode 7 -DurationMs 2345 -Color Always) $before
         } finally {
             [IO.File]::WriteAllText($file, $saved)
-            $null = Set-UpwshTheme 'pure-default'
+            $null = Set-UpwshTheme 'pure-classic'
         }
     }
     Test-Theme 'invalid theme command shapes show usage' {
@@ -184,13 +184,13 @@ try {
         }
         Assert-Equal (Invoke-ThemeCli @('theme','--help')).Code 0
     }
-    Test-Theme 'selecting pure-default persists only a local filename reference' {
-        $result = Invoke-ThemeCli @('theme','use','pure-default')
+    Test-Theme 'selecting pure-classic persists only a local filename reference' {
+        $result = Invoke-ThemeCli @('theme','use','pure-classic')
         Assert-Equal $result.Code 0
-        Assert-Equal (([IO.File]::ReadAllText($selection) | ConvertFrom-Json).Theme) 'pure-default.json'
+        Assert-Equal (([IO.File]::ReadAllText($selection) | ConvertFrom-Json).Theme) 'pure-classic.json'
     }
 
-    $alternate = [IO.File]::ReadAllText((Join-Path $themes 'pure-default.json')) | ConvertFrom-Json -AsHashtable
+    $alternate = [IO.File]::ReadAllText((Join-Path $themes 'pure-classic.json')) | ConvertFrom-Json -AsHashtable
     $alternate.Name = 'Quiet Blue'
     $alternate.Modules.directory.Foreground = '#123456'
     $alternate.Modules.symbol.Text = '$'
@@ -221,7 +221,7 @@ try {
     Test-Theme 'unknown or invalid themes do not replace the active selection' {
         $before = [IO.File]::ReadAllText($selection)
         [IO.File]::WriteAllText((Join-Path $themes 'Broken.json'), '{"Name":"Broken","Version":2}')
-        foreach ($name in @('missing', 'Broken', '../pure-default', 'C:\pure-default', 'pure-default.json')) {
+        foreach ($name in @('missing', 'Broken', '../pure-classic', 'C:\pure-classic', 'pure-classic.json')) {
             $result = Invoke-ThemeCli @('theme','use',$name)
             Assert-Equal $result.Code 1
             Assert-Equal ([IO.File]::ReadAllText($selection)) $before
@@ -259,7 +259,7 @@ try {
             { param($data) $data.Version = '2' }
         )
         foreach ($mutate in $mutations) {
-            $bad = [IO.File]::ReadAllText((Join-Path $themes 'pure-default.json')) | ConvertFrom-Json -AsHashtable
+            $bad = [IO.File]::ReadAllText((Join-Path $themes 'pure-classic.json')) | ConvertFrom-Json -AsHashtable
             $bad.Name = 'Invalid'
             & $mutate $bad
             [IO.File]::WriteAllText($badPath, ($bad | ConvertTo-Json -Depth 4))
@@ -281,7 +281,7 @@ try {
         } finally { & $module { param($body) Set-Item Function:Get-PromptGitBranch $body } $saved }
     }
     Test-Theme 'theme selection from -File is picked up on the next parent prompt' {
-        $result = Invoke-UpwshTestProcess -UserHome $HOME -File $entry -Arguments @('theme','use','pure-default')
+        $result = Invoke-UpwshTestProcess -UserHome $HOME -File $entry -Arguments @('theme','use','pure-classic')
         Assert-Equal $result.Code 0
         Assert-Equal (Get-RenderedPrompt) "$identity ~ ❯ "
     }
@@ -305,10 +305,10 @@ try {
         $theme = Get-UpwshTheme -Reload -WarningVariable warnings -WarningAction SilentlyContinue
         Assert-Equal $theme.Name 'Quiet Blue'
         Assert-True ($warnings.Count -gt 0) 'invalid reference was silent'
-        Assert-Equal (Invoke-ThemeCli @('theme','use','pure-default')).Code 0
+        Assert-Equal (Invoke-ThemeCli @('theme','use','pure-classic')).Code 0
         Assert-Equal (Get-RenderedPrompt) "$identity ~ ❯ "
     }
-    Test-Theme 'a malformed reference in a fresh shell falls back to pure-default' {
+    Test-Theme 'a malformed reference in a fresh shell falls back to pure-classic' {
         $saved = [IO.File]::ReadAllText($selection)
         try {
             [IO.File]::WriteAllText($selection, '{"Theme":"../../escape.json"}')
@@ -322,7 +322,7 @@ try {
         Assert-Equal (Invoke-ThemeCli @('theme','use','Quiet Blue')).Code 0
         $before = [IO.File]::ReadAllText($alternatePath)
         $beforeSelection = [IO.File]::ReadAllText($selection)
-        $installedDefault = Join-Path $themes 'pure-default.json'
+        $installedDefault = Join-Path $themes 'pure-classic.json'
         $default = [IO.File]::ReadAllText($installedDefault) | ConvertFrom-Json -AsHashtable
         $default.Modules.symbol.Foreground = '#102030'
         [IO.File]::WriteAllText($installedDefault, ($default | ConvertTo-Json -Depth 4))
@@ -338,7 +338,7 @@ try {
         Assert-True ($result.Code -eq 0) $result.Text
         Assert-Equal ([IO.File]::ReadAllText($selection)) $beforeSelection
         Assert-Equal ([IO.File]::ReadAllText($alternatePath)) $before
-        Assert-Equal ([IO.File]::ReadAllText($installedDefault)) ([IO.File]::ReadAllText((Join-Path $runtime 'themes\pure-default.json')))
+        Assert-Equal ([IO.File]::ReadAllText($installedDefault)) ([IO.File]::ReadAllText((Join-Path $runtime 'themes\pure-classic.json')))
         Assert-Equal ([IO.File]::ReadAllText($customPath)) $beforeCustom
         Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue
         Assert-True ([IO.File]::ReadAllText($installedDefault) -cne $beforeDefault) 'bundled theme was not refreshed'
@@ -348,7 +348,7 @@ try {
         $legacy = Join-Path $themes 'personal-legacy.json'
         $customPath = Join-Path $installHome 'custom\themes\personal-legacy.json'
         Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue
-        $legacyData = [IO.File]::ReadAllText((Join-Path $themes 'pure-default.json')) | ConvertFrom-Json -AsHashtable
+        $legacyData = [IO.File]::ReadAllText((Join-Path $themes 'pure-classic.json')) | ConvertFrom-Json -AsHashtable
         $legacyData.Name = 'personal-legacy'
         [IO.File]::WriteAllText($legacy, ($legacyData | ConvertTo-Json -Depth 8))
         $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'scripts\update.ps1') -Arguments @('--source', $runtime)
@@ -358,18 +358,18 @@ try {
         Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue
     }
     Test-Theme 'updating over an old bundled theme fails before changing runtime or user files' {
-        $file = Join-Path $themes 'pure-default.json'
+        $file = Join-Path $themes 'pure-classic.json'
         $saved = [IO.File]::ReadAllText($file)
         $promptPath = Join-Path $installHome 'prompt.psm1'
         $beforePrompt = [IO.File]::ReadAllText($promptPath)
         $beforeSelection = [IO.File]::ReadAllText($selection)
         try {
-            [IO.File]::WriteAllText($file, '{"Version":1,"Name":"pure-default"}')
+            [IO.File]::WriteAllText($file, '{"Version":1,"Name":"pure-classic"}')
             $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'scripts\update.ps1') -Arguments @('--source', $runtime)
             Assert-Equal $result.Code 0
             Assert-Equal ([IO.File]::ReadAllText($promptPath)) $beforePrompt
             Assert-Equal ([IO.File]::ReadAllText($selection)) $beforeSelection
-            Assert-Equal ([IO.File]::ReadAllText($file)) ([IO.File]::ReadAllText((Join-Path $runtime 'themes\pure-default.json')))
+            Assert-Equal ([IO.File]::ReadAllText($file)) ([IO.File]::ReadAllText((Join-Path $runtime 'themes\pure-classic.json')))
         } finally { [IO.File]::WriteAllText($file, $saved) }
     }
 } finally { Pop-Location }
