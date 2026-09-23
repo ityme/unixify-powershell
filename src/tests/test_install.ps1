@@ -64,7 +64,27 @@ try {
         Assert-Contains $text (Join-Path $installHome 'profile.ps1')
         Assert-Contains $result.Text 'command  upwsh'
         Assert-Contains $result.Text 'state    installed'
+        Assert-Contains $result.Text 'missing  '
+        Assert-Contains $result.Text 'install  upwsh tool install '
+        Assert-Contains $result.Text 'eza'
         Assert-True ($result.Text -notlike '*Open a new pwsh*') 'install asked to open a new pwsh'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'tool\bin\eza.exe'))) 'install downloaded eza'
+    }
+
+    Invoke-InstallTest 'install skips the missing-tool hint when eza dust and btm exist' {
+        $presentUser = Join-Path $root 'present-tools-user'
+        $toolDir = Join-Path $presentUser '.config\upwsh\tool\bin'
+        New-Item -ItemType Directory -Path $toolDir -Force | Out-Null
+        foreach ($name in @('eza.exe', 'dust.exe', 'btm.exe')) {
+            [IO.File]::WriteAllText((Join-Path $toolDir $name), 'stub')
+        }
+        $result = Invoke-UpwshTestProcess -UserHome $presentUser -File $installer -Environment @{
+            PATH = "$toolDir;$env:PATH"
+        }
+        Assert-Equal $result.Code 0
+        Assert-Contains $result.Text 'state    installed'
+        Assert-True (-not $result.Text.Contains('missing  ')) 'hinted while tools were present'
+        Assert-True (-not $result.Text.Contains('upwsh tool install')) 'install command printed while tools were present'
     }
 
     Invoke-InstallTest 'UPWSH_HOME cannot redirect installation to a source tree' {

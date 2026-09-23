@@ -30,10 +30,11 @@ ityme@win project dev ❯
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-安装位置为 `~/.config/upwsh`，会把 `upwsh` 加入 Path，在当前 pwsh 中定义 `upwsh` 命令，并加载 profile。然后安装 `ls`、`ll`、`tree` 所需的 eza：
+安装位置为 `~/.config/upwsh`，会把 `upwsh` 加入 Path，在当前 pwsh 中定义 `upwsh` 命令，并加载 profile。若缺少 `eza`、`dust` 或 `btm`，安装结束会提示：
 
-```powershell
-upwsh tool install eza
+```text
+missing  eza dust btm
+install  upwsh tool install eza dust btm
 ```
 
 ## 使用路径

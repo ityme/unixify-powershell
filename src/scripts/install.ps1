@@ -37,6 +37,7 @@ Install or repair ~/.config/upwsh. UPWSH_HOME records this fixed location.
 Install then runs upwsh load. upwsh install defaults to --local. irm | iex defaults to --remote.
 The upwsh command is UPWSH_HOME\\bin\\upwsh.cmd.
 CLI tools go in UPWSH_HOME\\tool\\bin.
+After install, missing eza, dust, or btm are listed with upwsh tool install.
 '@
 }
 
@@ -175,6 +176,40 @@ function unixpath {
     }
 }
 # END GENERATED PATH CONVERTERS
+
+function Test-CommandToolPresent {
+    param([string]$Name, [string]$ToolBin)
+
+    if ([IO.File]::Exists((Join-Path $ToolBin "$Name.exe"))) {
+        return $true
+    }
+    $null -ne (Get-Command -Name $Name -CommandType Application -ErrorAction SilentlyContinue)
+}
+
+function Get-MissingCommandToolHint {
+    param([string]$InstallHome)
+
+    $toolBin = Join-Path $InstallHome 'tool\bin'
+    $savedPath = $env:PATH
+    try {
+        if ([IO.Directory]::Exists($toolBin) -and $savedPath -notlike "*$toolBin*") {
+            $env:PATH = $toolBin + ';' + $savedPath
+        }
+        $missing = @(
+            @('eza', 'dust', 'btm') |
+                Where-Object { -not (Test-CommandToolPresent -Name $_ -ToolBin $toolBin) }
+        )
+    } finally {
+        $env:PATH = $savedPath
+    }
+    if ($missing.Count -eq 0) {
+        return @()
+    }
+    @(
+        ('missing  ' + ($missing -join ' '))
+        ('install  upwsh tool install ' + ($missing -join ' '))
+    )
+}
 
 function Get-DefaultDestination {
     [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
@@ -485,6 +520,9 @@ try {
             throw "missing $loader"
         }
         & $loader load
+        foreach ($line in @(Get-MissingCommandToolHint -InstallHome $directory)) {
+            Write-Output $line
+        }
     }
     Complete-Install 0 $scriptInvocation
 } catch {

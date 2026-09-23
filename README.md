@@ -30,10 +30,11 @@ Run in PowerShell 7 (`pwsh`):
 irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
 ```
 
-This installs into `~/.config/upwsh`, adds `upwsh` to Path, defines `upwsh` in the current pwsh, and loads the profile. Then install eza for `ls`, `ll`, and `tree`:
+This installs into `~/.config/upwsh`, adds `upwsh` to Path, defines `upwsh` in the current pwsh, and loads the profile. If `eza`, `dust`, or `btm` are missing, install prints:
 
-```powershell
-upwsh tool install eza
+```text
+missing  eza dust btm
+install  upwsh tool install eza dust btm
 ```
 
 ## Use paths
