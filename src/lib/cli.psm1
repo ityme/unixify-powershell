@@ -1,4 +1,4 @@
-# 外部 CLI 适配。安装入口是 upwsh tool，见 scripts/upwsh.ps1。
+# 外部 CLI 适配（top → btm，du → dust）。安装入口是 upwsh tool，见 script/upwsh.ps1。
 # 旧会话可能还留着独立的 tool / tools，加载时清掉。
 Remove-Item -Path Function:global:tool, Function:global:tools, Alias:tools -ErrorAction Ignore
 
