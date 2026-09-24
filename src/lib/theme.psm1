@@ -1,7 +1,8 @@
 # Local theme data and selection. JSON is parsed, never evaluated as PowerShell.
-$script:ThemeBundledRoot = [IO.Path]::Combine($PSScriptRoot, 'themes')
-$script:ThemeCustomRoot = [IO.Path]::Combine($PSScriptRoot, 'custom', 'themes')
-$script:ThemeSelection = [IO.Path]::Combine($PSScriptRoot, 'custom', 'theme.json')
+$script:UpwshRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$script:ThemeBundledRoot = [IO.Path]::Combine($script:UpwshRoot, 'theme')
+$script:ThemeCustomRoot = [IO.Path]::Combine($script:UpwshRoot, 'custom', 'themes')
+$script:ThemeSelection = [IO.Path]::Combine($script:UpwshRoot, 'custom', 'theme.json')
 $script:ThemeCache = $null
 $script:ThemeStamp = $null
 $script:ThemeRevision = 0

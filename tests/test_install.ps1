@@ -3,9 +3,9 @@ $ErrorActionPreference = 'Stop'
 
 $sourceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $runtimeRoot = Join-Path $sourceRoot 'src'
-$installer = Join-Path $runtimeRoot 'scripts\install.ps1'
-$uninstaller = Join-Path $runtimeRoot 'scripts\uninstall.ps1'
-$updater = Join-Path $runtimeRoot 'scripts\update.ps1'
+$installer = Join-Path $runtimeRoot 'script\install.ps1'
+$uninstaller = Join-Path $runtimeRoot 'script\uninstall.ps1'
+$updater = Join-Path $runtimeRoot 'script\update.ps1'
 $root = Join-Path ([IO.Path]::GetTempPath()) ('unixify-install-' + [Guid]::NewGuid().ToString('N'))
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
@@ -56,7 +56,7 @@ try {
         Assert-Contains $result.Text 'state     deployed'
         Assert-Contains $result.Text '%UPWSH_HOME%\bin'
         Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
-        foreach ($file in @('profile.ps1', 'git_completion.psm1', 'bin\upwsh.cmd', 'custom\alias.ps1')) {
+        foreach ($file in @('profile.ps1', 'lib\git_completion.psm1', 'bin\upwsh.cmd', 'custom\alias.ps1')) {
             Assert-True (Test-Path -LiteralPath (Join-Path $installHome $file) -PathType Leaf) "missing $file"
         }
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'tests'))) 'tests were deployed'
@@ -138,7 +138,7 @@ try {
         Where-Object Name -NE 'tests' |
         ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $projectSrc -Recurse -Force }
     [IO.File]::WriteAllText((Join-Path $projectSrc 'local-source.txt'), 'from-cwd')
-    $installedCommand = Join-Path $installHome 'scripts\upwsh.ps1'
+    $installedCommand = Join-Path $installHome 'script\upwsh.ps1'
 
     Invoke-InstallTest 'install and uninstall accept the shared path syntax without a profile' {
         $pathUser = Join-Path $root 'path-user'
@@ -206,7 +206,7 @@ exit $LASTEXITCODE
     }
 
     Invoke-InstallTest 'load from the project still targets the installed profile' {
-        $result = Invoke-UpwshTestProcess -UserHome $userHome -File (Join-Path $projectSrc 'scripts\upwsh.ps1') -Arguments @('load') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File (Join-Path $projectSrc 'script\upwsh.ps1') -Arguments @('load') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
         Assert-Equal $result.Code 0
         Assert-Contains ([IO.File]::ReadAllText($hook)) (Join-Path $installHome 'profile.ps1')
         Assert-True (-not ([IO.File]::ReadAllText($hook)).Contains($projectSrc)) 'load hooked source'
@@ -271,18 +271,18 @@ exit $LASTEXITCODE
     Invoke-InstallTest 'invalid runtime syntax is rejected before replacing installed files' {
         $badRoot = Join-Path $root 'invalid-runtime'
         Copy-Item -LiteralPath $projectSrc -Destination $badRoot -Recurse
-        [IO.File]::WriteAllText((Join-Path $badRoot 'path.psm1'), 'function Broken {')
-        $before = [IO.File]::ReadAllText((Join-Path $installHome 'path.psm1'))
+        [IO.File]::WriteAllText((Join-Path $badRoot 'lib\path.psm1'), 'function Broken {')
+        $before = [IO.File]::ReadAllText((Join-Path $installHome 'lib\path.psm1'))
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $updater -Arguments @('--source', $badRoot)
         Assert-Equal $result.Code 1
         Assert-Contains $result.Text 'invalid runtime'
-        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'path.psm1'))) $before
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'lib\path.psm1'))) $before
     }
 
     Invoke-InstallTest 'configuration failure after replacement rolls back runtime tools and environment' {
         $badRoot = Join-Path $root 'rollback-runtime'
         Copy-Item -LiteralPath $projectSrc -Destination $badRoot -Recurse
-        [IO.File]::WriteAllText((Join-Path $badRoot 'upwsh_home.ps1'), @'
+        [IO.File]::WriteAllText((Join-Path $badRoot 'lib\upwsh_home.ps1'), @'
 throw 'configuration fixture failure'
 '@)
         [IO.File]::WriteAllText((Join-Path $badRoot 'local-source.txt'), 'must roll back')
@@ -301,7 +301,7 @@ exit 0
         Assert-True ($result.Code -eq 0) $result.Text
         Assert-Contains $result.Text 'configuration fixture failure'
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'local-source.txt'))) 'updated'
-        Assert-True (-not ([IO.File]::ReadAllText((Join-Path $installHome 'upwsh_home.ps1')).Contains('configuration fixture failure'))) 'broken source remained'
+        Assert-True (-not ([IO.File]::ReadAllText((Join-Path $installHome 'lib\upwsh_home.ps1')).Contains('configuration fixture failure'))) 'broken source remained'
         Assert-Equal ([IO.File]::ReadAllText($hook)) $beforeHook
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'bin\upwsh.cmd'))) $beforeShim
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
@@ -317,7 +317,7 @@ exit 0
     }
 
     Invoke-InstallTest 'uninstall ignores a stale UPWSH_HOME and leaves the project untouched' {
-        $result = Invoke-UpwshTestProcess -UserHome $userHome -File (Join-Path $projectSrc 'scripts\upwsh.ps1') -Arguments @('uninstall') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File (Join-Path $projectSrc 'script\upwsh.ps1') -Arguments @('uninstall') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'home      removed'
         Assert-Contains $result.Text 'path      removed'
@@ -385,7 +385,7 @@ function Invoke-WebRequest {
 [IO.File]::ReadAllText(UPDATER) | Invoke-Expression
 Write-Output ('AFTER_IEX:' + $LASTEXITCODE)
 '@
-        $command = $command.Replace('SCRIPTS', (ConvertTo-TestLiteral (Join-Path $runtimeRoot 'scripts'))).Replace('UPDATER', (ConvertTo-TestLiteral $updater))
+        $command = $command.Replace('SCRIPTS', (ConvertTo-TestLiteral (Join-Path $runtimeRoot 'script'))).Replace('UPDATER', (ConvertTo-TestLiteral $updater))
         $result = Invoke-UpwshTestProcess -UserHome $pipeUser -Command $command -WorkingDirectory $project
         Assert-Contains $result.Text 'AFTER_IEX:0'
         Assert-Contains $result.Text $projectSrc

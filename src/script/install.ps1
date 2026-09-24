@@ -1,6 +1,6 @@
 # 安装或修复 ~/.config/upwsh，然后 load。
-#   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
-#   pwsh -NoLogo -NoProfile -File src/scripts/install.ps1
+#   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/install.ps1 | iex
+#   pwsh -NoLogo -NoProfile -File src/script/install.ps1
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -30,7 +30,7 @@ inspect without writing
 
 A network install can run:
 
-  irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
+  irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/install.ps1 | iex
 
 Environment: UPWSH_REF UPWSH_REPO UPWSH_SOURCE
 Install or repair ~/.config/upwsh. UPWSH_HOME records this fixed location.
@@ -134,7 +134,7 @@ function ConvertFrom-InstallArguments {
     return $result
 }
 
-# BEGIN GENERATED PATH CONVERTERS (src/path_convert.ps1)
+# BEGIN GENERATED PATH CONVERTERS (src/lib/path_convert.ps1)
 # Shared path conversion interfaces. No filesystem access or shell initialization.
 function winpath {
     [CmdletBinding()]
@@ -263,7 +263,7 @@ function Test-RuntimeRoot {
         return $false
     }
     (Test-Path -LiteralPath (Join-Path $Path 'profile.ps1') -PathType Leaf) -and
-        (Test-Path -LiteralPath (Join-Path $Path 'scripts\install_profile.ps1') -PathType Leaf)
+        (Test-Path -LiteralPath (Join-Path $Path 'script\install_profile.ps1') -PathType Leaf)
 }
 
 function Resolve-RuntimeRoot {
@@ -309,7 +309,7 @@ function Get-LocalProjectRuntimeRoot {
             $src = Join-Path $current 'src'
             if (
                 (Test-RuntimeRoot $src) -and
-                (Test-Path -LiteralPath (Join-Path $src 'scripts\upwsh.ps1') -PathType Leaf) -and
+                (Test-Path -LiteralPath (Join-Path $src 'script\upwsh.ps1') -PathType Leaf) -and
                 (Test-Path -LiteralPath (Join-Path $current 'README.md') -PathType Leaf)
             ) {
                 return [IO.Path]::GetFullPath($src)
@@ -497,7 +497,7 @@ $source = if ($parsed.Source) {
 }
 $directory = Get-DefaultDestination
 $installed = [IO.File]::Exists((Join-Path $directory 'profile.ps1')) -or
-    [IO.File]::Exists((Join-Path $directory 'scripts\upwsh.ps1'))
+    [IO.File]::Exists((Join-Path $directory 'script\upwsh.ps1'))
 $workRoot = $null
 try {
     if ($script:UpdateOnly -and -not $installed) {
@@ -510,7 +510,7 @@ try {
     }
     $helper = if ($PSScriptRoot) { Join-Path $PSScriptRoot '_relaunch.ps1' } else { $null }
     if (-not $helper -or -not [IO.File]::Exists($helper)) {
-        $helper = Join-Path $directory 'scripts\_relaunch.ps1'
+        $helper = Join-Path $directory 'script\_relaunch.ps1'
     }
     if ([IO.File]::Exists($helper)) {
         . $helper
@@ -546,16 +546,16 @@ try {
     }
 
     # Use the implementation bundled with the chosen source, including standalone downloads.
-    $deploy = Join-Path $runtimeRoot 'scripts\_deploy.ps1'
-    if (-not [IO.File]::Exists($deploy)) { throw 'invalid runtime: missing scripts\_deploy.ps1' }
+    $deploy = Join-Path $runtimeRoot 'script\_deploy.ps1'
+    if (-not [IO.File]::Exists($deploy)) { throw 'invalid runtime: missing script\_deploy.ps1' }
     . $deploy
     Install-UpwshRuntime -Source $runtimeRoot -Destination $directory
-    $commandPath = Join-Path $directory 'upwsh.psm1'
+    $commandPath = Join-Path $directory 'lib\upwsh.psm1'
     if (-not $env:UPWSH_SKIP_SESSION_LOAD -and [IO.File]::Exists($commandPath)) {
         Import-Module $commandPath -Global -Force -DisableNameChecking
     }
     if (-not $script:UpdateOnly) {
-        $loader = Join-Path $directory 'scripts\upwsh.ps1'
+        $loader = Join-Path $directory 'script\upwsh.ps1'
         if (-not [IO.File]::Exists($loader)) {
             throw "missing $loader"
         }

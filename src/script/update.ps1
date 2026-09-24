@@ -1,5 +1,5 @@
 # Update an existing installation through the same transaction as install.
-#   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/update.ps1 | iex
+#   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/update.ps1 | iex
 $ErrorActionPreference = 'Stop'
 $updateArguments = @($args)
 $updateInvocation = $MyInvocation
@@ -19,13 +19,13 @@ try {
     $wantsHelp = @($updateArguments | Where-Object { $_ -in @('-h', '--help') }).Count -gt 0
     if (-not $wantsHelp -and $updateArguments.Count -eq 0 -and
         -not [IO.File]::Exists((Join-Path $installHome 'profile.ps1')) -and
-        -not [IO.File]::Exists((Join-Path $installHome 'scripts\upwsh.ps1'))) {
+        -not [IO.File]::Exists((Join-Path $installHome 'script\upwsh.ps1'))) {
         throw 'runtime is not installed; run upwsh install first'
     }
     $install = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'install.ps1' } else { $null }
     if (-not $install -or -not [IO.File]::Exists($install)) {
         $tempInstall = Join-Path ([IO.Path]::GetTempPath()) ('upwsh-install-' + [guid]::NewGuid().ToString('N') + '.ps1')
-        $raw = Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1' -UseBasicParsing
+        $raw = Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/install.ps1' -UseBasicParsing
         [IO.File]::WriteAllText($tempInstall, $raw.Content)
         $install = $tempInstall
     }

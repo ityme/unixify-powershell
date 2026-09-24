@@ -15,7 +15,7 @@ if (-not $Worker) {
         exit $result.Code
     } finally { Remove-Item -LiteralPath $testHome -Recurse -Force -ErrorAction SilentlyContinue }
 }
-Import-Module (Join-Path $RuntimeRoot 'term.psm1') -DisableNameChecking
+Import-Module (Join-Path $RuntimeRoot 'lib\term.psm1') -DisableNameChecking
 $original = [Console]::Out
 $rows = [Collections.Generic.List[object]]::new()
 try {

@@ -1,6 +1,6 @@
 # 卸掉 unixify-powershell：unload，再删 UPWSH_HOME、Path 和安装目录。
-#   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/uninstall.ps1 | iex
-#   pwsh -NoLogo -NoProfile -File src/scripts/uninstall.ps1
+#   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/uninstall.ps1 | iex
+#   pwsh -NoLogo -NoProfile -File src/script/uninstall.ps1
 
 $script:SavedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
@@ -26,7 +26,7 @@ inspect without writing
 
 A network uninstall can run:
 
-  irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/uninstall.ps1 | iex
+  irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/uninstall.ps1 | iex
 
 Unload first, then drop UPWSH_HOME and managed Path entries, then delete ~/.config/upwsh.
 --keep-custom leaves UPWSH_HOME\\custom in place.
@@ -93,7 +93,7 @@ function ConvertFrom-UninstallArguments {
     return $result
 }
 
-# BEGIN GENERATED PATH CONVERTERS (src/path_convert.ps1)
+# BEGIN GENERATED PATH CONVERTERS (src/lib/path_convert.ps1)
 # Shared path conversion interfaces. No filesystem access or shell initialization.
 function winpath {
     [CmdletBinding()]
@@ -384,7 +384,7 @@ $savedProfile = $env:UPWSH_PROFILE
 try {
     $env:UPWSH_PROFILE = $hookPath
     $env:UPWSH_HOME = $directory
-    $loader = Join-Path $directory 'scripts\upwsh.ps1'
+    $loader = Join-Path $directory 'script\upwsh.ps1'
     if ([IO.File]::Exists($loader)) {
         & $loader unload
     } else {

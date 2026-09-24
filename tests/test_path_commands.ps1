@@ -23,9 +23,9 @@ function Assert-Equal {
 }
 
 Test-Case 'standalone converter copies match the shared implementation' {
-    & (Join-Path $PSScriptRoot '..\src\scripts\sync_path_convert.ps1') -Check | Out-Null
+    & (Join-Path $PSScriptRoot '..\src\script\sync_path_convert.ps1') -Check | Out-Null
 }
-foreach ($entry in @('path_convert.ps1', 'upwsh_home.ps1', 'scripts\install.ps1', 'scripts\uninstall.ps1')) {
+foreach ($entry in @('lib\path_convert.ps1', 'lib\upwsh_home.ps1', 'script\install.ps1', 'script\uninstall.ps1')) {
     Test-Case "shared converter contract without a loaded profile: $entry" {
         $file = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\src\$entry"))
         $code = @'

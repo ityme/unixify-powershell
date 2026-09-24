@@ -23,11 +23,11 @@ Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON �
 
 ## 文件与生效方式
 
-内置主题位于 `~/.config/upwsh/themes/`，由 unixify-powershell 管理。每次安装或更新都会用 `src/themes/` 中的新版本强制覆盖。个人主题放在 `~/.config/upwsh/custom/themes/`，更新不会覆盖；同名个人主题优先于内置主题。
+内置主题位于 `~/.config/upwsh/theme/`，由 unixify-powershell 管理。每次安装或更新都会用 `src/theme/` 中的新版本强制覆盖。个人主题放在 `~/.config/upwsh/custom/themes/`，更新不会覆盖；同名个人主题优先于内置主题。
 
 选择文件位于 `~/.config/upwsh/custom/theme.json`，例如 `{"Theme":"colorful-blue.json"}`。没有选择文件时使用 pure-classic。
 
-布局变更后的第一次更新会把直接放在 `themes/` 下、且不属于内置主题的 JSON 移到 `custom/themes/`。如果目标目录已有同名文件，会保留目标文件，并警告旧文件仍在 `themes/`。需要保留两份时，请先备份安装目录。
+布局变更后的第一次更新会把直接放在 `theme/` 或旧的 `themes/` 下、且不属于内置主题的 JSON 移到 `custom/themes/`。如果目标目录已有同名文件，会保留目标文件，并警告旧文件仍在 `theme/`。需要保留两份时，请先备份安装目录。
 
 选择后下一次提示符生效。在另一个窗口或通过 `upwsh.cmd` 切换时，本窗口下次生成提示符才会读取选择，不在空闲输入过程中自行重绘。**编辑已选中的主题后，也要再执行一次 `upwsh theme use "名称"`**。解析结果有缓存，不在每次按键时读取整个主题。
 
@@ -37,9 +37,9 @@ Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON �
 
 **只支持 `Version: 2`，不兼容或自动转换 v1。** `Colors`、`Symbols`、`Display` 已删除；不能只把版本号从 1 改成 2。
 
-更新会刷新 `themes/` 下的所有内置主题，补齐缺失文件；`custom/`、`custom/themes/`、工具和个人别名不会被覆盖。布局变更后的第一次更新会迁移旧的非内置主题。新会话会读取选择。自定义 v1 文件请参考 v2 模板手动重写。
+更新会刷新 `theme/` 下的所有内置主题，补齐缺失文件；`custom/`、`custom/themes/`、工具和个人别名不会被覆盖。布局变更后的第一次更新会迁移旧的非内置主题。新会话会读取选择。自定义 v1 文件请参考 v2 模板手动重写。
 
-卸载会删除 `themes/`；`--keep-custom` 会保留 `custom/`（包括 `custom/themes/`）和选择文件。卸载前另行备份。
+卸载会删除 `theme/`；`--keep-custom` 会保留 `custom/`（包括 `custom/themes/`）和选择文件。卸载前另行备份。
 
 ## 最小分段示例
 
@@ -161,4 +161,4 @@ Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON �
 
 主题名支持字母、数字、空格、`_`、`-`，以字母或数字开头，最多 80 字符，末尾不能有空格。文件不超过 64 KiB。配置文字单项最多 128 个 UTF-16 代码单元，允许空格，但不允许换行或控制字符。
 
-CLI 管理安装目录；仓库的 `src/themes/` 只供源码开发和部署。`src/theme.psm1` 校验并补默认值，`src/prompt.psm1` 先判断可见数据、再渲染文字与连接符。隐藏 Git 段不查询 Git；同一渲染中重复引用 Git 只查询一次。空闲提示符缓存策略不变。
+CLI 管理安装目录；仓库的 `src/theme/` 只供源码开发和部署。`src/lib/theme.psm1` 校验并补默认值，`src/lib/prompt.psm1` 先判断可见数据、再渲染文字与连接符。隐藏 Git 段不查询 Git；同一渲染中重复引用 Git 只查询一次。空闲提示符缓存策略不变。

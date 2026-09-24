@@ -5,7 +5,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     exit $LASTEXITCODE
 }
 
-$installer = Join-Path $PSScriptRoot '..\src\scripts\install_profile.ps1'
+$installer = Join-Path $PSScriptRoot '..\src\script\install_profile.ps1'
 $sourceProfile = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src\profile.ps1'))
 $installedProfile = Join-Path $HOME '.config\upwsh\profile.ps1'
 $root = Join-Path ([IO.Path]::GetTempPath()) (
@@ -175,7 +175,7 @@ try {
         Assert-Contains $output 'state     deployed'
         Assert-True (Test-Path -LiteralPath $deployedProfile -PathType Leaf) 'deploy missed profile.ps1'
         Assert-True (
-            Test-Path -LiteralPath (Join-Path $deployRoot 'scripts\install_profile.ps1')
+            Test-Path -LiteralPath (Join-Path $deployRoot 'script\install_profile.ps1')
         ) 'deploy missed install_profile.ps1'
         Assert-True (
             -not (Test-Path -LiteralPath (Join-Path $deployRoot 'tests'))

@@ -213,7 +213,7 @@ function Write-UpwshCommandShim {
     $shim = Get-UpwshCommandShim
     $text = @(
         '@echo off'
-        'pwsh -NoLogo -NoProfile -File "%~dp0..\scripts\upwsh.ps1" %*'
+        'pwsh -NoLogo -NoProfile -File "%~dp0..\script\upwsh.ps1" %*'
         ''
     ) -join "`r`n"
     if (-not [IO.File]::Exists($shim) -or [IO.File]::ReadAllText($shim) -cne $text) {

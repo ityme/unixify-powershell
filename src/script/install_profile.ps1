@@ -16,7 +16,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
+. (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
 $script:NewLine = "`r`n"
 $script:BeginMarker = '# >>> unixify-powershell >>>'
 $script:EndMarker = '# <<< unixify-powershell <<<'

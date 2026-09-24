@@ -284,7 +284,7 @@ function Invoke-UpwshLoad {
         Restore-UpwshDefaultPrompt
         return
     }
-    . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
+    . (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
     $runtimeProfile = Join-Path (Get-UpwshHome) 'profile.ps1'
     if (Test-Path -LiteralPath $runtimeProfile -PathType Leaf) {
         . $runtimeProfile
@@ -324,8 +324,8 @@ function Invoke-UpwshTool {
 function Invoke-UpwshTheme {
     param($Parsed)
 
-    . (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
-    $themePath = Join-Path (Get-UpwshHome) 'theme.psm1'
+    . (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
+    $themePath = Join-Path (Get-UpwshHome) 'lib\theme.psm1'
     if (-not [IO.File]::Exists($themePath)) { throw 'themes are not installed; run upwsh install first' }
     $module = Import-Module $themePath -Global -PassThru -ErrorAction Stop
     if ($Parsed.Action -eq 'list') {

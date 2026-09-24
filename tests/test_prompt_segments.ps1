@@ -5,15 +5,16 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     exit $LASTEXITCODE
 }
 $runtime = Join-Path $HOME 'runtime'
-[void][IO.Directory]::CreateDirectory((Join-Path $runtime 'themes'))
+[void][IO.Directory]::CreateDirectory((Join-Path $runtime 'lib'))
+[void][IO.Directory]::CreateDirectory((Join-Path $runtime 'theme'))
 $source = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))
 foreach ($file in @('theme.psm1', 'prompt.psm1', 'path.psm1', 'path_convert.ps1')) {
-    Copy-Item -LiteralPath (Join-Path $source $file) -Destination $runtime
+    Copy-Item -LiteralPath (Join-Path $source "lib\$file") -Destination (Join-Path $runtime 'lib')
 }
-Copy-Item -LiteralPath (Join-Path $source 'themes\pure-classic.json') -Destination (Join-Path $runtime 'themes')
-Import-Module (Join-Path $runtime 'path.psm1') -DisableNameChecking
-Import-Module (Join-Path $runtime 'theme.psm1')
-Import-Module (Join-Path $runtime 'prompt.psm1')
+Copy-Item -LiteralPath (Join-Path $source 'theme\pure-classic.json') -Destination (Join-Path $runtime 'theme')
+Import-Module (Join-Path $runtime 'lib\path.psm1') -DisableNameChecking
+Import-Module (Join-Path $runtime 'lib\theme.psm1')
+Import-Module (Join-Path $runtime 'lib\prompt.psm1')
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
 function Test-Segments {
@@ -30,7 +31,7 @@ function Assert-True {
 }
 function Use-Theme {
     param($Data)
-    [IO.File]::WriteAllText((Join-Path $runtime 'themes\Segments.json'), ($Data | ConvertTo-Json -Depth 8))
+    [IO.File]::WriteAllText((Join-Path $runtime 'theme\Segments.json'), ($Data | ConvertTo-Json -Depth 8))
     $null = Set-UpwshTheme 'Segments'
 }
 function New-Theme {

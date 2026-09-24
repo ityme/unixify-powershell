@@ -176,7 +176,7 @@ try {
     New-FixtureFile '.viminfo' -Hidden -BaseDirectory $fakeHome | Out-Null
     New-FixtureDirectory '.vim' -Hidden -BaseDirectory $fakeHome | Out-Null
 
-    & (Join-Path $PSScriptRoot '..\src\scripts\install_profile.ps1') -Deploy | Out-Null
+    & (Join-Path $PSScriptRoot '..\src\script\install_profile.ps1') -Deploy | Out-Null
     $profilePath = Join-Path $HOME '.config\upwsh\profile.ps1'
     $env:UPWSH_HOME = Split-Path -Parent $profilePath
     $customDir = Join-Path (Split-Path -Parent $profilePath) 'custom'

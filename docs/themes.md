@@ -25,21 +25,21 @@ Colorful preserves the reference background colors. Some foreground colors were 
 
 ## Files and upgrading
 
-Bundled themes live in `~/.config/upwsh/themes/` and are owned by unixify-powershell. Every install/update replaces these files with the versions from `src/themes/`. Put personal themes in `~/.config/upwsh/custom/themes/`; updates never overwrite that directory. A custom file with the same name takes precedence over its bundled counterpart.
+Bundled themes live in `~/.config/upwsh/theme/` and are owned by unixify-powershell. Every install/update replaces these files with the versions from `src/theme/`. Put personal themes in `~/.config/upwsh/custom/themes/`; updates never overwrite that directory. A custom file with the same name takes precedence over its bundled counterpart.
 
 The optional selection file `custom/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-classic is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-classic.
 
-During the first update after this layout change, non-bundled JSON files still found directly under `themes/` move to `custom/themes/`. Existing files in `custom/themes/` win; a conflicting legacy file stays in `themes/` and the update warns. Back up the install before this migration if you need both copies.
+During the first update after this layout change, non-bundled JSON files still found directly under `theme/` or the old `themes/` directory move to `custom/themes/`. Existing files in `custom/themes/` win; a conflicting legacy file stays in `theme/` and the update warns. Back up the install before this migration if you need both copies.
 
 **Only Version 2 is supported.** There is no v1 reader or automatic conversion. `Colors`, `Symbols`, and `Display` no longer exist; changing just the version number is insufficient.
 
-Install/update refresh every bundled JSON under `themes/`, while preserving `custom/themes/`. During the first update after this layout change, non-bundled JSON files still directly under `themes/` move to `custom/themes/`. If the custom destination already exists, the existing custom file wins and the legacy file stays in place with a warning. Rewrite custom v1 themes from a v2 template before selecting them.
+Install/update refresh every bundled JSON under `theme/`, while preserving `custom/themes/`. During the first update after this layout change, non-bundled JSON files still directly under `theme/` or the old `themes/` directory move to `custom/themes/`. If the custom destination already exists, the existing custom file wins and the legacy file stays in place with a warning. Rewrite custom v1 themes from a v2 template before selecting them.
 
 ```powershell
-pwsh -NoLogo -NoProfile -File src/scripts/update.ps1 --source src
+pwsh -NoLogo -NoProfile -File src/script/update.ps1 --source src
 ```
 
-Install loads the current pwsh. Then select a theme. Uninstall removes `themes/`; `--keep-custom` retains `custom/`, including `custom/themes/`, and the selection file.
+Install loads the current pwsh. Then select a theme. Uninstall removes `theme/`; `--keep-custom` retains `custom/`, including `custom/themes/`, and the selection file.
 
 ## Configuration
 
@@ -130,7 +130,7 @@ Bundled `_Comment` objects explain fields in Chinese. Edit `Modules`, not the co
 
 Theme names start with a letter/digit, allow letters, digits, spaces, `_`, `-`, and have at most 80 characters with no trailing spaces. CLI names cannot contain paths or `.json` extensions.
 
-`src/theme.psm1` validates and supplies defaults. `src/prompt.psm1` resolves visible data before decorations. The CLI targets the installed directory; directly loading `src/profile.ps1` uses source-local themes. Existing idle prompt caching and selection revision tracking remain unchanged.
+`src/lib/theme.psm1` validates and supplies defaults. `src/lib/prompt.psm1` resolves visible data before decorations. The CLI targets the installed directory; directly loading `src/profile.ps1` uses source-local themes. Existing idle prompt caching and selection revision tracking remain unchanged.
 
 ```powershell
 pwsh -NoLogo -NoProfile -File tests/test_theme.ps1

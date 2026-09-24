@@ -6,7 +6,7 @@ The shell sends OSC escape sequences to the terminal for working-directory track
 
 ## Configuration
 
-Put settings in `~/.config/upwsh/custom/terminal.ps1`. Do not edit the installed `term.psm1`; updates replace it.
+Put settings in `~/.config/upwsh/custom/terminal.ps1`. Do not edit the installed `lib/term.psm1`; updates replace it.
 
 ```powershell
 # Default: emit only to an interactive VT-capable console, not redirected output.

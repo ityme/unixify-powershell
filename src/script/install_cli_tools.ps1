@@ -16,7 +16,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot '..\upwsh_home.ps1')
+. (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
 $Dir = Get-UpwshToolBin
 
 $script:Tools = @(

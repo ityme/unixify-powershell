@@ -27,7 +27,7 @@ ityme@win project dev ❯
 在 PowerShell 7（`pwsh`）中执行：
 
 ```powershell
-irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/install.ps1 | iex
 ```
 
 安装位置为 `~/.config/upwsh`，会把 `upwsh` 加入 Path，在当前 pwsh 中定义 `upwsh` 命令，并加载 profile。若缺少 `eza`、`dust` 或 `btm`，安装结束会提示：
@@ -95,7 +95,7 @@ Git 单词唯一匹配时，补全后自动加空格。每段都只有一个匹�
 
 仓库内的 `upwsh install` / `upwsh update` 默认 `--local`。`irm | iex` 默认 `--remote`。安装会加载当前窗口；卸载会先 unload。卸载时需要保留个人配置，可用 `upwsh uninstall --keep-custom`。
 
-安装目录固定为 `~/.config/upwsh`，`UPWSH_HOME` 记录这个位置。原生提示符由 `src/prompt.psm1` 提供，会随当前文件夹和 Git 分支变化。命令帮助见 `upwsh --help`。
+安装目录固定为 `~/.config/upwsh`，`UPWSH_HOME` 记录这个位置。原生提示符由 `src/lib/prompt.psm1` 提供，会随当前文件夹和 Git 分支变化。命令帮助见 `upwsh --help`。
 
 ## CLI 工具
 
@@ -125,11 +125,11 @@ upwsh theme use "pure-classic"
 
 | 主题 | 外观 |
 | --- | --- |
-| [pure-classic](src/themes/pure-classic.json) | 原有绿色用户/主机、黄色斜体目录、青色分支 |
-| [pure-glacier](src/themes/pure-glacier.json) | 冰蓝目录、淡紫分支 |
-| [pure-ember](src/themes/pure-ember.json) | 琥珀目录、暖白分支 |
-| [pure-quiet](src/themes/pure-quiet.json) | 极简，隐藏用户/主机和耗时；成功 `>`，失败 `!` |
-| [pure-daylight](src/themes/pure-daylight.json) | 深蓝目录、深紫分支，适合浅色终端背景 |
+| [pure-classic](src/theme/pure-classic.json) | 原有绿色用户/主机、黄色斜体目录、青色分支 |
+| [pure-glacier](src/theme/pure-glacier.json) | 冰蓝目录、淡紫分支 |
+| [pure-ember](src/theme/pure-ember.json) | 琥珀目录、暖白分支 |
+| [pure-quiet](src/theme/pure-quiet.json) | 极简，隐藏用户/主机和耗时；成功 `>`，失败 `!` |
+| [pure-daylight](src/theme/pure-daylight.json) | 深蓝目录、深紫分支，适合浅色终端背景 |
 
 ### colorful-* · 连续色块
 
@@ -137,13 +137,13 @@ upwsh theme use "pure-classic"
 
 | 主题 | 配色顺序 |
 | --- | --- |
-| [colorful-blue](src/themes/colorful-blue.json) | 深青 → 湖绿 → 亮青 → 冰青 |
-| [colorful-green](src/themes/colorful-green.json) | 鼠尾草绿 → 抹茶绿 → 春芽绿 → 极地薄荷 |
-| [colorful-macaron](src/themes/colorful-macaron.json) | 香芋紫 → 天空蓝 → 湖水绿 → 嫩芽绿 |
-| [colorful-morandi](src/themes/colorful-morandi.json) | 豆沙灰 → 灰粉 → 燕麦 → 亚麻 |
-| [colorful-cyberpunk](src/themes/colorful-cyberpunk.json) | 霓虹紫 → 极光蓝 → 荧光绿 → 冰蓝 |
-| [colorful-retro](src/themes/colorful-retro.json) | 森林暗绿 → 砖赭 → 暖棕 → 象牙白 |
-| [colorful-memphis](src/themes/colorful-memphis.json) | 亮粉 → 柠檬黄 → 青绿 → 极浅蓝 |
+| [colorful-blue](src/theme/colorful-blue.json) | 深青 → 湖绿 → 亮青 → 冰青 |
+| [colorful-green](src/theme/colorful-green.json) | 鼠尾草绿 → 抹茶绿 → 春芽绿 → 极地薄荷 |
+| [colorful-macaron](src/theme/colorful-macaron.json) | 香芋紫 → 天空蓝 → 湖水绿 → 嫩芽绿 |
+| [colorful-morandi](src/theme/colorful-morandi.json) | 豆沙灰 → 灰粉 → 燕麦 → 亚麻 |
+| [colorful-cyberpunk](src/theme/colorful-cyberpunk.json) | 霓虹紫 → 极光蓝 → 荧光绿 → 冰蓝 |
+| [colorful-retro](src/theme/colorful-retro.json) | 森林暗绿 → 砖赭 → 暖棕 → 象牙白 |
+| [colorful-memphis](src/theme/colorful-memphis.json) | 亮粉 → 柠檬黄 → 青绿 → 极浅蓝 |
 
 Colorful 按已确认的 `starship-colorful.toml` 配色制作。用户、主机、目录、Git 使用连续色块和实心三角，耗时、返回码与 `❯` 保持透明背景。非仓库、短耗时或成功时，相应模块隐藏，不留下多余箭头。文字对比调整记录在各 JSON 的 `_Comment.ContrastAdjustments` 中。
 
@@ -153,9 +153,9 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 
 想像预览页一样切换八种命令状态，下载仓库后用浏览器打开 **[docs/themes.html](docs/themes.html)**，无需联网或启动服务。GitHub 可能显示 HTML 源码，不直接运行页面。
 
-内置主题位于 `~/.config/upwsh/themes/`，个人主题位于 `~/.config/upwsh/custom/themes/`，`custom/theme.json` 记录选择。v2 用 `Order`、`Modules` 配置颜色、排列和连接符，每份 JSON 都有中文字段说明。切换后下一次提示符生效；编辑后需重新选择同一主题。
+内置主题位于 `~/.config/upwsh/theme/`，个人主题位于 `~/.config/upwsh/custom/themes/`，`custom/theme.json` 记录选择。v2 用 `Order`、`Modules` 配置颜色、排列和连接符，每份 JSON 都有中文字段说明。切换后下一次提示符生效；编辑后需重新选择同一主题。
 
-更新会刷新 `themes/` 下的内置主题，保留 `custom/themes/` 中的个人主题和选择文件。旧名称没有别名，也不会自动重命名。**不支持 v1 主题**，升级前先备份。升级步骤和配置方式见[主题说明](docs/themes.zh-CN.md)。
+更新会刷新 `theme/` 下的内置主题，保留 `custom/themes/` 中的个人主题和选择文件。旧名称没有别名，也不会自动重命名。**不支持 v1 主题**，升级前先备份。升级步骤和配置方式见[主题说明](docs/themes.zh-CN.md)。
 
 ## 个人配置
 

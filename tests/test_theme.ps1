@@ -7,8 +7,8 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
 
 $runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))
 $installHome = Join-Path $HOME '.config\upwsh'
-$entry = Join-Path $installHome 'scripts\upwsh.ps1'
-$themes = Join-Path $installHome 'themes'
+$entry = Join-Path $installHome 'script\upwsh.ps1'
+$themes = Join-Path $installHome 'theme'
 $selection = Join-Path $installHome 'custom\theme.json'
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
@@ -38,7 +38,7 @@ function Get-RenderedPrompt {
     } finally { [Console]::SetOut($writer) }
 }
 
-& (Join-Path $runtime 'scripts\install.ps1') --source $runtime | Out-Null
+& (Join-Path $runtime 'script\install.ps1') --source $runtime | Out-Null
 Assert-Equal $LASTEXITCODE 0
 . (Join-Path $installHome 'profile.ps1')
 Push-Location $HOME
@@ -334,11 +334,11 @@ try {
         $custom.Name = 'personal'
         [IO.File]::WriteAllText($customPath, ($custom | ConvertTo-Json -Depth 8))
         $beforeCustom = [IO.File]::ReadAllText($customPath)
-        $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'scripts\update.ps1') -Arguments @('--source', $runtime)
+        $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'script\update.ps1') -Arguments @('--source', $runtime)
         Assert-True ($result.Code -eq 0) $result.Text
         Assert-Equal ([IO.File]::ReadAllText($selection)) $beforeSelection
         Assert-Equal ([IO.File]::ReadAllText($alternatePath)) $before
-        Assert-Equal ([IO.File]::ReadAllText($installedDefault)) ([IO.File]::ReadAllText((Join-Path $runtime 'themes\pure-classic.json')))
+        Assert-Equal ([IO.File]::ReadAllText($installedDefault)) ([IO.File]::ReadAllText((Join-Path $runtime 'theme\pure-classic.json')))
         Assert-Equal ([IO.File]::ReadAllText($customPath)) $beforeCustom
         Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue
         Assert-True ([IO.File]::ReadAllText($installedDefault) -cne $beforeDefault) 'bundled theme was not refreshed'
@@ -351,7 +351,7 @@ try {
         $legacyData = [IO.File]::ReadAllText((Join-Path $themes 'pure-classic.json')) | ConvertFrom-Json -AsHashtable
         $legacyData.Name = 'personal-legacy'
         [IO.File]::WriteAllText($legacy, ($legacyData | ConvertTo-Json -Depth 8))
-        $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'scripts\update.ps1') -Arguments @('--source', $runtime)
+        $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'script\update.ps1') -Arguments @('--source', $runtime)
         Assert-True ($result.Code -eq 0) $result.Text
         Assert-True (-not [IO.File]::Exists($legacy)) 'legacy theme was not moved'
         Assert-True ([IO.File]::Exists($customPath)) 'legacy theme was not migrated'
@@ -360,16 +360,16 @@ try {
     Test-Theme 'updating over an old bundled theme fails before changing runtime or user files' {
         $file = Join-Path $themes 'pure-classic.json'
         $saved = [IO.File]::ReadAllText($file)
-        $promptPath = Join-Path $installHome 'prompt.psm1'
+        $promptPath = Join-Path $installHome 'lib\prompt.psm1'
         $beforePrompt = [IO.File]::ReadAllText($promptPath)
         $beforeSelection = [IO.File]::ReadAllText($selection)
         try {
             [IO.File]::WriteAllText($file, '{"Version":1,"Name":"pure-classic"}')
-            $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'scripts\update.ps1') -Arguments @('--source', $runtime)
+            $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'script\update.ps1') -Arguments @('--source', $runtime)
             Assert-Equal $result.Code 0
             Assert-Equal ([IO.File]::ReadAllText($promptPath)) $beforePrompt
             Assert-Equal ([IO.File]::ReadAllText($selection)) $beforeSelection
-            Assert-Equal ([IO.File]::ReadAllText($file)) ([IO.File]::ReadAllText((Join-Path $runtime 'themes\pure-classic.json')))
+            Assert-Equal ([IO.File]::ReadAllText($file)) ([IO.File]::ReadAllText((Join-Path $runtime 'theme\pure-classic.json')))
         } finally { [IO.File]::WriteAllText($file, $saved) }
     }
 } finally { Pop-Location }

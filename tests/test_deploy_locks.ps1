@@ -6,8 +6,8 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
 }
 
 $runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))
-$installer = Join-Path $runtime 'scripts\install.ps1'
-$updater = Join-Path $runtime 'scripts\update.ps1'
+$installer = Join-Path $runtime 'script\install.ps1'
+$updater = Join-Path $runtime 'script\update.ps1'
 $target = Join-Path $HOME '.config\upwsh'
 $hook = Join-Path $HOME 'test-profile.ps1'
 $script:Passed = 0
@@ -54,7 +54,7 @@ $source = Join-Path $HOME 'source'
 [void][IO.Directory]::CreateDirectory($source)
 Get-ChildItem -LiteralPath $runtime -Force | Where-Object Name -NE 'tests' |
     ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $source -Recurse -Force }
-[IO.File]::AppendAllText((Join-Path $source 'path.psm1'), "`n# updated fixture`n")
+[IO.File]::AppendAllText((Join-Path $source 'lib\path.psm1'), "`n# updated fixture`n")
 $custom = Join-Path $target 'custom\alias.ps1'
 $tool = Join-Path $target 'tool\bin\fixture.exe'
 [IO.File]::WriteAllText($custom, '# personal settings')
@@ -72,7 +72,7 @@ Test-DeployLock 'a held root directory prevents a whole-tree rename' {
 }
 
 Test-DeployLock 'install and update work while the root and runtime subdirectories are held open' {
-    $handles = @($target, (Join-Path $target 'scripts'), (Join-Path $target 'custom'), (Join-Path $target 'tool'), (Join-Path $target 'bin')) |
+    $handles = @($target, (Join-Path $target 'script'), (Join-Path $target 'custom'), (Join-Path $target 'tool'), (Join-Path $target 'bin')) |
         ForEach-Object { Hold-Directory $_ }
     $fileHandles = @($tool, $custom, (Join-Path $target 'bin\upwsh.cmd')) |
         ForEach-Object { [IO.File]::Open($_, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read) }
@@ -81,7 +81,7 @@ Test-DeployLock 'install and update work while the root and runtime subdirectori
         foreach ($entry in @($installer, $updater)) {
             $result = Install-Source -Source $source -Entry $entry
             Assert-True ($result.Code -eq 0) $result.Text
-            Assert-True ([IO.File]::ReadAllText((Join-Path $target 'path.psm1')).Contains('# updated fixture')) 'program file not updated'
+            Assert-True ([IO.File]::ReadAllText((Join-Path $target 'lib\path.psm1')).Contains('# updated fixture')) 'program file not updated'
             Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal settings'
             Assert-Equal ([IO.File]::ReadAllText($tool)) 'running-tool-fixture'
             Assert-True (-not [IO.File]::Exists((Join-Path $target 'obsolete.ps1'))) 'obsolete program file remained'
@@ -93,11 +93,11 @@ Test-DeployLock 'install and update work while the root and runtime subdirectori
 }
 
 Test-DeployLock 'locked program file fails safely and identifies the file' {
-    $locked = Join-Path $target 'path.psm1'
+    $locked = Join-Path $target 'lib\path.psm1'
     $beforeProgram = [IO.File]::ReadAllText($locked)
-    $beforeAlias = [IO.File]::ReadAllText((Join-Path $target 'alias.ps1'))
-    [IO.File]::AppendAllText((Join-Path $source 'alias.ps1'), "`n# change before locked file`n")
-    [IO.File]::AppendAllText((Join-Path $source 'path.psm1'), "`n# change locked file`n")
+    $beforeAlias = [IO.File]::ReadAllText((Join-Path $target 'lib\alias.ps1'))
+    [IO.File]::AppendAllText((Join-Path $source 'lib\alias.ps1'), "`n# change before locked file`n")
+    [IO.File]::AppendAllText((Join-Path $source 'lib\path.psm1'), "`n# change locked file`n")
     $rootHandle = Hold-Directory $target
     $fileHandle = [IO.File]::Open($locked, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
     try {
@@ -105,26 +105,26 @@ Test-DeployLock 'locked program file fails safely and identifies the file' {
         Assert-Equal $result.Code 1
         Assert-True ($result.Text.Contains('path.psm1')) $result.Text
         Assert-Equal ([IO.File]::ReadAllText($locked)) $beforeProgram
-        Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'alias.ps1'))) $beforeAlias
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'lib\alias.ps1'))) $beforeAlias
         Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal settings'
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'running-tool-fixture'
     } finally { $fileHandle.Dispose(); $rootHandle.Dispose() }
 }
 
 Test-DeployLock 'configuration failure restores files while the root directory stays locked' {
-    $before = [IO.File]::ReadAllText((Join-Path $target 'alias.ps1'))
-    $beforeHome = [IO.File]::ReadAllText((Join-Path $target 'upwsh_home.ps1'))
+    $before = [IO.File]::ReadAllText((Join-Path $target 'lib\alias.ps1'))
+    $beforeHome = [IO.File]::ReadAllText((Join-Path $target 'lib\upwsh_home.ps1'))
     $obsolete = Join-Path $target 'obsolete-on-failed-update.ps1'
     [IO.File]::WriteAllText($obsolete, '# restore obsolete on failure')
     [IO.File]::WriteAllText((Join-Path $source 'custom\new-default.ps1'), '# new template')
-    [IO.File]::WriteAllText((Join-Path $source 'upwsh_home.ps1'), "throw 'fixture configuration failure'`n")
+    [IO.File]::WriteAllText((Join-Path $source 'lib\upwsh_home.ps1'), "throw 'fixture configuration failure'`n")
     $handle = Hold-Directory $target
     try {
         $result = Install-Source $source
         Assert-Equal $result.Code 1
         Assert-True ($result.Text.Contains('fixture configuration failure')) $result.Text
-        Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'alias.ps1'))) $before
-        Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'upwsh_home.ps1'))) $beforeHome
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'lib\alias.ps1'))) $before
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $target 'lib\upwsh_home.ps1'))) $beforeHome
         Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal settings'
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'running-tool-fixture'
         Assert-Equal ([IO.File]::ReadAllText($obsolete)) '# restore obsolete on failure'

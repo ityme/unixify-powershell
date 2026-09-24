@@ -67,18 +67,19 @@ def render():
     with tempfile.TemporaryDirectory(prefix='upwsh-gallery-') as temp:
         work = Path(temp)
         runtime = work / 'runtime'
-        (runtime / 'themes').mkdir(parents=True)
+        (runtime / 'lib').mkdir(parents=True)
+        (runtime / 'theme').mkdir(parents=True)
         for file in ['path.psm1', 'path_convert.ps1', 'theme.psm1', 'prompt.psm1']:
-            shutil.copy2(ROOT / 'src' / file, runtime / file)
+            shutil.copy2(ROOT / 'src' / 'lib' / file, runtime / 'lib' / file)
         for name in CATALOG:
-            shutil.copy2(ROOT / 'src/themes' / (name + '.json'), runtime / 'themes')
+            shutil.copy2(ROOT / 'src/theme' / (name + '.json'), runtime / 'theme')
         (work / 'project/.git').mkdir(parents=True)
         (work / 'project/.git/HEAD').write_text('ref: refs/heads/dev', encoding='utf-8')
         (work / 'outside').mkdir()
         ps = f"""$ErrorActionPreference='Stop'
-Import-Module {literal(runtime / 'path.psm1')} -DisableNameChecking
-Import-Module {literal(runtime / 'theme.psm1')}
-Import-Module {literal(runtime / 'prompt.psm1')}
+Import-Module {literal(runtime / 'lib' / 'path.psm1')} -DisableNameChecking
+Import-Module {literal(runtime / 'lib' / 'theme.psm1')}
+Import-Module {literal(runtime / 'lib' / 'prompt.psm1')}
 $env:USERNAME='user'
 $hostName=[Environment]::MachineName.ToLowerInvariant().Split('.')[0]
 $results=@(foreach($name in @({','.join(literal(n) for n in CATALOG)})) {{
@@ -103,8 +104,8 @@ ConvertTo-Json -InputObject $results -Compress
 
 
 def main():
-    themes = {name: json.loads((ROOT / 'src/themes' / (name + '.json')).read_text(encoding='utf-8')) for name in CATALOG}
-    assert set(themes) == {p.stem for p in (ROOT / 'src/themes').glob('*.json')}, 'Update CATALOG for new themes'
+    themes = {name: json.loads((ROOT / 'src/theme' / (name + '.json')).read_text(encoding='utf-8')) for name in CATALOG}
+    assert set(themes) == {p.stem for p in (ROOT / 'src/theme').glob('*.json')}, 'Update CATALOG for new themes'
     renders = render()
     assert len(renders) == len(CATALOG) * 8
     for row in renders:
@@ -130,7 +131,7 @@ def main():
             notes = ''
             if series == 'colorful':
                 notes = '<details><summary>Palette adjustments / 配色调整</summary><ul>' + ''.join('<li>' + html.escape(s) + '</li>' for s in comment['ContrastAdjustments']) + '</ul></details>'
-            entries.append(f'<article><h3><a href="../src/themes/{name}.json">{name}</a></h3><p>{html.escape(description)}</p><div class="sample {"light" if name == "pure-daylight" else ""}">{examples}</div>{notes}</article>')
+            entries.append(f'<article><h3><a href="../src/theme/{name}.json">{name}</a></h3><p>{html.escape(description)}</p><div class="sample {"light" if name == "pure-daylight" else ""}">{examples}</div>{notes}</article>')
         introduction = 'Transparent backgrounds, colored text. No added blank line. Default: pure-classic.' if series == 'pure' else 'Connected color blocks with one blank line before each prompt. Duration, exit code and symbol join without extra spaces.'
         groups.append(f'<section id="{series}"><h2>{series}-*</h2><p>{introduction}</p>' + ''.join(entries) + '</section>')
     page = '''<!doctype html>

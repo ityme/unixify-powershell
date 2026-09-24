@@ -27,7 +27,7 @@ Use `/c/Users` and `~/projects`, run familiar commands such as `ls`, `cp -r`, an
 Run in PowerShell 7 (`pwsh`):
 
 ```powershell
-irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/install.ps1 | iex
 ```
 
 This installs into `~/.config/upwsh`, adds `upwsh` to Path, defines `upwsh` in the current pwsh, and loads the profile. If `eza`, `dust`, or `btm` are missing, install prints:
@@ -95,7 +95,7 @@ Changes made in another window, such as switching a branch in the same working t
 
 `upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. Install loads the current pwsh; uninstall unloads it. To uninstall while keeping personal settings, use `upwsh uninstall --keep-custom`.
 
-The install directory is fixed at `~/.config/upwsh`; `UPWSH_HOME` records it. The native prompt in `src/prompt.psm1` follows the current folder and Git branch. Run `upwsh --help` for command help.
+The install directory is fixed at `~/.config/upwsh`; `UPWSH_HOME` records it. The native prompt in `src/lib/prompt.psm1` follows the current folder and Git branch. Run `upwsh --help` for command help.
 
 ## CLI tools
 
@@ -125,11 +125,11 @@ upwsh theme use "pure-classic"
 
 | Theme | Appearance |
 | --- | --- |
-| [pure-classic](src/themes/pure-classic.json) | Original green user/host, yellow italic folder, cyan branch |
-| [pure-glacier](src/themes/pure-glacier.json) | Ice-blue folder, lavender branch |
-| [pure-ember](src/themes/pure-ember.json) | Amber folder, warm-white branch |
-| [pure-quiet](src/themes/pure-quiet.json) | Minimal: hides user/host and duration; `>` on success, `!` on failure |
-| [pure-daylight](src/themes/pure-daylight.json) | Deep blue and purple for a light terminal background |
+| [pure-classic](src/theme/pure-classic.json) | Original green user/host, yellow italic folder, cyan branch |
+| [pure-glacier](src/theme/pure-glacier.json) | Ice-blue folder, lavender branch |
+| [pure-ember](src/theme/pure-ember.json) | Amber folder, warm-white branch |
+| [pure-quiet](src/theme/pure-quiet.json) | Minimal: hides user/host and duration; `>` on success, `!` on failure |
+| [pure-daylight](src/theme/pure-daylight.json) | Deep blue and purple for a light terminal background |
 
 ### colorful-* · connected color blocks
 
@@ -137,13 +137,13 @@ upwsh theme use "pure-classic"
 
 | Theme | Palette |
 | --- | --- |
-| [colorful-blue](src/themes/colorful-blue.json) | Deep teal → lake green → bright teal → ice teal |
-| [colorful-green](src/themes/colorful-green.json) | Sage → matcha → spring green → pale mint |
-| [colorful-macaron](src/themes/colorful-macaron.json) | Lilac → sky blue → lake green → soft green |
-| [colorful-morandi](src/themes/colorful-morandi.json) | Sage grey → dusty pink → oat → linen |
-| [colorful-cyberpunk](src/themes/colorful-cyberpunk.json) | Neon purple → electric blue → aqua → ice blue |
-| [colorful-retro](src/themes/colorful-retro.json) | Forest green → ochre → warm tan → ivory |
-| [colorful-memphis](src/themes/colorful-memphis.json) | Pink → lemon yellow → cyan → pale blue |
+| [colorful-blue](src/theme/colorful-blue.json) | Deep teal → lake green → bright teal → ice teal |
+| [colorful-green](src/theme/colorful-green.json) | Sage → matcha → spring green → pale mint |
+| [colorful-macaron](src/theme/colorful-macaron.json) | Lilac → sky blue → lake green → soft green |
+| [colorful-morandi](src/theme/colorful-morandi.json) | Sage grey → dusty pink → oat → linen |
+| [colorful-cyberpunk](src/theme/colorful-cyberpunk.json) | Neon purple → electric blue → aqua → ice blue |
+| [colorful-retro](src/theme/colorful-retro.json) | Forest green → ochre → warm tan → ivory |
+| [colorful-memphis](src/theme/colorful-memphis.json) | Pink → lemon yellow → cyan → pale blue |
 
 Colorful follows the approved `starship-colorful.toml` palette reference. User, host, folder and Git form a connected strip; duration, exit code and `❯` keep transparent backgrounds. Missing Git, short commands and successful commands hide their conditional segments without leaving orphan arrows. Foreground readability corrections are recorded in each JSON's `_Comment.ContrastAdjustments`.
 
@@ -153,9 +153,9 @@ Screenshots show sample user/host, branch `dev`, exit code `7`, and duration `2.
 
 For an interactive comparison of all eight command states, download the repository and open **[docs/themes.html](docs/themes.html)** in a browser. It works offline; GitHub may show the HTML source rather than run it.
 
-Themes live in `~/.config/upwsh/themes/`; personal themes live in `~/.config/upwsh/custom/themes/`; `custom/theme.json` records the selection. V2 uses `Order` and `Modules` for colors, layout and attached connectors. Each JSON includes Chinese field explanations. Switching refreshes the next prompt; editing requires reselecting the theme.
+Bundled themes live in `~/.config/upwsh/theme/`; personal themes live in `~/.config/upwsh/custom/themes/`; `custom/theme.json` records the selection. V2 uses `Order` and `Modules` for colors, layout and attached connectors. Each JSON includes Chinese field explanations. Switching refreshes the next prompt; editing requires reselecting the theme.
 
-Updates refresh bundled themes in `themes/` and preserve personal themes in `custom/themes/` plus the selection file. Old names are not aliases or automatically renamed. **V1 themes are unsupported**: back them up before upgrading. See [Themes](docs/themes.md) for upgrade steps and configuration.
+Updates refresh bundled themes in `theme/` and preserve personal themes in `custom/themes/` plus the selection file. Old names are not aliases or automatically renamed. **V1 themes are unsupported**: back them up before upgrading. See [Themes](docs/themes.md) for upgrade steps and configuration.
 
 ## Personal settings
 
