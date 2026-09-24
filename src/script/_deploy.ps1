@@ -49,7 +49,10 @@ function Move-UpwshLegacyThemes {
 }
 
 function Test-UpwshRuntime {
-    param([string]$Root)
+    param(
+        [string]$Root,
+        [switch]$Staged
+    )
 
     foreach ($name in @(
         'profile.ps1',
@@ -65,9 +68,12 @@ function Test-UpwshRuntime {
             throw "invalid runtime: missing $name"
         }
     }
+    if (-not $Staged -and -not [IO.File]::Exists((Join-Path $Root 'user-settings.ps1'))) {
+        throw 'invalid runtime: missing user-settings.ps1'
+    }
     Test-UpwshThemeHeaders -Root (Join-Path $Root 'theme') -Names @(Get-ChildItem -LiteralPath (Join-Path $Root 'theme') -Filter '*.json' -File | ForEach-Object Name)
     $scripts = foreach ($item in Get-ChildItem -LiteralPath $Root -Force) {
-        if ($item.Name -in @('tests', 'custom', 'theme', 'themes', 'tool', 'bin', '.git')) { continue }
+        if ($item.Name -in @('tests', 'custom', 'theme', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1')) { continue }
         if ($item.PSIsContainer) {
             Get-ChildItem -LiteralPath $item.FullName -Recurse -File | Where-Object Extension -In '.ps1', '.psm1'
         } elseif ($item.Extension -in @('.ps1', '.psm1')) { $item }
@@ -85,7 +91,7 @@ function Copy-UpwshRuntime {
 
     [void][IO.Directory]::CreateDirectory($Destination)
     foreach ($item in Get-ChildItem -LiteralPath $Source -Force) {
-        if ($item.Name -in @('tests', 'custom', 'themes', 'tool', 'bin', '.git')) { continue }
+        if ($item.Name -in @('tests', 'custom', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1')) { continue }
         Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $Destination $item.Name) -Recurse -Force
     }
 }
@@ -143,7 +149,7 @@ function Get-UpwshManagedFiles {
 
     if (-not [IO.Directory]::Exists($Root)) { return }
     foreach ($item in Get-ChildItem -LiteralPath $Root -Force) {
-        if ($item.Name -in @('custom', 'theme', 'themes', 'tool', 'bin', '.git')) { continue }
+        if ($item.Name -in @('custom', 'theme', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1')) { continue }
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "refusing to replace a linked runtime path: $($item.FullName)"
         }
@@ -216,7 +222,7 @@ function Install-UpwshRuntime {
     $output = [Collections.Generic.List[object]]::new()
     try {
         Copy-UpwshRuntime -Source $sourcePath -Destination $stage
-        Test-UpwshRuntime $stage
+        Test-UpwshRuntime $stage -Staged
         Move-UpwshLegacyThemes -Target $targetPath -BundledNames (Get-UpwshThemeNames $sourcePath) -Backup $backup -Migrations $migrations -Created $created
         # Windows can hold directory handles for running shells/tools. Keep all live directories
         # in place and replace only managed files, recording enough to undo every successful edit.
@@ -251,6 +257,14 @@ function Install-UpwshRuntime {
                 [IO.File]::Move($activeFile, $saved)
                 $journal.Add([pscustomobject]@{ Target = $activeFile; Backup = $saved; Added = $false })
             }
+        }
+        $userSettingsSource = Join-Path $sourcePath 'user-settings.ps1'
+        $userSettingsTarget = Join-Path $targetPath 'user-settings.ps1'
+        if ([IO.File]::Exists($userSettingsSource) -and -not [IO.File]::Exists($userSettingsTarget)) {
+            $activeFile = $userSettingsTarget
+            New-UpwshDeploymentDirectory -Path ([IO.Path]::GetDirectoryName($userSettingsTarget)) -Created $created
+            Copy-Item -LiteralPath $userSettingsSource -Destination $userSettingsTarget
+            $journal.Add([pscustomobject]@{ Target = $userSettingsTarget; Backup = $null; Added = $true })
         }
         foreach ($folder in @('custom', 'custom\themes', 'bin', 'tool\bin')) {
             $defaults = Join-Path $stage $folder

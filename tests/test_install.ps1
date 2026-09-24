@@ -56,7 +56,7 @@ try {
         Assert-Contains $result.Text 'state     deployed'
         Assert-Contains $result.Text '%UPWSH_HOME%\bin'
         Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
-        foreach ($file in @('profile.ps1', 'lib\git_completion.psm1', 'bin\upwsh.cmd', 'custom\alias.ps1')) {
+        foreach ($file in @('profile.ps1', 'user-settings.ps1', 'lib\git_completion.psm1', 'bin\upwsh.cmd', 'custom\alias.ps1')) {
             Assert-True (Test-Path -LiteralPath (Join-Path $installHome $file) -PathType Leaf) "missing $file"
         }
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'tests'))) 'tests were deployed'
@@ -214,6 +214,7 @@ exit $LASTEXITCODE
 
     Invoke-InstallTest 'update uses local project and preserves custom and tools' {
         [IO.File]::WriteAllText($custom, '# personal aliases')
+        [IO.File]::WriteAllText((Join-Path $installHome 'user-settings.ps1'), '# keep user settings')
         [IO.File]::WriteAllText($tool, 'keep installed tool')
         [IO.File]::WriteAllText((Join-Path $installHome 'obsolete.ps1'), '# old managed file')
         [IO.File]::WriteAllText((Join-Path $projectSrc 'local-source.txt'), 'updated')
@@ -221,6 +222,7 @@ exit $LASTEXITCODE
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('update') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
         Assert-Equal $result.Code 0
         Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'user-settings.ps1'))) '# keep user settings'
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'obsolete.ps1'))) 'obsolete program file remained'
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'local-source.txt'))) 'updated'

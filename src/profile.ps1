@@ -1,4 +1,4 @@
-# PowerShell 7 入口：模块、库存别名、custom\*.ps1、再挂钩终端。
+# PowerShell 7 入口：模块、库存别名、custom\*.ps1、user-settings.ps1、再挂钩终端。
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     return
@@ -55,6 +55,11 @@ if (Test-Path -LiteralPath $script:CustomRoot -PathType Container) {
         ForEach-Object {
             . $_.FullName
         }
+}
+
+$script:UserSettings = Join-Path $PSScriptRoot 'user-settings.ps1'
+if (Test-Path -LiteralPath $script:UserSettings -PathType Leaf) {
+    . $script:UserSettings
 }
 
 Import-ShellModule 'hook.psm1'

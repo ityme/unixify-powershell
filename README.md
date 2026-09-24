@@ -159,17 +159,13 @@ Updates refresh bundled themes in `theme/` and preserve personal themes in `cust
 
 ## Personal settings
 
-Edit `~/.config/upwsh/custom/alias.ps1` to change the supplied `w`, `t`, `i`, `d`, and `gs` shortcuts. You can also add your own `custom/*.ps1` files; PowerShell loads them in filename order after the built-in configuration.
-
-For example, put this in `custom/work.ps1`:
+Edit `~/.config/upwsh/user-settings.ps1` after the built-in aliases load. `upwsh update` leaves an existing copy in place; uninstall deletes it with the runtime.
 
 ```powershell
 function global:work { cd (winpath '/i/my work') }
 ```
 
-Reinstall and update preserve your files and fill in missing template files. Install also loads the current pwsh.
-
-Terminal status reporting is configurable from `custom/` too. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
+The sample shortcuts `w`, `t`, `i`, `d`, and `gs` still live in `custom/alias.ps1` until that overlay is removed. Terminal status reporting can go in `user-settings.ps1`. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
 
 ## Install from source
 

@@ -159,17 +159,13 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 
 ## 个人配置
 
-编辑 `~/.config/upwsh/custom/alias.ps1`，修改自带的 `w`、`t`、`i`、`d`、`gs` 快捷命令。也可以添加自己的 `custom/*.ps1` 文件；PowerShell 会在内置配置之后，按文件名顺序加载它们。
-
-例如，在 `custom/work.ps1` 中写入：
+编辑 `~/.config/upwsh/user-settings.ps1`，在内置别名之后加载。`upwsh update` 不会覆盖已有文件；卸载时随运行时一起删除。
 
 ```powershell
 function global:work { cd (winpath '/i/my work') }
 ```
 
-重复安装和更新会保留已有文件，并补齐缺失的模板。安装还会加载当前 pwsh。
-
-终端状态上报也可在 `custom/` 中配置。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
+自带的 `w`、`t`、`i`、`d`、`gs` 目前仍在 `custom/alias.ps1`，直到去掉 overlay。终端上报也可写在 `user-settings.ps1`。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
 
 ## 从源码安装
 

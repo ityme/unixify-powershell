@@ -185,6 +185,10 @@ try {
     Set-Content -LiteralPath $customOverlay -Value @'
 Set-Alias -Name zz -Value Get-Date -Scope Global -Force
 '@
+    $userSettings = Join-Path (Split-Path -Parent $profilePath) 'user-settings.ps1'
+    Set-Content -LiteralPath $userSettings -Value @'
+Set-Alias -Name user_settings_marker -Value Get-Date -Scope Global -Force
+'@
     . (Resolve-Path $profilePath)
     Set-Variable -Name HOME -Value $fakeHome -Scope Global -Force
 
@@ -217,6 +221,12 @@ Set-Alias -Name zz -Value Get-Date -Scope Global -Force
         $command = Get-Command zz -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Alias'
         Assert-Equal $command.Definition 'Get-Date'
+    }
+    Invoke-CompletionTest 'user-settings.ps1 loads after custom overlay' {
+        $command = Get-Command user_settings_marker -ErrorAction Stop
+        Assert-Equal $command.CommandType.ToString() 'Alias'
+        Assert-Equal $command.Definition 'Get-Date'
+        Assert-Equal (Get-Command zz -ErrorAction Stop).Definition 'Get-Date'
     }
     Push-Location $work
     $locationPushed = $true

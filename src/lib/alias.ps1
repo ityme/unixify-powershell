@@ -1,4 +1,4 @@
-# 库存命令映射。个人别名放 custom\*.ps1。
+# 库存命令映射。个人设置放 user-settings.ps1。
 
 $script:CommandMap = [ordered]@{
     ls   = 'eza --icons=auto --group-directories-first'

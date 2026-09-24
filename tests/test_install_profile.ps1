@@ -183,6 +183,9 @@ try {
         Assert-True (
             Test-Path -LiteralPath (Join-Path $deployRoot 'custom\alias.ps1') -PathType Leaf
         ) 'deploy missed custom/alias.ps1'
+        Assert-True (
+            Test-Path -LiteralPath (Join-Path $deployRoot 'user-settings.ps1') -PathType Leaf
+        ) 'deploy missed user-settings.ps1'
         Assert-Equal $text $beforeHook
     }
 
@@ -205,10 +208,13 @@ try {
         New-Item -ItemType Directory -Path $keepCustom -Force | Out-Null
         $customFile = Join-Path $keepCustom 'alias.ps1'
         [IO.File]::WriteAllText($customFile, "# keep-me`r`n")
+        $settings = Join-Path $keepRoot 'user-settings.ps1'
+        [IO.File]::WriteAllText($settings, "# keep-settings`r`n")
         Invoke-Installer -ProfilePath $hook -Destination $keepRoot -Deploy | Out-Null
         $text = [IO.File]::ReadAllText($customFile)
         Assert-Contains $text 'keep-me'
         Assert-True ($text -notlike '*workspace*') 'deploy overwrote custom/alias.ps1'
+        Assert-Equal ([IO.File]::ReadAllText($settings)) "# keep-settings`r`n"
     }
 } finally {
     if (Test-Path -LiteralPath $root) {
