@@ -294,7 +294,7 @@ function Invoke-UpwshLoad {
 function Invoke-UpwshTool {
     param($Parsed)
 
-    $installer = Join-Path $PSScriptRoot 'install_cli_tools.ps1'
+    $installer = Join-Path $PSScriptRoot 'install_cli_tool.ps1'
     $installerArgs = @{}
     if ($Parsed.Only.Count -gt 0) {
         $installerArgs.Only = @($Parsed.Only)

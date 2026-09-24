@@ -221,7 +221,7 @@ try {
     }
 
     Invoke-UpwshTest 'windows amd64 asset matching accepts eza gnu zip' {
-        $tools = Join-Path $PSScriptRoot '..\src\script\install_cli_tools.ps1'
+        $tools = Join-Path $PSScriptRoot '..\src\script\install_cli_tool.ps1'
         $parser = [Management.Automation.Language.Parser]::ParseFile($tools, [ref]$null, [ref]$null)
         $fn = $parser.EndBlock.Find({
                 param($node)

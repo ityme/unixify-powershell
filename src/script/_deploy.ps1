@@ -62,7 +62,7 @@ function Test-UpwshRuntime {
         'lib\tool.psm1', 'lib\upwsh.psm1', 'lib\completion.psm1', 'lib\git_completion.psm1', 'lib\theme.psm1', 'lib\prompt.psm1', 'lib\term.psm1', 'lib\hook.psm1',
         'theme\pure-classic.json',
         'script\install.ps1', 'script\update.ps1', 'script\uninstall.ps1',
-        'script\upwsh.ps1', 'script\install_profile.ps1', 'script\install_cli_tools.ps1',
+        'script\upwsh.ps1', 'script\install_profile.ps1', 'script\install_cli_tool.ps1',
         'script\_deploy.ps1', 'script\_relaunch.ps1'
     )) {
         if (-not [IO.File]::Exists([IO.Path]::Combine($Root, $name))) {
