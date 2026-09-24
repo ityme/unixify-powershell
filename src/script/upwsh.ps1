@@ -17,6 +17,7 @@
 
 $ErrorActionPreference = 'Stop'
 $script:Arguments = @($args)
+. (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
 
 function Get-UpwshUsage {
     @'
@@ -290,24 +291,16 @@ function Invoke-UpwshLoad {
     }
     if ($Parsed.Command -eq 'unload') {
         Restore-UpwshDefaultPrompt
-        return
     }
-    Import-UpwshSessionProfile
 }
 
-function Import-UpwshSessionProfile {
-    param([switch]$Report)
-
+function Get-UpwshSessionProfilePath {
     if ($env:UPWSH_SKIP_SESSION_LOAD) {
         return
     }
-    . (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
-    if ($Report) {
-        Write-UpwshStatus state loaded
-    }
     $runtimeProfile = Join-Path (Get-UpwshHome) 'profile.ps1'
     if (Test-Path -LiteralPath $runtimeProfile -PathType Leaf) {
-        . $runtimeProfile
+        return $runtimeProfile
     }
 }
 
@@ -344,7 +337,6 @@ function Invoke-UpwshTool {
 function Invoke-UpwshTheme {
     param($Parsed)
 
-    . (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
     $themePath = Join-Path (Get-UpwshHome) 'lib\theme.psm1'
     if (-not [IO.File]::Exists($themePath)) { throw 'themes are not installed; run upwsh install first' }
     $module = Import-Module $themePath -Global -PassThru -ErrorAction Stop
@@ -370,7 +362,6 @@ function Get-UpwshSettingsEditor {
 }
 
 function Invoke-UpwshEdit {
-    . (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
     $settings = Join-Path (Get-UpwshHome) 'user-settings.ps1'
     if (-not [IO.File]::Exists($settings)) {
         throw 'user-settings.ps1 is not installed; run upwsh install first'
@@ -436,7 +427,11 @@ if ($parsed.Command -eq 'theme') {
 
 if ($parsed.Command -in @('load', 'unload')) {
     Invoke-UpwshLoad -Parsed $parsed
+    $sessionProfile = if ($parsed.Command -eq 'load') { Get-UpwshSessionProfilePath }
     Complete-Upwsh 0 $scriptInvocation
+    if ($sessionProfile) {
+        . $sessionProfile
+    }
     return
 }
 
@@ -447,15 +442,22 @@ if ($parsed.Command -in @('install', 'uninstall', 'update')) {
 }
 
 if ($parsed.Command -eq 'edit') {
+    $sessionProfile = $null
     try {
         Invoke-UpwshEdit
-        Import-UpwshSessionProfile -Report
+        $sessionProfile = Get-UpwshSessionProfilePath
+        if ($sessionProfile) {
+            Write-UpwshStatus state loaded
+        }
     } catch {
         Write-Output "upwsh: $($_.Exception.Message)"
         Complete-Upwsh 1 $scriptInvocation
         return
     }
     Complete-Upwsh 0 $scriptInvocation
+    if ($sessionProfile) {
+        . $sessionProfile
+    }
     return
 }
 

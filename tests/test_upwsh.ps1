@@ -250,6 +250,8 @@ try {
             $result = Invoke-Upwsh -LoadSession -Tokens @('edit')
             Assert-Equal $result.Code 0
             Assert-Contains $result.Text 'state     loaded'
+            Assert-True ($result.Text -notlike '*Import-ShellModule*') 'edit reloaded profile in a nested function scope'
+            Assert-True ($result.Text -notlike '*Complete-Upwsh*') 'edit lost script-scope helpers'
             Assert-Equal (Get-Command edited_only -ErrorAction Stop).Definition 'Get-Date'
         } finally {
             $env:PATH = $savedPath

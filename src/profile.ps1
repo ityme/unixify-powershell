@@ -4,7 +4,7 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     return
 }
 
-function Import-ShellModule {
+function script:Import-ShellModule {
     param([Parameter(Mandatory)][string]$Name)
 
     Import-Module ([IO.Path]::Combine($PSScriptRoot, 'lib', $Name)) -Global -Force -DisableNameChecking
