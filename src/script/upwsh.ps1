@@ -45,7 +45,7 @@ select a local prompt theme
    theme install    Compatibility alias for theme use
 
 edit personal settings
-   edit             Open ~/.config/upwsh/user-settings.ps1 in nvim
+   edit             Open ~/.config/upwsh/user-settings.ps1 in nvim, then reload this pwsh
 
 'upwsh --help' prints this overview.
 
@@ -292,7 +292,19 @@ function Invoke-UpwshLoad {
         Restore-UpwshDefaultPrompt
         return
     }
+    Import-UpwshSessionProfile
+}
+
+function Import-UpwshSessionProfile {
+    param([switch]$Report)
+
+    if ($env:UPWSH_SKIP_SESSION_LOAD) {
+        return
+    }
     . (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
+    if ($Report) {
+        Write-UpwshStatus state loaded
+    }
     $runtimeProfile = Join-Path (Get-UpwshHome) 'profile.ps1'
     if (Test-Path -LiteralPath $runtimeProfile -PathType Leaf) {
         . $runtimeProfile
@@ -437,12 +449,13 @@ if ($parsed.Command -in @('install', 'uninstall', 'update')) {
 if ($parsed.Command -eq 'edit') {
     try {
         Invoke-UpwshEdit
+        Import-UpwshSessionProfile -Report
     } catch {
         Write-Output "upwsh: $($_.Exception.Message)"
         Complete-Upwsh 1 $scriptInvocation
         return
     }
-    Complete-Upwsh $global:LASTEXITCODE $scriptInvocation
+    Complete-Upwsh 0 $scriptInvocation
     return
 }
 

@@ -236,6 +236,26 @@ try {
         }
     }
 
+    Invoke-UpwshTest 'edit reloads user-settings in this session' {
+        $stub = Join-Path $root 'edit-reload'
+        New-Item -ItemType Directory -Path $stub -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $stub 'nvim.cmd') -Value "@echo off`r`nexit /b 0"
+        [IO.File]::WriteAllText(
+            (Join-Path $installHome 'user-settings.ps1'),
+            'Set-Alias -Name edited_only -Value Get-Date -Scope Global -Force'
+        )
+        $savedPath = $env:PATH
+        try {
+            $env:PATH = $stub
+            $result = Invoke-Upwsh -LoadSession -Tokens @('edit')
+            Assert-Equal $result.Code 0
+            Assert-Contains $result.Text 'state     loaded'
+            Assert-Equal (Get-Command edited_only -ErrorAction Stop).Definition 'Get-Date'
+        } finally {
+            $env:PATH = $savedPath
+        }
+    }
+
     Invoke-UpwshTest 'load hooks the installed profile' {
         $result = Invoke-Upwsh -Tokens @('load')
         Assert-Equal $result.Code 0
