@@ -39,7 +39,7 @@ Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON �
 
 更新会刷新 `theme/` 下的随包主题，并留下其它 JSON、`theme.json`、`user-settings.ps1` 和工具。自定义 v1 文件请参考 v2 模板手动重写。
 
-卸载会删除整棵运行时，包括 `theme/` 和 `theme.json`。卸载前另行备份。
+卸载会删除 `theme/` 和 `theme.json`。改过的 `user-settings.ps1` 可能留下；主题不留。卸载前另行备份。
 
 ## 最小分段示例
 

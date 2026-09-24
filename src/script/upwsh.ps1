@@ -29,7 +29,7 @@ hook the current user's pwsh
 
 install this runtime
    install          Install or repair ~/.config/upwsh, then load
-   uninstall        Unload, drop UPWSH_HOME and Path, then delete the install tree
+   uninstall        Unload, drop UPWSH_HOME and Path, then delete the install tree; keep a changed user-settings.ps1
    update           Update installed files; keep tools, user-settings.ps1, and startup loading state
 
 install a listed CLI tool

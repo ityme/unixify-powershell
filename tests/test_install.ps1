@@ -317,6 +317,7 @@ exit 0
     }
 
     Invoke-InstallTest 'uninstall ignores a stale UPWSH_HOME and leaves the project untouched' {
+        Copy-Item -LiteralPath (Join-Path $runtimeRoot 'user-settings.ps1') -Destination $settings -Force
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File (Join-Path $projectSrc 'script\upwsh.ps1') -Arguments @('uninstall') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text 'home      removed'
@@ -342,12 +343,31 @@ if (-not $env:PATH.Contains('C:\keep-path')) { throw 'unrelated path removed' }
         Assert-Equal $result.Code 0
     }
 
-    Invoke-InstallTest 'uninstall removes the runtime including user-settings' {
+    Invoke-InstallTest 'uninstall removes an unchanged user-settings template' {
         Install-Fixture $userHome | Out-Null
+        Copy-Item -LiteralPath (Join-Path $runtimeRoot 'user-settings.ps1') -Destination $settings -Force
         Assert-True (Test-Path -LiteralPath $settings)
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $uninstaller
         Assert-Equal $result.Code 0
         Assert-True (-not (Test-Path -LiteralPath $installHome)) 'runtime remained'
+        Assert-True (-not $result.Text.Contains('keep      ')) 'kept an unchanged template'
+    }
+
+    Invoke-InstallTest 'uninstall keeps a changed user-settings file and deletes themes' {
+        Install-Fixture $userHome | Out-Null
+        [IO.File]::AppendAllText($settings, "`nfunction global:work { Get-Date }`n")
+        $themeFile = Join-Path $installHome 'theme\personal.json'
+        [IO.File]::WriteAllText($themeFile, '{}')
+        $selection = Join-Path $installHome 'theme.json'
+        [IO.File]::WriteAllText($selection, '{"Theme":"personal.json"}')
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $uninstaller
+        Assert-Equal $result.Code 0
+        Assert-True (Test-Path -LiteralPath $settings) 'changed user-settings was deleted'
+        Assert-True ([IO.File]::ReadAllText($settings).Contains('function global:work')) 'kept settings lost edits'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'theme'))) 'themes remained'
+        Assert-True (-not (Test-Path -LiteralPath $selection)) 'theme.json remained'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'profile.ps1'))) 'runtime files remained'
+        Assert-Contains $result.Text 'keep      '
     }
 
     Invoke-InstallTest 'piped install keeps the host and defines upwsh in this session' {
@@ -438,6 +458,7 @@ if ($LASTEXITCODE -ne 0) { throw 'install inherited update-only mode' }
     }
 
     Invoke-InstallTest 'installed -File uninstall relaunches and removes only the installation' {
+        Copy-Item -LiteralPath (Join-Path $runtimeRoot 'user-settings.ps1') -Destination $settings -Force
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('uninstall') -Environment @{ UPWSH_SKIP_RELAUNCH = $null }
         Assert-Equal $result.Code 0
         Assert-True (-not (Test-Path -LiteralPath $installHome)) 'relaunch left installation'

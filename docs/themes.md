@@ -37,7 +37,7 @@ The first update after this layout change moves leftover files from `custom/them
 pwsh -NoLogo -NoProfile -File src/script/update.ps1 --source src
 ```
 
-Install loads the current pwsh. Then select a theme. Uninstall removes the runtime, including `theme/` and `theme.json`.
+Install loads the current pwsh. Then select a theme. Uninstall removes `theme/` and `theme.json`. A changed `user-settings.ps1` may remain; themes never do.
 
 ## Configuration
 

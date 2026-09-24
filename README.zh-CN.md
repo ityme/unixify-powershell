@@ -91,9 +91,9 @@ Git 单词唯一匹配时，补全后自动加空格。每段都只有一个匹�
 | `upwsh update` | 更新已有安装，保留工具、`user-settings.ps1`、额外主题 JSON 和 profile 钩子 |
 | `upwsh load` | 启用启动时自动加载，并加载当前 pwsh |
 | `upwsh unload` | 停止自动加载，并恢复当前会话的默认提示符 |
-| `upwsh uninstall` | 先 unload，再删除安装及项目添加的环境变量和 Path 项 |
+| `upwsh uninstall` | 先 unload，再删除安装；改过的 `user-settings.ps1` 留下，主题不留 |
 
-仓库内的 `upwsh install` / `upwsh update` 默认 `--local`。`irm | iex` 默认 `--remote`。安装会加载当前窗口；卸载会先 unload，再删除运行时。
+仓库内的 `upwsh install` / `upwsh update` 默认 `--local`。`irm | iex` 默认 `--remote`。安装会加载当前窗口；卸载会先 unload，再删除运行时。改过的 `user-settings.ps1` 留下，主题不留。
 
 安装目录固定为 `~/.config/upwsh`，`UPWSH_HOME` 记录这个位置。原生提示符由 `src/lib/prompt.psm1` 提供，会随当前文件夹和 Git 分支变化。命令帮助见 `upwsh --help`。
 
@@ -159,7 +159,7 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 
 ## 个人配置
 
-编辑 `~/.config/upwsh/user-settings.ps1`，在内置别名之后加载。`upwsh update` 不会覆盖已有文件；卸载时随运行时一起删除。
+编辑 `~/.config/upwsh/user-settings.ps1`，在内置别名之后加载。`upwsh update` 不会覆盖已有文件。卸载时若文件与随包模板不同则留下，未改过的模板随运行时删除。主题一律删除。
 
 ```powershell
 function global:work { cd (winpath '/i/my work') }

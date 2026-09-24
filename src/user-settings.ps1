@@ -1,5 +1,5 @@
 # Personal shell settings. profile.ps1 dotsources this last.
-# upwsh update leaves an existing copy in place. Uninstall deletes it with the runtime.
+# upwsh update leaves an existing copy in place. Uninstall keeps a changed copy and deletes an unchanged template with the runtime.
 
 $script:CommandMap['w'] = 'cd /i/workspace'
 $script:CommandMap['t'] = 'cd /i/tmp'

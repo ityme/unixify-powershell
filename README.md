@@ -91,9 +91,9 @@ Changes made in another window, such as switching a branch in the same working t
 | `upwsh update` | Update an existing installation, keeping tools, `user-settings.ps1`, extra theme JSON, and the profile hook |
 | `upwsh load` | Enable startup loading of `~/.config/upwsh/profile.ps1` and load this pwsh |
 | `upwsh unload` | Disable startup loading and drop the current-session prompt |
-| `upwsh uninstall` | Unload, then remove the installation and managed environment variables and Path entries |
+| `upwsh uninstall` | Unload, then remove the installation; keep a changed `user-settings.ps1`, delete themes |
 
-`upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. Install loads the current pwsh; uninstall unloads it, then deletes the runtime.
+`upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. Install loads the current pwsh; uninstall unloads it, then deletes the runtime. A changed `user-settings.ps1` is kept; themes are not.
 
 The install directory is fixed at `~/.config/upwsh`; `UPWSH_HOME` records it. The native prompt in `src/lib/prompt.psm1` follows the current folder and Git branch. Run `upwsh --help` for command help.
 
@@ -159,7 +159,7 @@ Updates refresh bundled filenames in `theme/` and leave extra JSON plus `theme.j
 
 ## Personal settings
 
-Edit `~/.config/upwsh/user-settings.ps1` after the built-in aliases load. `upwsh update` leaves an existing copy in place; uninstall deletes it with the runtime.
+Edit `~/.config/upwsh/user-settings.ps1` after the built-in aliases load. `upwsh update` leaves an existing copy in place. Uninstall keeps the file when it differs from the shipped template; an unchanged copy is deleted with the runtime. Themes are always deleted.
 
 ```powershell
 function global:work { cd (winpath '/i/my work') }

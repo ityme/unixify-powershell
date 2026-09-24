@@ -27,6 +27,7 @@ A network uninstall can run:
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/uninstall.ps1 | iex
 
 Unload first, then drop UPWSH_HOME and managed Path entries, then delete ~/.config/upwsh.
+A changed user-settings.ps1 is kept; an unchanged template is deleted with the runtime. Themes are not kept.
 '@
 }
 
@@ -173,6 +174,37 @@ if (-not (Get-Command Write-UpwshStatus -ErrorAction SilentlyContinue)) {
 
 function Get-UninstallHome {
     [IO.Path]::GetFullPath((Join-Path $HOME '.config\upwsh'))
+}
+
+function Get-UpwshUserSettingsTemplate {
+    @'
+# Personal shell settings. profile.ps1 dotsources this last.
+# upwsh update leaves an existing copy in place. Uninstall keeps a changed copy and deletes an unchanged template with the runtime.
+
+$script:CommandMap['w'] = 'cd /i/workspace'
+$script:CommandMap['t'] = 'cd /i/tmp'
+$script:CommandMap['i'] = 'cd /i/ispace'
+$script:CommandMap['d'] = 'cd ~/Desktop'
+$script:CommandMap['gs'] = 'git status'
+Install-CommandMap
+'@
+}
+
+function Get-UpwshNormalizedText {
+    param([string]$Text)
+    if ($null -eq $Text) { return '' }
+    if ($Text.Length -gt 0 -and [int][char]$Text[0] -eq 0xFEFF) {
+        $Text = $Text.Substring(1)
+    }
+    $Text.Replace("`r`n", "`n").Replace("`r", "`n").Trim()
+}
+
+function Test-UpwshChangedUserSettings {
+    param([string]$Path)
+    if (-not [IO.File]::Exists($Path)) { return $false }
+    $actual = Get-UpwshNormalizedText ([IO.File]::ReadAllText($Path))
+    $template = Get-UpwshNormalizedText (Get-UpwshUserSettingsTemplate)
+    return $actual -cne $template
 }
 
 # The piped uninstaller must also work when the runtime files are already gone.
@@ -365,6 +397,9 @@ if ($parsed.Check) {
         $treeState = 'kept'
     }
     Write-UpwshStatus hook $state tree $treeState
+    if (Test-UpwshChangedUserSettings (Join-Path $directory 'user-settings.ps1')) {
+        Write-UpwshStatus keep (Join-Path $directory 'user-settings.ps1')
+    }
     Complete-Uninstall 0 $scriptInvocation
     return
 }
@@ -399,12 +434,28 @@ if (-not $env:UPWSH_SKIP_SESSION_LOAD) {
 if ($keepTree) {
     Write-UpwshStatus tree "kept  $directory"
 } elseif (Test-Path -LiteralPath $directory) {
+    $settings = Join-Path $directory 'user-settings.ps1'
+    $keepSettings = Test-UpwshChangedUserSettings $settings
+    $savedSettings = $null
+    if ($keepSettings) {
+        $savedSettings = Join-Path ([IO.Path]::GetTempPath()) (
+            'upwsh-user-settings-' + [Guid]::NewGuid().ToString('N') + '.ps1'
+        )
+        Copy-Item -LiteralPath $settings -Destination $savedSettings -Force
+    }
     if (Get-Command Remove-UpwshTree -ErrorAction SilentlyContinue) {
         Remove-UpwshTree -Path $directory
     } else {
         Remove-Item -LiteralPath $directory -Recurse -Force
     }
-    Write-UpwshStatus tree "removed  $directory"
+    if ($savedSettings) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        Move-Item -LiteralPath $savedSettings -Destination $settings
+        Write-UpwshStatus tree "removed  $directory"
+        Write-UpwshStatus keep $settings
+    } else {
+        Write-UpwshStatus tree "removed  $directory"
+    }
 }
 
 Complete-Uninstall 0 $scriptInvocation
