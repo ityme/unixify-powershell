@@ -165,7 +165,7 @@ Edit `~/.config/upwsh/user-settings.ps1` after the built-in aliases load. `upwsh
 function global:work { cd (winpath '/i/my work') }
 ```
 
-The sample shortcuts `w`, `t`, `i`, `d`, and `gs` are in `user-settings.ps1`. Terminal status reporting can go there too. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
+Commented examples for `w`, `t`, `i`, `d`, and `gs` are in `user-settings.ps1`. Uncomment and edit them. Terminal status reporting can go there too. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
 
 ## Install from source
 

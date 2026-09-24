@@ -165,7 +165,7 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 function global:work { cd (winpath '/i/my work') }
 ```
 
-自带的 `w`、`t`、`i`、`d`、`gs` 写在 `user-settings.ps1`。终端上报也可写在同一文件。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
+`user-settings.ps1` 里有注释掉的 `w`、`t`、`i`、`d`、`gs` 示例，取消注释并改路径即可。终端上报也可写在同一文件。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
 
 ## 从源码安装
 
