@@ -19,7 +19,7 @@ Import-ShellModule 'fs.psm1'
 Import-ShellModule 'proc.psm1'
 Import-ShellModule 'text.psm1'
 Import-ShellModule 'sys.psm1'
-Import-ShellModule 'cli.psm1'
+Import-ShellModule 'tool.psm1'
 Import-ShellModule 'upwsh.psm1'
 . ([IO.Path]::Combine($PSScriptRoot, 'lib', 'alias.ps1'))
 Import-ShellModule 'completion.psm1'
