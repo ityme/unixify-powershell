@@ -2,7 +2,7 @@
 
 [README](../README.md) · [中文介绍](../README.zh-CN.md)
 
-`src/` is the source tree that install copies to `~/.config/upwsh`. Lifecycle entry points are in `src/script/`; modules live in `src/lib/`; bundled prompt themes live in `src/theme/`. Tests live in `tests/` at the repository root and are not installed. `src/lib/prompt.psm1` provides the native `username@host folder branch ❯` prompt and does not depend on Starship.
+`src/` is source. `~/.config/upwsh` is the runtime the shell loads. Install copies `src/` into that directory: `src/script/` (lifecycle), `src/lib/` (modules), `src/theme/` (bundled prompt themes). Tests live in `tests/` at the repository root and are not installed. `bin/` and `tool/bin/` exist only after install (`upwsh.cmd` and downloaded CLIs). `src/lib/prompt.psm1` provides the native `username@host folder branch ❯` prompt and does not depend on Starship.
 
 ## Tests
 
