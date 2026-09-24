@@ -1,7 +1,7 @@
 param(
     [ValidateRange(1, 10000)][int]$Files = 1000,
     [ValidateRange(1, 1000)][int]$Samples = 10,
-    [string]$RuntimeRoot = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))),
+    [string]$RuntimeRoot = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))),
     [switch]$Worker
 )
 $ErrorActionPreference = 'Stop'

@@ -3,7 +3,7 @@ param(
     [ValidateRange(0.01, 10000)][double]$BudgetMs = 30,
     [switch]$Enforce,
     [switch]$Worker,
-    [string]$RuntimeProfile = (Join-Path $PSScriptRoot '..\profile.ps1')
+    [string]$RuntimeProfile = (Join-Path $PSScriptRoot '..\src\profile.ps1')
 )
 
 $ErrorActionPreference = 'Stop'

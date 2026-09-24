@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '_test_host.ps1')
 
-$sourceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+$sourceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $runtimeRoot = Join-Path $sourceRoot 'src'
 $installer = Join-Path $runtimeRoot 'scripts\install.ps1'
 $uninstaller = Join-Path $runtimeRoot 'scripts\uninstall.ps1'

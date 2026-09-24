@@ -5,8 +5,8 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     exit $LASTEXITCODE
 }
 
-$upwsh = Join-Path $PSScriptRoot '..\scripts\upwsh.ps1'
-$sourceProfile = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\profile.ps1'))
+$upwsh = Join-Path $PSScriptRoot '..\src\scripts\upwsh.ps1'
+$sourceProfile = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src\profile.ps1'))
 $root = Join-Path ([IO.Path]::GetTempPath()) (
     'pwsh-upwsh-' + [Guid]::NewGuid().ToString('N')
 )
@@ -221,7 +221,7 @@ try {
     }
 
     Invoke-UpwshTest 'windows amd64 asset matching accepts eza gnu zip' {
-        $tools = Join-Path $PSScriptRoot '..\scripts\install_cli_tools.ps1'
+        $tools = Join-Path $PSScriptRoot '..\src\scripts\install_cli_tools.ps1'
         $parser = [Management.Automation.Language.Parser]::ParseFile($tools, [ref]$null, [ref]$null)
         $fn = $parser.EndBlock.Find({
                 param($node)

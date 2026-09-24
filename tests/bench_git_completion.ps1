@@ -1,6 +1,6 @@
 param(
     [ValidateRange(1, 1000)][int]$Samples = 20,
-    [string]$RuntimeRoot = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))),
+    [string]$RuntimeRoot = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))),
     [switch]$Worker
 )
 

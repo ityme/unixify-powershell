@@ -9,7 +9,7 @@ Colorful backgrounds originate from the user-supplied `starship-colorful.toml` p
 From the repository root, with Python 3 and PowerShell 7:
 
 ```powershell
-python src/tests/render_theme_gallery.py
+python tests/render_theme_gallery.py
 ```
 
 This uses a temporary runtime and local Git fixture; it does not write to the installed runtime. Open `docs/themes.html` in a browser with Powerline glyph support, set the viewport width to 1000px and keep the default state: Git, exit 7, 2.345 seconds. Capture the `#pure` and `#colorful` elements as `pure.png` and `colorful.png` here. Collapse the palette-adjustment disclosures before capture.

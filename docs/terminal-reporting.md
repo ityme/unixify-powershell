@@ -82,10 +82,10 @@ One integration should own command-boundary markers. Enabling another prompt/she
 ## Validation
 
 ```powershell
-pwsh -NoLogo -NoProfile -File src/tests/test_term.ps1
-pwsh -NoLogo -NoProfile -File src/tests/bench_term.ps1
-python src/tests/bench_console.py --osc
-python src/tests/bench_console.py --lifecycle
+pwsh -NoLogo -NoProfile -File tests/test_term.ps1
+pwsh -NoLogo -NoProfile -File tests/bench_term.ps1
+python tests/bench_console.py --osc
+python tests/bench_console.py --lifecycle
 ```
 
 The unit tests capture sequences, URI edge cases, field changes, privacy limits, and output gating. ConPTY checks actual wire order around visible prompt text. The microbenchmark measures CPU/bytes written to memory, not terminal plugin callbacks or screen painting. Real consumer behavior still depends on terminal configuration and version.

@@ -10,7 +10,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
         Remove-Item -LiteralPath $testUserHome -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
-. (Join-Path $PSScriptRoot '..\profile.ps1')
+. (Join-Path $PSScriptRoot '..\src\profile.ps1')
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
 function Test-Case {
@@ -23,11 +23,11 @@ function Assert-Equal {
 }
 
 Test-Case 'standalone converter copies match the shared implementation' {
-    & (Join-Path $PSScriptRoot '..\scripts\sync_path_convert.ps1') -Check | Out-Null
+    & (Join-Path $PSScriptRoot '..\src\scripts\sync_path_convert.ps1') -Check | Out-Null
 }
 foreach ($entry in @('path_convert.ps1', 'upwsh_home.ps1', 'scripts\install.ps1', 'scripts\uninstall.ps1')) {
     Test-Case "shared converter contract without a loaded profile: $entry" {
-        $file = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\$entry"))
+        $file = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\src\$entry"))
         $code = @'
 $ErrorActionPreference = 'Stop'
 . ENTRY --help | Out-Null

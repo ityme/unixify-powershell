@@ -4,7 +4,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     Invoke-UpwshIsolatedTest -File $PSCommandPath
     exit $LASTEXITCODE
 }
-$runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))
 . (Join-Path $runtime 'profile.ps1')
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()

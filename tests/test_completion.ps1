@@ -5,7 +5,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     exit $LASTEXITCODE
 }
 
-$profilePath = Join-Path $PSScriptRoot '..\profile.ps1'
+$profilePath = Join-Path $PSScriptRoot '..\src\profile.ps1'
 $root = Join-Path ([IO.Path]::GetTempPath()) (
     'pwsh-completion-' + [Guid]::NewGuid().ToString('N')
 )
@@ -176,7 +176,7 @@ try {
     New-FixtureFile '.viminfo' -Hidden -BaseDirectory $fakeHome | Out-Null
     New-FixtureDirectory '.vim' -Hidden -BaseDirectory $fakeHome | Out-Null
 
-    & (Join-Path $PSScriptRoot '..\scripts\install_profile.ps1') -Deploy | Out-Null
+    & (Join-Path $PSScriptRoot '..\src\scripts\install_profile.ps1') -Deploy | Out-Null
     $profilePath = Join-Path $HOME '.config\upwsh\profile.ps1'
     $env:UPWSH_HOME = Split-Path -Parent $profilePath
     $customDir = Join-Path (Split-Path -Parent $profilePath) 'custom'

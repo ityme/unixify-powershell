@@ -133,7 +133,7 @@ Theme names start with a letter/digit, allow letters, digits, spaces, `_`, `-`, 
 `src/theme.psm1` validates and supplies defaults. `src/prompt.psm1` resolves visible data before decorations. The CLI targets the installed directory; directly loading `src/profile.ps1` uses source-local themes. Existing idle prompt caching and selection revision tracking remain unchanged.
 
 ```powershell
-pwsh -NoLogo -NoProfile -File src/tests/test_theme.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_prompt_renderer.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_prompt_segments.ps1
+pwsh -NoLogo -NoProfile -File tests/test_theme.ps1
+pwsh -NoLogo -NoProfile -File tests/test_prompt_renderer.ps1
+pwsh -NoLogo -NoProfile -File tests/test_prompt_segments.ps1
 ```

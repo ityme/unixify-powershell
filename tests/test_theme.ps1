@@ -5,7 +5,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     exit $LASTEXITCODE
 }
 
-$runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))
 $installHome = Join-Path $HOME '.config\upwsh'
 $entry = Join-Path $installHome 'scripts\upwsh.ps1'
 $themes = Join-Path $installHome 'themes'

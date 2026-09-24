@@ -4,7 +4,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     Invoke-UpwshIsolatedTest -File $PSCommandPath
     exit $LASTEXITCODE
 }
-. (Join-Path $PSScriptRoot '..\profile.ps1')
+. (Join-Path $PSScriptRoot '..\src\profile.ps1')
 $term = (Get-Command Sync-TermPrompt).Module
 $hook = (Get-Command prompt).Module
 $script:Passed = 0

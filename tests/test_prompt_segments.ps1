@@ -6,7 +6,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
 }
 $runtime = Join-Path $HOME 'runtime'
 [void][IO.Directory]::CreateDirectory((Join-Path $runtime 'themes'))
-$source = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$source = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))
 foreach ($file in @('theme.psm1', 'prompt.psm1', 'path.psm1', 'path_convert.ps1')) {
     Copy-Item -LiteralPath (Join-Path $source $file) -Destination $runtime
 }

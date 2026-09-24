@@ -5,8 +5,8 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     exit $LASTEXITCODE
 }
 
-$installer = Join-Path $PSScriptRoot '..\scripts\install_profile.ps1'
-$sourceProfile = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\profile.ps1'))
+$installer = Join-Path $PSScriptRoot '..\src\scripts\install_profile.ps1'
+$sourceProfile = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src\profile.ps1'))
 $installedProfile = Join-Path $HOME '.config\upwsh\profile.ps1'
 $root = Join-Path ([IO.Path]::GetTempPath()) (
     'pwsh-install-profile-' + [Guid]::NewGuid().ToString('N')

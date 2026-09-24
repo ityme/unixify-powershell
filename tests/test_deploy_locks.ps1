@@ -5,7 +5,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     exit $LASTEXITCODE
 }
 
-$runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))
 $installer = Join-Path $runtime 'scripts\install.ps1'
 $updater = Join-Path $runtime 'scripts\update.ps1'
 $target = Join-Path $HOME '.config\upwsh'

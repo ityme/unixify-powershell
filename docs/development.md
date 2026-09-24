@@ -2,27 +2,27 @@
 
 [README](../README.md) · [中文介绍](../README.zh-CN.md)
 
-`src/` contains the runtime; lifecycle entry points are in `src/scripts/`. Installation copies the runtime to `~/.config/upwsh` and excludes `src/tests/`. `src/prompt.psm1` provides the native `username@host folder branch ❯` prompt and does not depend on Starship.
+`src/` contains the runtime; lifecycle entry points are in `src/scripts/`. Installation copies `src/` to `~/.config/upwsh`. Tests live in `tests/` at the repository root and are not installed. `src/prompt.psm1` provides the native `username@host folder branch ❯` prompt and does not depend on Starship.
 
 ## Tests
 
 Run from the repository root with PowerShell 7:
 
 ```powershell
-pwsh -NoLogo -NoProfile -File src/tests/test_completion.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_path_commands.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_git_completion.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_git_cache.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_prompt.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_prompt_renderer.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_prompt_segments.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_theme.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_term.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_interaction.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_install_profile.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_upwsh.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_install.ps1
-pwsh -NoLogo -NoProfile -File src/tests/test_deploy_locks.ps1
+pwsh -NoLogo -NoProfile -File tests/test_completion.ps1
+pwsh -NoLogo -NoProfile -File tests/test_path_commands.ps1
+pwsh -NoLogo -NoProfile -File tests/test_git_completion.ps1
+pwsh -NoLogo -NoProfile -File tests/test_git_cache.ps1
+pwsh -NoLogo -NoProfile -File tests/test_prompt.ps1
+pwsh -NoLogo -NoProfile -File tests/test_prompt_renderer.ps1
+pwsh -NoLogo -NoProfile -File tests/test_prompt_segments.ps1
+pwsh -NoLogo -NoProfile -File tests/test_theme.ps1
+pwsh -NoLogo -NoProfile -File tests/test_term.ps1
+pwsh -NoLogo -NoProfile -File tests/test_interaction.ps1
+pwsh -NoLogo -NoProfile -File tests/test_install_profile.ps1
+pwsh -NoLogo -NoProfile -File tests/test_upwsh.ps1
+pwsh -NoLogo -NoProfile -File tests/test_install.ps1
+pwsh -NoLogo -NoProfile -File tests/test_deploy_locks.ps1
 ```
 
 The test harness uses temporary user homes and profiles and disables persistent environment writes.
@@ -67,14 +67,14 @@ The user's folder-only requirement overrides the reference's three-component pat
 ## Performance
 
 ```powershell
-pwsh -NoLogo -NoProfile -File src/tests/bench_prompt.ps1 -Enforce
-python src/tests/bench_console.py --enforce
-python src/tests/bench_console.py --completion --samples 20
-python src/tests/bench_console.py --lifecycle
-python src/tests/bench_console.py --osc
-pwsh -NoLogo -NoProfile -File src/tests/bench_term.ps1
-pwsh -NoLogo -NoProfile -File src/tests/bench_interaction.ps1 -Files 1000 -Samples 10
-pwsh -NoLogo -NoProfile -File src/tests/bench_git_completion.ps1 -Samples 20
+pwsh -NoLogo -NoProfile -File tests/bench_prompt.ps1 -Enforce
+python tests/bench_console.py --enforce
+python tests/bench_console.py --completion --samples 20
+python tests/bench_console.py --lifecycle
+python tests/bench_console.py --osc
+pwsh -NoLogo -NoProfile -File tests/bench_term.ps1
+pwsh -NoLogo -NoProfile -File tests/bench_interaction.ps1 -Files 1000 -Samples 10
+pwsh -NoLogo -NoProfile -File tests/bench_git_completion.ps1 -Samples 20
 ```
 
 - `bench_startup.py --baseline <snapshot>/src/profile.ps1 --candidate src/profile.ps1 --runs 7` alternates fresh ConPTY processes and reports startup-to-input-ready medians and ranges. Use `--output <file.json>` to retain samples and `--max-ratio 0.95` to require at least a 5% median reduction. This measures process startup, profile loading, first rendering and input setup together, not reboot-cold disk access or the terminal application's window painting. Each process uses a temporary user home; configured themes/custom files come from the supplied runtime trees. Without a ratio gate, completion means measurements were collected, not that an optimization passed.

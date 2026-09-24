@@ -4,7 +4,7 @@ if ($env:UPWSH_TEST_ISOLATED -ne '1') {
     Invoke-UpwshIsolatedTest -File $PSCommandPath
     exit $LASTEXITCODE
 }
-. (Join-Path $PSScriptRoot '..\profile.ps1')
+. (Join-Path $PSScriptRoot '..\src\profile.ps1')
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
 function Test-GitCase {
