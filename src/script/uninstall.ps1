@@ -179,6 +179,7 @@ function Get-UninstallHome {
 function Get-UpwshUserSettingsTemplate {
     @'
 # Personal shell settings. profile.ps1 dotsources this last.
+# Open with: upwsh edit
 # upwsh update leaves an existing copy in place. Uninstall keeps a changed copy and deletes an unchanged template with the runtime.
 #
 # Examples (uncomment and edit):

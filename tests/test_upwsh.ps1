@@ -121,6 +121,7 @@ try {
         Assert-Contains $result.Text '   install'
         Assert-Contains $result.Text '   uninstall'
         Assert-Contains $result.Text '   update'
+        Assert-Contains $result.Text '   edit'
         Assert-True ($result.Text -cnotmatch '--profile') 'help still lists --profile'
         Assert-True ($result.Text -cnotmatch '--check') 'help still lists --check'
         Assert-True ($result.Text -cnotmatch '--deploy') 'help still lists --deploy'
@@ -148,13 +149,25 @@ try {
     Invoke-UpwshTest 'load and tool together is an error' {
         $result = Invoke-Upwsh -Tokens @('load', 'tool')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use only one of load, unload, tool, theme, install, uninstall, or update'
+        Assert-Contains $result.Text 'use only one of load, unload, tool, theme, install, uninstall, update, or edit'
     }
 
     Invoke-UpwshTest 'load and unload together is an error' {
         $result = Invoke-Upwsh -Tokens @('load', 'unload')
         Assert-Equal $result.Code 2
-        Assert-Contains $result.Text 'use only one of load, unload, tool, theme, install, uninstall, or update'
+        Assert-Contains $result.Text 'use only one of load, unload, tool, theme, install, uninstall, update, or edit'
+    }
+
+    Invoke-UpwshTest 'edit extra arguments are rejected' {
+        $result = Invoke-Upwsh -Tokens @('edit', 'user-settings.ps1')
+        Assert-Equal $result.Code 2
+        Assert-Contains $result.Text 'unknown option'
+    }
+
+    Invoke-UpwshTest 'edit before install fails' {
+        $result = Invoke-Upwsh -Tokens @('edit')
+        Assert-Equal $result.Code 1
+        Assert-Contains $result.Text 'user-settings.ps1 is not installed'
     }
 
     Invoke-UpwshTest 'load before install fails without writing a hook' {
@@ -173,6 +186,54 @@ try {
         $text = [IO.File]::ReadAllText($hook)
         Assert-Contains $text '# >>> unixify-powershell >>>'
         Assert-Contains $text $installedProfile
+    }
+
+    Invoke-UpwshTest 'edit opens user-settings.ps1 in nvim' {
+        $stub = Join-Path $root 'edit-nvim'
+        New-Item -ItemType Directory -Path $stub -Force | Out-Null
+        $log = Join-Path $stub 'called.txt'
+        Set-Content -LiteralPath (Join-Path $stub 'nvim.cmd') -Value "@echo off`r`necho %*>`"$log`"`r`nexit /b 0"
+        $savedPath = $env:PATH
+        try {
+            $env:PATH = $stub
+            $result = Invoke-Upwsh -Tokens @('edit')
+            Assert-Equal $result.Code 0
+            Assert-Contains $result.Text 'user-settings.ps1'
+            Assert-Contains $result.Text 'nvim'
+            Assert-Contains ([IO.File]::ReadAllText($log)) (Join-Path $installHome 'user-settings.ps1')
+        } finally {
+            $env:PATH = $savedPath
+        }
+    }
+
+    Invoke-UpwshTest 'edit falls back to vim when nvim is missing' {
+        $stub = Join-Path $root 'edit-vim'
+        New-Item -ItemType Directory -Path $stub -Force | Out-Null
+        $log = Join-Path $stub 'called.txt'
+        Set-Content -LiteralPath (Join-Path $stub 'vim.cmd') -Value "@echo off`r`necho %*>`"$log`"`r`nexit /b 0"
+        $savedPath = $env:PATH
+        try {
+            $env:PATH = $stub
+            $result = Invoke-Upwsh -Tokens @('edit')
+            Assert-Equal $result.Code 0
+            Assert-Contains $result.Text 'vim'
+            Assert-Contains ([IO.File]::ReadAllText($log)) (Join-Path $installHome 'user-settings.ps1')
+        } finally {
+            $env:PATH = $savedPath
+        }
+    }
+
+    Invoke-UpwshTest 'edit fails when nvim and vim are missing' {
+        $savedPath = $env:PATH
+        try {
+            $env:PATH = Join-Path $root 'edit-empty'
+            New-Item -ItemType Directory -Path $env:PATH -Force | Out-Null
+            $result = Invoke-Upwsh -Tokens @('edit')
+            Assert-Equal $result.Code 1
+            Assert-Contains $result.Text 'nvim is not on PATH'
+        } finally {
+            $env:PATH = $savedPath
+        }
     }
 
     Invoke-UpwshTest 'load hooks the installed profile' {

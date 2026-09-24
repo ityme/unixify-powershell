@@ -13,6 +13,7 @@
 #   upwsh tool uninstall eza
 #   upwsh theme list
 #   upwsh theme use pure-classic
+#   upwsh edit
 
 $ErrorActionPreference = 'Stop'
 $script:Arguments = @($args)
@@ -42,6 +43,9 @@ select a local prompt theme
    theme list       List installed themes; * marks the active theme
    theme use        Select a local theme by name and refresh the prompt
    theme install    Compatibility alias for theme use
+
+edit personal settings
+   edit             Open ~/.config/upwsh/user-settings.ps1 in nvim
 
 'upwsh --help' prints this overview.
 
@@ -115,6 +119,10 @@ function ConvertFrom-UpwshArguments {
         }
         '^update$' {
             $result.Command = 'update'
+            $index = 1
+        }
+        '^edit$' {
+            $result.Command = 'edit'
             $index = 1
         }
         default {
@@ -214,9 +222,9 @@ function ConvertFrom-UpwshArguments {
                 $result.All = $true
                 $index++
             }
-            '^(load|unload|tool|theme|install|uninstall|update)$' {
+            '^(load|unload|tool|theme|install|uninstall|update|edit)$' {
                 $result.Help = $true
-                $result.Error = 'use only one of load, unload, tool, theme, install, uninstall, or update'
+                $result.Error = 'use only one of load, unload, tool, theme, install, uninstall, update, or edit'
                 return $result
             }
             default {
@@ -339,6 +347,33 @@ function Invoke-UpwshTheme {
     }
 }
 
+function Get-UpwshSettingsEditor {
+    foreach ($name in @('nvim', 'vim')) {
+        $command = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($command) {
+            return $command.Source
+        }
+    }
+}
+
+function Invoke-UpwshEdit {
+    . (Join-Path $PSScriptRoot '..\lib\upwsh_home.ps1')
+    $settings = Join-Path (Get-UpwshHome) 'user-settings.ps1'
+    if (-not [IO.File]::Exists($settings)) {
+        throw 'user-settings.ps1 is not installed; run upwsh install first'
+    }
+    $editor = Get-UpwshSettingsEditor
+    if (-not $editor) {
+        throw 'nvim is not on PATH; install Neovim to edit user-settings.ps1'
+    }
+    Write-UpwshStatus file $settings editor ([IO.Path]::GetFileNameWithoutExtension($editor))
+    & $editor $settings
+    if ($null -ne $LASTEXITCODE) {
+        $global:LASTEXITCODE = $LASTEXITCODE
+    }
+}
+
 function Invoke-UpwshSetup {
     param($Parsed)
 
@@ -395,6 +430,18 @@ if ($parsed.Command -in @('load', 'unload')) {
 
 if ($parsed.Command -in @('install', 'uninstall', 'update')) {
     Invoke-UpwshSetup -Parsed $parsed
+    Complete-Upwsh $global:LASTEXITCODE $scriptInvocation
+    return
+}
+
+if ($parsed.Command -eq 'edit') {
+    try {
+        Invoke-UpwshEdit
+    } catch {
+        Write-Output "upwsh: $($_.Exception.Message)"
+        Complete-Upwsh 1 $scriptInvocation
+        return
+    }
     Complete-Upwsh $global:LASTEXITCODE $scriptInvocation
     return
 }

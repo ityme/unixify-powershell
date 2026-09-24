@@ -92,6 +92,7 @@ Changes made in another window, such as switching a branch in the same working t
 | `upwsh load` | Enable startup loading of `~/.config/upwsh/profile.ps1` and load this pwsh |
 | `upwsh unload` | Disable startup loading and drop the current-session prompt |
 | `upwsh uninstall` | Unload, then remove the installation; keep a changed `user-settings.ps1`, delete themes |
+| `upwsh edit` | Open `~/.config/upwsh/user-settings.ps1` in nvim |
 
 `upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. Install loads the current pwsh; uninstall unloads it, then deletes the runtime. A changed `user-settings.ps1` is kept; themes are not.
 
@@ -159,7 +160,7 @@ Updates refresh bundled filenames in `theme/` and leave extra JSON plus `theme.j
 
 ## Personal settings
 
-Edit `~/.config/upwsh/user-settings.ps1` after the built-in aliases load. `upwsh update` leaves an existing copy in place. Uninstall keeps the file when it differs from the shipped template; an unchanged copy is deleted with the runtime. Themes are always deleted.
+Edit `~/.config/upwsh/user-settings.ps1` after the built-in aliases load, or run `upwsh edit` to open it in nvim (`vim` if nvim is missing). `upwsh update` leaves an existing copy in place. Uninstall keeps the file when it differs from the shipped template; an unchanged copy is deleted with the runtime. Themes are always deleted.
 
 ```powershell
 function global:work { cd (winpath '/i/my work') }
