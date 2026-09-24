@@ -88,12 +88,12 @@ Changes made in another window, such as switching a branch in the same working t
 | Command | Purpose |
 | --- | --- |
 | `upwsh install` | Install or repair files, Path, and the `upwsh` command, then load |
-| `upwsh update` | Update an existing installation, keeping custom settings, tools, and the profile hook |
+| `upwsh update` | Update an existing installation, keeping tools, `user-settings.ps1`, extra theme JSON, and the profile hook |
 | `upwsh load` | Enable startup loading of `~/.config/upwsh/profile.ps1` and load this pwsh |
 | `upwsh unload` | Disable startup loading and drop the current-session prompt |
 | `upwsh uninstall` | Unload, then remove the installation and managed environment variables and Path entries |
 
-`upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. Install loads the current pwsh; uninstall unloads it. To uninstall while keeping personal settings, use `upwsh uninstall --keep-custom`.
+`upwsh install` and `upwsh update` default to `--local` in this repository. `irm | iex` defaults to `--remote`. Install loads the current pwsh; uninstall unloads it, then deletes the runtime.
 
 The install directory is fixed at `~/.config/upwsh`; `UPWSH_HOME` records it. The native prompt in `src/lib/prompt.psm1` follows the current folder and Git branch. Run `upwsh --help` for command help.
 
@@ -153,9 +153,9 @@ Screenshots show sample user/host, branch `dev`, exit code `7`, and duration `2.
 
 For an interactive comparison of all eight command states, download the repository and open **[docs/themes.html](docs/themes.html)** in a browser. It works offline; GitHub may show the HTML source rather than run it.
 
-Bundled themes live in `~/.config/upwsh/theme/`; personal themes live in `~/.config/upwsh/custom/themes/`; `custom/theme.json` records the selection. V2 uses `Order` and `Modules` for colors, layout and attached connectors. Each JSON includes Chinese field explanations. Switching refreshes the next prompt; editing requires reselecting the theme.
+All prompt themes live in `~/.config/upwsh/theme/`; `theme.json` records the selection. Copy a bundled JSON, rename it, and edit the copy. V2 uses `Order` and `Modules` for colors, layout and attached connectors. Each JSON includes Chinese field explanations. Switching refreshes the next prompt; editing requires reselecting the theme.
 
-Updates refresh bundled themes in `theme/` and preserve personal themes in `custom/themes/` plus the selection file. Old names are not aliases or automatically renamed. **V1 themes are unsupported**: back them up before upgrading. See [Themes](docs/themes.md) for upgrade steps and configuration.
+Updates refresh bundled filenames in `theme/` and leave extra JSON plus `theme.json` in place. Old names are not aliases or automatically renamed. **V1 themes are unsupported**: back them up before upgrading. See [Themes](docs/themes.md) for upgrade steps and configuration.
 
 ## Personal settings
 
@@ -165,7 +165,7 @@ Edit `~/.config/upwsh/user-settings.ps1` after the built-in aliases load. `upwsh
 function global:work { cd (winpath '/i/my work') }
 ```
 
-The sample shortcuts `w`, `t`, `i`, `d`, and `gs` still live in `custom/alias.ps1` until that overlay is removed. Terminal status reporting can go in `user-settings.ps1`. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
+The sample shortcuts `w`, `t`, `i`, `d`, and `gs` are in `user-settings.ps1`. Terminal status reporting can go there too. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.
 
 ## Install from source
 

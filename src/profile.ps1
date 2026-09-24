@@ -1,4 +1,4 @@
-# PowerShell 7 入口：模块、库存别名、custom\*.ps1、user-settings.ps1、再挂钩终端。
+# PowerShell 7 入口：模块、库存别名、user-settings.ps1、再挂钩终端。
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     return
@@ -46,15 +46,6 @@ Remove-Alias -Name @(
 ) -Scope Global -Force -ErrorAction Ignore
 if (Get-Command ls -CommandType Function -ErrorAction SilentlyContinue) {
     Remove-Alias -Name ls, tree -Scope Global -Force -ErrorAction Ignore
-}
-
-$script:CustomRoot = Join-Path $PSScriptRoot 'custom'
-if (Test-Path -LiteralPath $script:CustomRoot -PathType Container) {
-    Get-ChildItem -LiteralPath $script:CustomRoot -Filter '*.ps1' -File |
-        Sort-Object Name |
-        ForEach-Object {
-            . $_.FullName
-        }
 }
 
 $script:UserSettings = Join-Path $PSScriptRoot 'user-settings.ps1'

@@ -437,7 +437,7 @@ try {
     }
 
     Invoke-UpwshTest 'load applies only the installed runtime in this session' {
-        $sentinel = Join-Path $installHome 'custom\zz-installed.ps1'
+        $sentinel = Join-Path $installHome 'user-settings.ps1'
         [IO.File]::WriteAllText($sentinel, 'Set-Alias -Name installed_only -Value Get-Date -Scope Global -Force')
         $result = Invoke-Upwsh -LoadSession -Tokens @('load')
         Assert-Equal (Get-Command installed_only -ErrorAction Stop).Definition 'Get-Date'

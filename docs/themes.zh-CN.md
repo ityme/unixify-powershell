@@ -17,17 +17,17 @@ upwsh theme use "pure-classic"  # 恢复默认外观
 - **pure-***：`pure-classic`（原 iWonder）、`pure-glacier`、`pure-ember`、`pure-quiet`、`pure-daylight`。透明背景，原有外观不变；Daylight 用于浅色终端背景。
 - **colorful-***：`colorful-blue`、`colorful-green`、`colorful-macaron`、`colorful-morandi`、`colorful-cyberpunk`、`colorful-retro`、`colorful-memphis`。用户、主机、目录、Git 使用连续色块；耗时、返回码和提示字符使用透明背景，需要含 Powerline 字形的字体。
 
-主题名称和文件名统一使用小写、短横线。更新会刷新内置文件，不会重命名或删除 `custom/themes/` 中的个人主题。没有旧名称别名。
+主题名称和文件名统一使用小写、短横线。更新会刷新内置文件名，`theme/` 里其它 JSON 会留下。没有旧名称别名。
 
 Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON 的 `_Comment.ContrastAdjustments` 列出差异。原 OS / Username 两级配色用于 user / host，没有增加时钟或 OS 模块。整体背景和窗口透明度仍由终端控制。
 
 ## 文件与生效方式
 
-内置主题位于 `~/.config/upwsh/theme/`，由 unixify-powershell 管理。每次安装或更新都会用 `src/theme/` 中的新版本强制覆盖。个人主题放在 `~/.config/upwsh/custom/themes/`，更新不会覆盖；同名个人主题优先于内置主题。
+所有提示符主题都在 `~/.config/upwsh/theme/`。安装/更新只覆盖随包的文件名，其它 JSON 留下。复制一份内置主题、改名后再改。
 
-选择文件位于 `~/.config/upwsh/custom/theme.json`，例如 `{"Theme":"colorful-blue.json"}`。没有选择文件时使用 pure-classic。
+选择文件位于 `~/.config/upwsh/theme.json`，例如 `{"Theme":"colorful-blue.json"}`。没有选择文件时使用 pure-classic。
 
-布局变更后的第一次更新会把直接放在 `theme/` 或旧的 `themes/` 下、且不属于内置主题的 JSON 移到 `custom/themes/`。如果目标目录已有同名文件，会保留目标文件，并警告旧文件仍在 `theme/`。需要保留两份时，请先备份安装目录。
+布局变更后的第一次更新会把 `custom/themes/` 和旧的 `themes/` 里还能用的文件迁进 `theme/`（目标名空闲时）。随包文件名仍按仓库覆盖。
 
 选择后下一次提示符生效。在另一个窗口或通过 `upwsh.cmd` 切换时，本窗口下次生成提示符才会读取选择，不在空闲输入过程中自行重绘。**编辑已选中的主题后，也要再执行一次 `upwsh theme use "名称"`**。解析结果有缓存，不在每次按键时读取整个主题。
 
@@ -37,13 +37,13 @@ Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON �
 
 **只支持 `Version: 2`，不兼容或自动转换 v1。** `Colors`、`Symbols`、`Display` 已删除；不能只把版本号从 1 改成 2。
 
-更新会刷新 `theme/` 下的所有内置主题，补齐缺失文件；`custom/`、`custom/themes/`、工具和个人别名不会被覆盖。布局变更后的第一次更新会迁移旧的非内置主题。新会话会读取选择。自定义 v1 文件请参考 v2 模板手动重写。
+更新会刷新 `theme/` 下的随包主题，并留下其它 JSON、`theme.json`、`user-settings.ps1` 和工具。自定义 v1 文件请参考 v2 模板手动重写。
 
-卸载会删除 `theme/`；`--keep-custom` 会保留 `custom/`（包括 `custom/themes/`）和选择文件。卸载前另行备份。
+卸载会删除整棵运行时，包括 `theme/` 和 `theme.json`。卸载前另行备份。
 
 ## 最小分段示例
 
-将下面内容保存为 `~/.config/upwsh/custom/themes/My Theme.json`，执行 `upwsh theme use "My Theme"`：
+将下面内容保存为 `~/.config/upwsh/theme/My Theme.json`，执行 `upwsh theme use "My Theme"`：
 
 ```json
 {

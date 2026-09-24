@@ -146,7 +146,6 @@ if ($Deploy) {
     $Destination = [IO.Path]::GetFullPath($Destination)
     . (Join-Path $PSScriptRoot '_deploy.ps1')
     Copy-UpwshRuntime -Source (Get-SourceRoot) -Destination $Destination
-    Copy-UpwshCustomDefaults -Source (Join-Path (Get-SourceRoot) 'custom') -Destination (Join-Path $Destination 'custom')
     $userSettings = Join-Path $Destination 'user-settings.ps1'
     $userSettingsSource = Join-Path (Get-SourceRoot) 'user-settings.ps1'
     if ([IO.File]::Exists($userSettingsSource) -and -not [IO.File]::Exists($userSettings)) {

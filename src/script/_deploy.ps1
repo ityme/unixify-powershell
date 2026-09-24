@@ -25,26 +25,27 @@ function Get-UpwshThemeNames {
     return @(Get-ChildItem -LiteralPath (Join-Path $Root 'theme') -Filter '*.json' -File | ForEach-Object BaseName)
 }
 
-function Move-UpwshLegacyThemes {
-    param([string]$Target, [string[]]$BundledNames, [string]$Backup, $Migrations, $Created)
+function Move-UpwshLegacyCustomThemes {
+    param([string]$Target, [string]$Backup, $Migrations, $Created)
 
-    $legacyRoot = Join-Path $Target 'theme'
-    $oldRoot = Join-Path $Target 'themes'
-    if (-not [IO.Directory]::Exists($legacyRoot) -and [IO.Directory]::Exists($oldRoot)) {
-        $legacyRoot = $oldRoot
-    }
+    $legacyRoot = Join-Path $Target 'custom\themes'
     if (-not [IO.Directory]::Exists($legacyRoot)) { return }
-    $customRoot = Join-Path $Target 'custom\themes'
+    $themeRoot = Join-Path $Target 'theme'
+    New-UpwshDeploymentDirectory -Path $themeRoot -Created $Created
     foreach ($file in Get-ChildItem -LiteralPath $legacyRoot -Filter '*.json' -File) {
-        if ($file.BaseName -in $BundledNames) { continue }
-        $destination = Join-Path $customRoot $file.Name
+        $destination = Join-Path $themeRoot $file.Name
         if ([IO.File]::Exists($destination)) {
-            Write-Warning "keeping existing custom theme; legacy file remains in theme: $($file.Name)"
+            Write-Warning "keeping existing theme; leftover custom theme remains: $($file.Name)"
             continue
         }
-        New-UpwshDeploymentDirectory -Path $customRoot -Created $Created
         [IO.File]::Move($file.FullName, $destination)
         $Migrations.Add([pscustomobject]@{ Legacy = $file.FullName; Destination = $destination })
+    }
+    $legacySelection = Join-Path $Target 'custom\theme.json'
+    $selection = Join-Path $Target 'theme.json'
+    if ([IO.File]::Exists($legacySelection) -and -not [IO.File]::Exists($selection)) {
+        [IO.File]::Move($legacySelection, $selection)
+        $Migrations.Add([pscustomobject]@{ Legacy = $legacySelection; Destination = $selection })
     }
 }
 
@@ -73,7 +74,7 @@ function Test-UpwshRuntime {
     }
     Test-UpwshThemeHeaders -Root (Join-Path $Root 'theme') -Names @(Get-ChildItem -LiteralPath (Join-Path $Root 'theme') -Filter '*.json' -File | ForEach-Object Name)
     $scripts = foreach ($item in Get-ChildItem -LiteralPath $Root -Force) {
-        if ($item.Name -in @('tests', 'custom', 'theme', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1')) { continue }
+        if ($item.Name -in @('tests', 'theme', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1', 'theme.json')) { continue }
         if ($item.PSIsContainer) {
             Get-ChildItem -LiteralPath $item.FullName -Recurse -File | Where-Object Extension -In '.ps1', '.psm1'
         } elseif ($item.Extension -in @('.ps1', '.psm1')) { $item }
@@ -91,23 +92,11 @@ function Copy-UpwshRuntime {
 
     [void][IO.Directory]::CreateDirectory($Destination)
     foreach ($item in Get-ChildItem -LiteralPath $Source -Force) {
-        if ($item.Name -in @('tests', 'custom', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1')) { continue }
+        if ($item.Name -in @('tests', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1', 'theme.json')) { continue }
         Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $Destination $item.Name) -Recurse -Force
     }
 }
 
-function Copy-UpwshCustomDefaults {
-    param([string]$Source, [string]$Destination)
-
-    [void][IO.Directory]::CreateDirectory($Destination)
-    if (-not [IO.Directory]::Exists($Source)) { return }
-    foreach ($item in Get-ChildItem -LiteralPath $Source -Force) {
-        $target = Join-Path $Destination $item.Name
-        if (-not (Test-Path -LiteralPath $target)) {
-            Copy-Item -LiteralPath $item.FullName -Destination $target -Recurse -Force
-        }
-    }
-}
 
 function Get-UpwshEnvironmentSnapshot {
     $values = @{}
@@ -149,7 +138,7 @@ function Get-UpwshManagedFiles {
 
     if (-not [IO.Directory]::Exists($Root)) { return }
     foreach ($item in Get-ChildItem -LiteralPath $Root -Force) {
-        if ($item.Name -in @('custom', 'theme', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1')) { continue }
+        if ($item.Name -in @('theme', 'themes', 'tool', 'bin', '.git', 'user-settings.ps1', 'theme.json')) { continue }
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "refusing to replace a linked runtime path: $($item.FullName)"
         }
@@ -223,7 +212,7 @@ function Install-UpwshRuntime {
     try {
         Copy-UpwshRuntime -Source $sourcePath -Destination $stage
         Test-UpwshRuntime $stage -Staged
-        Move-UpwshLegacyThemes -Target $targetPath -BundledNames (Get-UpwshThemeNames $sourcePath) -Backup $backup -Migrations $migrations -Created $created
+        Move-UpwshLegacyCustomThemes -Target $targetPath -Backup $backup -Migrations $migrations -Created $created
         # Windows can hold directory handles for running shells/tools. Keep all live directories
         # in place and replace only managed files, recording enough to undo every successful edit.
         $oldFiles = @(Get-UpwshManagedFiles $targetPath)
@@ -244,18 +233,28 @@ function Install-UpwshRuntime {
             [IO.File]::Move($activeFile, $saved)
             $journal.Add([pscustomobject]@{ Target = $activeFile; Backup = $saved; Added = $false })
         }
+        $bundledNames = @(Get-UpwshThemeNames $sourcePath)
         foreach ($theme in Get-ChildItem -LiteralPath (Join-Path $stage 'theme') -Filter '*.json' -File) {
+            if ($theme.BaseName -notin $bundledNames) { continue }
             $activeFile = Join-Path $targetPath ('theme\' + $theme.Name)
             Set-UpwshDeploymentFile -Source $theme.FullName -Target $activeFile -Backup (Join-Path $backup ('theme\' + $theme.Name)) -Journal $journal -Created $created
         }
         $legacyThemes = Join-Path $targetPath 'themes'
         if ([IO.Directory]::Exists($legacyThemes)) {
+            $themeRoot = Join-Path $targetPath 'theme'
+            New-UpwshDeploymentDirectory -Path $themeRoot -Created $created
             foreach ($file in Get-ChildItem -LiteralPath $legacyThemes -Filter '*.json' -File) {
-                $activeFile = $file.FullName
-                $saved = Join-Path $backup ('themes\' + $file.Name)
-                [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($saved))
-                [IO.File]::Move($activeFile, $saved)
-                $journal.Add([pscustomobject]@{ Target = $activeFile; Backup = $saved; Added = $false })
+                $destination = Join-Path $themeRoot $file.Name
+                if ($file.BaseName -in $bundledNames -or [IO.File]::Exists($destination)) {
+                    $activeFile = $file.FullName
+                    $saved = Join-Path $backup ('themes\' + $file.Name)
+                    [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($saved))
+                    [IO.File]::Move($activeFile, $saved)
+                    $journal.Add([pscustomobject]@{ Target = $activeFile; Backup = $saved; Added = $false })
+                    continue
+                }
+                [IO.File]::Move($file.FullName, $destination)
+                $journal.Add([pscustomobject]@{ Target = $destination; Backup = $null; Added = $true })
             }
         }
         $userSettingsSource = Join-Path $sourcePath 'user-settings.ps1'
@@ -266,20 +265,7 @@ function Install-UpwshRuntime {
             Copy-Item -LiteralPath $userSettingsSource -Destination $userSettingsTarget
             $journal.Add([pscustomobject]@{ Target = $userSettingsTarget; Backup = $null; Added = $true })
         }
-        foreach ($folder in @('custom', 'custom\themes', 'bin', 'tool\bin')) {
-            $defaults = Join-Path $stage $folder
-            if ($folder -eq 'custom') {
-                Copy-UpwshCustomDefaults -Source (Join-Path $sourcePath $folder) -Destination $defaults
-            }
-            if (-not [IO.Directory]::Exists($defaults)) { continue }
-            foreach ($file in Get-ChildItem -LiteralPath $defaults -Recurse -File -Force) {
-                $relative = [IO.Path]::GetRelativePath($stage, $file.FullName)
-                $activeFile = Join-Path $targetPath $relative
-                if (Test-Path -LiteralPath $activeFile) { continue }
-                Set-UpwshDeploymentFile -Source $file.FullName -Target $activeFile -Backup (Join-Path $backup $relative) -Journal $journal -Created $created
-            }
-        }
-        foreach ($name in @('custom', 'custom\themes', 'bin', 'tool\bin')) {
+        foreach ($name in @('bin', 'tool\bin', 'theme')) {
             New-UpwshDeploymentDirectory -Path (Join-Path $targetPath $name) -Created $created
         }
         $activeFile = $null

@@ -47,7 +47,7 @@ try {
     $userHome = Join-Path $root 'user'
     $installHome = Join-Path $userHome '.config\upwsh'
     $hook = Join-Path $userHome 'test-profile.ps1'
-    $custom = Join-Path $installHome 'custom\alias.ps1'
+    $settings = Join-Path $installHome 'user-settings.ps1'
     $tool = Join-Path $installHome 'tool\bin\fixture.exe'
 
     Invoke-InstallTest 'source script installs into the fixed user home' {
@@ -56,7 +56,7 @@ try {
         Assert-Contains $result.Text 'state     deployed'
         Assert-Contains $result.Text '%UPWSH_HOME%\bin'
         Assert-Contains $result.Text '%UPWSH_HOME%\tool\bin'
-        foreach ($file in @('profile.ps1', 'user-settings.ps1', 'lib\git_completion.psm1', 'bin\upwsh.cmd', 'custom\alias.ps1')) {
+        foreach ($file in @('profile.ps1', 'user-settings.ps1', 'lib\git_completion.psm1', 'bin\upwsh.cmd')) {
             Assert-True (Test-Path -LiteralPath (Join-Path $installHome $file) -PathType Leaf) "missing $file"
         }
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'tests'))) 'tests were deployed'
@@ -161,7 +161,7 @@ try {
     }
 
     Invoke-InstallTest 'upwsh install detects the project from a subdirectory' {
-        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('install') -WorkingDirectory (Join-Path $projectSrc 'custom')
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('install') -WorkingDirectory (Join-Path $projectSrc 'lib')
         Assert-Equal $result.Code 0
         Assert-Contains $result.Text $projectSrc
     }
@@ -212,17 +212,15 @@ exit $LASTEXITCODE
         Assert-True (-not ([IO.File]::ReadAllText($hook)).Contains($projectSrc)) 'load hooked source'
     }
 
-    Invoke-InstallTest 'update uses local project and preserves custom and tools' {
-        [IO.File]::WriteAllText($custom, '# personal aliases')
-        [IO.File]::WriteAllText((Join-Path $installHome 'user-settings.ps1'), '# keep user settings')
+    Invoke-InstallTest 'update uses local project and preserves user-settings and tools' {
+        [IO.File]::WriteAllText($settings, '# keep user settings')
         [IO.File]::WriteAllText($tool, 'keep installed tool')
         [IO.File]::WriteAllText((Join-Path $installHome 'obsolete.ps1'), '# old managed file')
         [IO.File]::WriteAllText((Join-Path $projectSrc 'local-source.txt'), 'updated')
         $beforeHook = [IO.File]::ReadAllText($hook)
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installedCommand -Arguments @('update') -WorkingDirectory $project -Environment @{ UPWSH_HOME = $projectSrc }
         Assert-Equal $result.Code 0
-        Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
-        Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'user-settings.ps1'))) '# keep user settings'
+        Assert-Equal ([IO.File]::ReadAllText($settings)) '# keep user settings'
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'obsolete.ps1'))) 'obsolete program file remained'
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'local-source.txt'))) 'updated'
@@ -243,13 +241,13 @@ exit $LASTEXITCODE
         Assert-True ($result.Code -eq 0) $result.Text
         Assert-Equal ([IO.File]::ReadAllText($hook)) "# personal profile`r`n"
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
-        Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
+        Assert-Equal ([IO.File]::ReadAllText($settings)) '# keep user settings'
         $result = Invoke-UpwshTestProcess -UserHome $userHome -File $installer -Arguments @('--source', $project)
         Assert-True ($result.Code -eq 0) $result.Text
         Assert-Contains ([IO.File]::ReadAllText($hook)) (Join-Path $installHome 'profile.ps1')
         Assert-Contains $result.Text 'state     installed'
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
-        Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
+        Assert-Equal ([IO.File]::ReadAllText($settings)) '# keep user settings'
     }
 
     Invoke-InstallTest 'bad source and failed download leave the working installation intact' {
@@ -307,7 +305,7 @@ exit 0
         Assert-Equal ([IO.File]::ReadAllText($hook)) $beforeHook
         Assert-Equal ([IO.File]::ReadAllText((Join-Path $installHome 'bin\upwsh.cmd'))) $beforeShim
         Assert-Equal ([IO.File]::ReadAllText($tool)) 'keep installed tool'
-        Assert-Equal ([IO.File]::ReadAllText($custom)) '# personal aliases'
+        Assert-Equal ([IO.File]::ReadAllText($settings)) '# keep user settings'
         Assert-Equal (@(Get-ChildItem -LiteralPath (Split-Path $installHome) -Directory -Filter '.upwsh-*')).Count 0
     }
 
@@ -344,16 +342,12 @@ if (-not $env:PATH.Contains('C:\keep-path')) { throw 'unrelated path removed' }
         Assert-Equal $result.Code 0
     }
 
-    Invoke-InstallTest 'uninstall keep-custom keeps only custom files' {
+    Invoke-InstallTest 'uninstall removes the runtime including user-settings' {
         Install-Fixture $userHome | Out-Null
-        $customTheme = Join-Path $installHome 'custom\themes\personal.json'
-        [void][IO.Directory]::CreateDirectory((Split-Path -Parent $customTheme))
-        [IO.File]::WriteAllText($customTheme, '{}')
-        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $uninstaller -Arguments @('--keep-custom')
+        Assert-True (Test-Path -LiteralPath $settings)
+        $result = Invoke-UpwshTestProcess -UserHome $userHome -File $uninstaller
         Assert-Equal $result.Code 0
-        Assert-True (Test-Path -LiteralPath (Join-Path $installHome 'custom\alias.ps1')) 'custom removed'
-        Assert-True (Test-Path -LiteralPath $customTheme) 'custom themes removed'
-        Assert-True (-not (Test-Path -LiteralPath (Join-Path $installHome 'profile.ps1'))) 'runtime remained'
+        Assert-True (-not (Test-Path -LiteralPath $installHome)) 'runtime remained'
     }
 
     Invoke-InstallTest 'piped install keeps the host and defines upwsh in this session' {
@@ -371,11 +365,11 @@ Write-Output ('UPWSH:' + ((Get-Command upwsh -ErrorAction SilentlyContinue).Comm
         Assert-Contains ([IO.File]::ReadAllText((Join-Path $pipeUser 'test-profile.ps1'))) (Join-Path $pipeUser '.config\upwsh\profile.ps1')
     }
 
-    Invoke-InstallTest 'piped update keeps custom and uses local source' {
+    Invoke-InstallTest 'piped update keeps user-settings and uses local source' {
         $pipeUser = Join-Path $root 'pipe-update-user'
         Install-Fixture $pipeUser | Out-Null
-        $pipeCustom = Join-Path $pipeUser '.config\upwsh\custom\alias.ps1'
-        [IO.File]::WriteAllText($pipeCustom, '# keep piped custom')
+        $pipeSettings = Join-Path $pipeUser '.config\upwsh\user-settings.ps1'
+        [IO.File]::WriteAllText($pipeSettings, '# keep piped settings')
         $command = @'
 $ErrorActionPreference = 'Stop'
 function Invoke-WebRequest {
@@ -391,7 +385,7 @@ Write-Output ('AFTER_IEX:' + $LASTEXITCODE)
         $result = Invoke-UpwshTestProcess -UserHome $pipeUser -Command $command -WorkingDirectory $project
         Assert-Contains $result.Text 'AFTER_IEX:0'
         Assert-Contains $result.Text $projectSrc
-        Assert-Equal ([IO.File]::ReadAllText($pipeCustom)) '# keep piped custom'
+        Assert-Equal ([IO.File]::ReadAllText($pipeSettings)) '# keep piped settings'
     }
 
     Invoke-InstallTest 'piped uninstall removes the fixed installation without closing the host' {

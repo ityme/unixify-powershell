@@ -19,31 +19,29 @@ The [README gallery](../README.md#themes) introduces all 12 themes with screensh
 - **pure-***: `pure-classic` (formerly iWonder), `pure-glacier`, `pure-ember`, `pure-quiet`, `pure-daylight`. Transparent backgrounds; the original appearances are unchanged. Daylight targets light terminal backgrounds.
 - **colorful-***: `colorful-blue`, `colorful-green`, `colorful-macaron`, `colorful-morandi`, `colorful-cyberpunk`, `colorful-retro`, `colorful-memphis`. Connected user/host/directory/Git color blocks, followed by duration, exit code and symbol on transparent backgrounds. Requires Powerline glyphs.
 
-All names and filenames use lowercase hyphenated names. Updates refresh bundled files and do not rename or delete personal themes under `custom/themes/`. There are no old-name aliases.
+All names and filenames use lowercase hyphenated names. Updates refresh bundled files and leave extra JSON files in `theme/` in place. There are no old-name aliases.
 
 Colorful preserves the reference background colors. Some foreground colors were adjusted for readability; each JSON's `_Comment.ContrastAdjustments` lists the differences. The reference OS/username palette steps map to user/host here; no clock or OS module is added. Terminal font, window opacity, and overall background remain terminal settings.
 
 ## Files and upgrading
 
-Bundled themes live in `~/.config/upwsh/theme/` and are owned by unixify-powershell. Every install/update replaces these files with the versions from `src/theme/`. Put personal themes in `~/.config/upwsh/custom/themes/`; updates never overwrite that directory. A custom file with the same name takes precedence over its bundled counterpart.
+All prompt themes live in `~/.config/upwsh/theme/`. Install/update replace the bundled filenames from `src/theme/` and leave other JSON files in that directory. Copy a bundled file, rename it, and edit the copy.
 
-The optional selection file `custom/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-classic is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-classic.
+The optional selection file `~/.config/upwsh/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-classic is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-classic.
 
-During the first update after this layout change, non-bundled JSON files still found directly under `theme/` or the old `themes/` directory move to `custom/themes/`. Existing files in `custom/themes/` win; a conflicting legacy file stays in `theme/` and the update warns. Back up the install before this migration if you need both copies.
+The first update after this layout change moves leftover files from `custom/themes/` and the old `themes/` directory into `theme/` when the destination name is free. Bundled filenames still replace the package copies. Rewrite v1 files from a v2 template before selecting them.
 
 **Only Version 2 is supported.** There is no v1 reader or automatic conversion. `Colors`, `Symbols`, and `Display` no longer exist; changing just the version number is insufficient.
-
-Install/update refresh every bundled JSON under `theme/`, while preserving `custom/themes/`. During the first update after this layout change, non-bundled JSON files still directly under `theme/` or the old `themes/` directory move to `custom/themes/`. If the custom destination already exists, the existing custom file wins and the legacy file stays in place with a warning. Rewrite custom v1 themes from a v2 template before selecting them.
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/script/update.ps1 --source src
 ```
 
-Install loads the current pwsh. Then select a theme. Uninstall removes `theme/`; `--keep-custom` retains `custom/`, including `custom/themes/`, and the selection file.
+Install loads the current pwsh. Then select a theme. Uninstall removes the runtime, including `theme/` and `theme.json`.
 
 ## Configuration
 
-Save this as `custom/themes/My Theme.json`, then select `My Theme`:
+Save this as `theme/My Theme.json`, then select `My Theme`:
 
 ```json
 {

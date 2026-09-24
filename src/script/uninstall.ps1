@@ -12,14 +12,12 @@ function Get-UninstallUsage {
     @'
 usage: uninstall.ps1 [-h | --help] [-c | --check]
                      [-p | --profile <path>] [--current-host]
-                     [--keep-custom]
 
 These are common uninstall.ps1 commands used in various situations:
 
 remove this runtime
    --profile        pwsh profile to edit, default CurrentUserAllHosts
    --current-host   Write $PROFILE.CurrentUserCurrentHost
-   --keep-custom    Keep UPWSH_HOME\\custom when deleting the install tree
 
 inspect without writing
    --check          Show what would be removed
@@ -29,7 +27,6 @@ A network uninstall can run:
   irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/uninstall.ps1 | iex
 
 Unload first, then drop UPWSH_HOME and managed Path entries, then delete ~/.config/upwsh.
---keep-custom leaves UPWSH_HOME\\custom in place.
 '@
 }
 
@@ -39,7 +36,6 @@ function New-UninstallParseResult {
         Error       = $null
         Check       = $false
         CurrentHost = $false
-        KeepCustom  = $false
         Profile     = $null
     }
 }
@@ -67,10 +63,6 @@ function ConvertFrom-UninstallArguments {
             }
             '^--current-host$' {
                 $result.CurrentHost = $true
-                $index++
-            }
-            '^--keep-custom$' {
-                $result.KeepCustom = $true
                 $index++
             }
             '^(--profile|-p)$' {
@@ -373,9 +365,6 @@ if ($parsed.Check) {
         $treeState = 'kept'
     }
     Write-UpwshStatus hook $state tree $treeState
-    if ($parsed.KeepCustom) {
-        Write-UpwshStatus custom keep
-    }
     Complete-Uninstall 0 $scriptInvocation
     return
 }
@@ -410,25 +399,12 @@ if (-not $env:UPWSH_SKIP_SESSION_LOAD) {
 if ($keepTree) {
     Write-UpwshStatus tree "kept  $directory"
 } elseif (Test-Path -LiteralPath $directory) {
-    $custom = Join-Path $directory 'custom'
-    $savedCustom = $null
-    if ($parsed.KeepCustom -and (Test-Path -LiteralPath $custom)) {
-        $savedCustom = Join-Path ([IO.Path]::GetTempPath()) (
-            'upwsh-custom-' + [Guid]::NewGuid().ToString('N')
-        )
-        Move-Item -LiteralPath $custom -Destination $savedCustom
-    }
     if (Get-Command Remove-UpwshTree -ErrorAction SilentlyContinue) {
         Remove-UpwshTree -Path $directory
     } else {
         Remove-Item -LiteralPath $directory -Recurse -Force
     }
     Write-UpwshStatus tree "removed  $directory"
-    if ($savedCustom) {
-        New-Item -ItemType Directory -Path $directory -Force | Out-Null
-        Move-Item -LiteralPath $savedCustom -Destination $custom
-        Write-UpwshStatus custom "kept  $custom"
-    }
 }
 
 Complete-Uninstall 0 $scriptInvocation

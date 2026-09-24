@@ -9,7 +9,7 @@ $runtime = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\src'))
 $installHome = Join-Path $HOME '.config\upwsh'
 $entry = Join-Path $installHome 'script\upwsh.ps1'
 $themes = Join-Path $installHome 'theme'
-$selection = Join-Path $installHome 'custom\theme.json'
+$selection = Join-Path $installHome 'theme.json'
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
 function Assert-Equal {
@@ -52,31 +52,17 @@ try {
         Assert-True (-not [IO.File]::Exists($selection)) 'list wrote selection'
         Assert-Equal (Get-UpwshPromptText -Color Never) "$identity ~ ❯ "
     }
-    Test-Theme 'theme selection uses custom themes before bundled themes' {
-        $customRoot = Join-Path $themes '..\custom\themes'
-        [void][IO.Directory]::CreateDirectory($customRoot)
-        $customPath = Join-Path $customRoot 'colorful-blue.json'
-        $custom = [IO.File]::ReadAllText((Join-Path $themes 'colorful-blue.json')) | ConvertFrom-Json -AsHashtable
-        $custom.Modules.symbol.Text = '$'
-        [IO.File]::WriteAllText($customPath, ($custom | ConvertTo-Json -Depth 8))
+    Test-Theme 'a local theme json in theme/ is selectable' {
+        $localPath = Join-Path $themes 'local-mark.json'
+        $local = [IO.File]::ReadAllText((Join-Path $themes 'colorful-blue.json')) | ConvertFrom-Json -AsHashtable
+        $local.Name = 'local-mark'
+        $local.Modules.symbol.Text = '$'
+        [IO.File]::WriteAllText($localPath, ($local | ConvertTo-Json -Depth 8))
         try {
-            Assert-Equal (Invoke-ThemeCli @('theme','use','colorful-blue')).Code 0
+            Assert-Equal (Invoke-ThemeCli @('theme','use','local-mark')).Code 0
             Assert-Equal (Get-UpwshPromptText -Color Never) "`n $env:USERNAME  $hostName  ~  $ "
-            Assert-True ((Invoke-ThemeCli @('theme','list')).Text.Contains('* colorful-blue')) 'custom active theme missing'
-        } finally { Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-classic' }
-    }
-    Test-Theme 'theme selection uses custom themes before bundled themes' {
-        $customRoot = Join-Path $installHome 'custom\themes'
-        [void][IO.Directory]::CreateDirectory($customRoot)
-        $customPath = Join-Path $customRoot 'colorful-blue.json'
-        $custom = [IO.File]::ReadAllText((Join-Path $themes 'colorful-blue.json')) | ConvertFrom-Json -AsHashtable
-        $custom.Modules.symbol.Text = '$'
-        $custom.Name = 'colorful-blue'
-        [IO.File]::WriteAllText($customPath, ($custom | ConvertTo-Json -Depth 8))
-        try {
-            Assert-Equal (Invoke-ThemeCli @('theme','use','colorful-blue')).Code 0
-            Assert-Equal (Get-UpwshPromptText -Color Never) "`n $env:USERNAME  $hostName  ~  $ "
-        } finally { Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-classic' }
+            Assert-True ((Invoke-ThemeCli @('theme','list')).Text.Contains('* local-mark')) 'local active theme missing'
+        } finally { Remove-Item -LiteralPath $localPath -Force -ErrorAction SilentlyContinue; $null = Set-UpwshTheme 'pure-classic' }
     }
     Test-Theme 'all bundled themes are installed, documented and render their settings' {
         $expected = @('colorful-blue', 'colorful-cyberpunk', 'colorful-green', 'colorful-macaron', 'colorful-memphis', 'colorful-morandi', 'colorful-retro', 'pure-classic', 'pure-daylight', 'pure-ember', 'pure-glacier', 'pure-quiet')
@@ -199,8 +185,7 @@ try {
     $alternate.Modules.directory.Style = 'path'
     $alternate.Modules.directory.Italic = $false
     $alternate.Modules.symbol.Bold = $false
-    $alternatePath = Join-Path $installHome 'custom\themes\Quiet Blue.json'
-    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $alternatePath))
+    $alternatePath = Join-Path $themes 'Quiet Blue.json'
     [IO.File]::WriteAllText($alternatePath, ($alternate | ConvertTo-Json -Depth 4))
 
     Test-Theme 'theme install refreshes current prompt without reloading modules' {
@@ -318,7 +303,7 @@ try {
             Assert-Equal $child.Text.TrimEnd("`r", "`n") "$identity ~ ❯ "
         } finally { [IO.File]::WriteAllText($selection, $saved) }
     }
-    Test-Theme 'update replaces bundled themes and preserves custom themes' {
+    Test-Theme 'update replaces bundled themes and preserves extra theme json' {
         Assert-Equal (Invoke-ThemeCli @('theme','use','Quiet Blue')).Code 0
         $before = [IO.File]::ReadAllText($alternatePath)
         $beforeSelection = [IO.File]::ReadAllText($selection)
@@ -327,35 +312,20 @@ try {
         $default.Modules.symbol.Foreground = '#102030'
         [IO.File]::WriteAllText($installedDefault, ($default | ConvertTo-Json -Depth 4))
         $beforeDefault = [IO.File]::ReadAllText($installedDefault)
-        $customThemes = Join-Path $installHome 'custom\themes'
-        [void][IO.Directory]::CreateDirectory($customThemes)
-        $customPath = Join-Path $customThemes 'personal.json'
-        $custom = [IO.File]::ReadAllText((Join-Path $themes 'colorful-blue.json')) | ConvertFrom-Json -AsHashtable
-        $custom.Name = 'personal'
-        [IO.File]::WriteAllText($customPath, ($custom | ConvertTo-Json -Depth 8))
-        $beforeCustom = [IO.File]::ReadAllText($customPath)
+        $personalPath = Join-Path $themes 'personal.json'
+        $personal = [IO.File]::ReadAllText((Join-Path $themes 'colorful-blue.json')) | ConvertFrom-Json -AsHashtable
+        $personal.Name = 'personal'
+        [IO.File]::WriteAllText($personalPath, ($personal | ConvertTo-Json -Depth 8))
+        $beforePersonal = [IO.File]::ReadAllText($personalPath)
         $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'script\update.ps1') -Arguments @('--source', $runtime)
         Assert-True ($result.Code -eq 0) $result.Text
         Assert-Equal ([IO.File]::ReadAllText($selection)) $beforeSelection
         Assert-Equal ([IO.File]::ReadAllText($alternatePath)) $before
         Assert-Equal ([IO.File]::ReadAllText($installedDefault)) ([IO.File]::ReadAllText((Join-Path $runtime 'theme\pure-classic.json')))
-        Assert-Equal ([IO.File]::ReadAllText($customPath)) $beforeCustom
-        Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue
+        Assert-Equal ([IO.File]::ReadAllText($personalPath)) $beforePersonal
+        Remove-Item -LiteralPath $personalPath -Force -ErrorAction SilentlyContinue
         Assert-True ([IO.File]::ReadAllText($installedDefault) -cne $beforeDefault) 'bundled theme was not refreshed'
         Assert-Equal (Get-RenderedPrompt) '~ » '
-    }
-    Test-Theme 'legacy non-bundled themes move into custom/themes during update' {
-        $legacy = Join-Path $themes 'personal-legacy.json'
-        $customPath = Join-Path $installHome 'custom\themes\personal-legacy.json'
-        Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue
-        $legacyData = [IO.File]::ReadAllText((Join-Path $themes 'pure-classic.json')) | ConvertFrom-Json -AsHashtable
-        $legacyData.Name = 'personal-legacy'
-        [IO.File]::WriteAllText($legacy, ($legacyData | ConvertTo-Json -Depth 8))
-        $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'script\update.ps1') -Arguments @('--source', $runtime)
-        Assert-True ($result.Code -eq 0) $result.Text
-        Assert-True (-not [IO.File]::Exists($legacy)) 'legacy theme was not moved'
-        Assert-True ([IO.File]::Exists($customPath)) 'legacy theme was not migrated'
-        Remove-Item -LiteralPath $customPath -Force -ErrorAction SilentlyContinue
     }
     Test-Theme 'updating over an old bundled theme fails before changing runtime or user files' {
         $file = Join-Path $themes 'pure-classic.json'

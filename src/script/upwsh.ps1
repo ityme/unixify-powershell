@@ -30,7 +30,7 @@ hook the current user's pwsh
 install this runtime
    install          Install or repair ~/.config/upwsh, then load
    uninstall        Unload, drop UPWSH_HOME and Path, then delete the install tree
-   update           Update installed files; keep custom, tools, and startup loading state
+   update           Update installed files; keep tools, user-settings.ps1, and startup loading state
 
 install a listed CLI tool
    tool list        List supported tools and whether the shell has them
@@ -175,7 +175,7 @@ function ConvertFrom-UpwshArguments {
 
     if ($result.Command -in @('install', 'uninstall', 'update')) {
         $allowed = @('--help', '-h', '--check', '-c', '--local', '--remote', '--ref', '--repo', '--source')
-        if ($result.Command -eq 'uninstall') { $allowed = @('--help', '-h', '--check', '-c', '--profile', '-p', '--current-host', '--keep-custom') }
+        if ($result.Command -eq 'uninstall') { $allowed = @('--help', '-h', '--check', '-c', '--profile', '-p', '--current-host') }
         if ($result.Command -eq 'update') { $allowed = @('--help', '-h', '--check', '-c', '--local', '--remote', '--ref', '--repo', '--source') }
         while ($index -lt $tokens.Count) {
             $token = [string]$tokens[$index]

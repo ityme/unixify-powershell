@@ -181,39 +181,20 @@ try {
             -not (Test-Path -LiteralPath (Join-Path $deployRoot 'tests'))
         ) 'deploy copied tests'
         Assert-True (
-            Test-Path -LiteralPath (Join-Path $deployRoot 'custom\alias.ps1') -PathType Leaf
-        ) 'deploy missed custom/alias.ps1'
-        Assert-True (
             Test-Path -LiteralPath (Join-Path $deployRoot 'user-settings.ps1') -PathType Leaf
         ) 'deploy missed user-settings.ps1'
+        Assert-True (
+            -not (Test-Path -LiteralPath (Join-Path $deployRoot 'custom'))
+        ) 'deploy copied custom'
         Assert-Equal $text $beforeHook
     }
 
-    Invoke-InstallProfileTest 'deploy fills missing custom sample files' {
-        $fillRoot = Join-Path $root 'fill-custom'
-        $fillCustom = Join-Path $fillRoot 'custom'
-        New-Item -ItemType Directory -Path $fillCustom -Force | Out-Null
-        $output = Invoke-Installer -ProfilePath $hook -Destination $fillRoot -Deploy
-        $sample = Join-Path $fillCustom 'alias.ps1'
-        Assert-Contains $output 'state     deployed'
-        Assert-True (Test-Path -LiteralPath $sample -PathType Leaf) (
-            'deploy left an empty custom without alias.ps1'
-        )
-        Assert-Contains ([IO.File]::ReadAllText($sample)) 'cd /i/workspace'
-    }
-
-    Invoke-InstallProfileTest 'deploy does not overwrite existing custom files' {
-        $keepRoot = Join-Path $root 'keep-custom-deploy'
-        $keepCustom = Join-Path $keepRoot 'custom'
-        New-Item -ItemType Directory -Path $keepCustom -Force | Out-Null
-        $customFile = Join-Path $keepCustom 'alias.ps1'
-        [IO.File]::WriteAllText($customFile, "# keep-me`r`n")
+    Invoke-InstallProfileTest 'deploy does not overwrite existing user-settings' {
+        $keepRoot = Join-Path $root 'keep-settings-deploy'
+        New-Item -ItemType Directory -Path $keepRoot -Force | Out-Null
         $settings = Join-Path $keepRoot 'user-settings.ps1'
         [IO.File]::WriteAllText($settings, "# keep-settings`r`n")
         Invoke-Installer -ProfilePath $hook -Destination $keepRoot -Deploy | Out-Null
-        $text = [IO.File]::ReadAllText($customFile)
-        Assert-Contains $text 'keep-me'
-        Assert-True ($text -notlike '*workspace*') 'deploy overwrote custom/alias.ps1'
         Assert-Equal ([IO.File]::ReadAllText($settings)) "# keep-settings`r`n"
     }
 } finally {

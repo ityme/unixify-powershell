@@ -1,8 +1,7 @@
 # Local theme data and selection. JSON is parsed, never evaluated as PowerShell.
 $script:UpwshRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $script:ThemeBundledRoot = [IO.Path]::Combine($script:UpwshRoot, 'theme')
-$script:ThemeCustomRoot = [IO.Path]::Combine($script:UpwshRoot, 'custom', 'themes')
-$script:ThemeSelection = [IO.Path]::Combine($script:UpwshRoot, 'custom', 'theme.json')
+$script:ThemeSelection = [IO.Path]::Combine($script:UpwshRoot, 'theme.json')
 $script:ThemeCache = $null
 $script:ThemeStamp = $null
 $script:ThemeRevision = 0
@@ -42,10 +41,8 @@ function Assert-ThemeColor {
 function Get-UpwshThemeFile {
     param([string]$Name)
     Assert-UpwshThemeName $Name
-    $custom = [IO.Path]::Combine($script:ThemeCustomRoot, "$Name.json")
-    if ([IO.File]::Exists($custom)) { return $custom }
-    $bundled = [IO.Path]::Combine($script:ThemeBundledRoot, "$Name.json")
-    if ([IO.File]::Exists($bundled)) { return $bundled }
+    $file = [IO.Path]::Combine($script:ThemeBundledRoot, "$Name.json")
+    if ([IO.File]::Exists($file)) { return $file }
     throw "unknown local theme: $Name"
 }
 
@@ -179,9 +176,8 @@ function Get-UpwshThemeList {
     param()
     $active = (Get-UpwshTheme).Name
     $files = @{}
-    foreach ($root in @($script:ThemeBundledRoot, $script:ThemeCustomRoot)) {
-        if (-not [IO.Directory]::Exists($root)) { continue }
-        foreach ($file in Get-ChildItem -LiteralPath $root -Filter '*.json' -File) {
+    if ([IO.Directory]::Exists($script:ThemeBundledRoot)) {
+        foreach ($file in Get-ChildItem -LiteralPath $script:ThemeBundledRoot -Filter '*.json' -File) {
             $files[$file.BaseName] = $file.BaseName
         }
     }
@@ -198,7 +194,6 @@ function Set-UpwshTheme {
     param([Parameter(Mandatory)][string]$Name)
     # Fully validate before changing the reference; a bad theme cannot break the current prompt.
     $theme = Read-UpwshTheme $Name
-    [void][IO.Directory]::CreateDirectory($script:ThemeCustomRoot)
     $temp = $script:ThemeSelection + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         $text = @{ Theme = $theme.Name + '.json' } | ConvertTo-Json -Compress

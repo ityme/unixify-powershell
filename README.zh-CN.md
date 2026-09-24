@@ -88,12 +88,12 @@ Git 单词唯一匹配时，补全后自动加空格。每段都只有一个匹�
 | 命令 | 作用 |
 | --- | --- |
 | `upwsh install` | 安装或修复文件、Path 和 `upwsh` 命令，然后 load |
-| `upwsh update` | 更新已有安装，保留个人配置、工具和 profile 钩子 |
+| `upwsh update` | 更新已有安装，保留工具、`user-settings.ps1`、额外主题 JSON 和 profile 钩子 |
 | `upwsh load` | 启用启动时自动加载，并加载当前 pwsh |
 | `upwsh unload` | 停止自动加载，并恢复当前会话的默认提示符 |
 | `upwsh uninstall` | 先 unload，再删除安装及项目添加的环境变量和 Path 项 |
 
-仓库内的 `upwsh install` / `upwsh update` 默认 `--local`。`irm | iex` 默认 `--remote`。安装会加载当前窗口；卸载会先 unload。卸载时需要保留个人配置，可用 `upwsh uninstall --keep-custom`。
+仓库内的 `upwsh install` / `upwsh update` 默认 `--local`。`irm | iex` 默认 `--remote`。安装会加载当前窗口；卸载会先 unload，再删除运行时。
 
 安装目录固定为 `~/.config/upwsh`，`UPWSH_HOME` 记录这个位置。原生提示符由 `src/lib/prompt.psm1` 提供，会随当前文件夹和 Git 分支变化。命令帮助见 `upwsh --help`。
 
@@ -153,9 +153,9 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 
 想像预览页一样切换八种命令状态，下载仓库后用浏览器打开 **[docs/themes.html](docs/themes.html)**，无需联网或启动服务。GitHub 可能显示 HTML 源码，不直接运行页面。
 
-内置主题位于 `~/.config/upwsh/theme/`，个人主题位于 `~/.config/upwsh/custom/themes/`，`custom/theme.json` 记录选择。v2 用 `Order`、`Modules` 配置颜色、排列和连接符，每份 JSON 都有中文字段说明。切换后下一次提示符生效；编辑后需重新选择同一主题。
+所有提示符主题都在 `~/.config/upwsh/theme/`，`theme.json` 记录选择。复制一份内置 JSON、改名后再改。v2 用 `Order`、`Modules` 配置颜色、排列和连接符，每份 JSON 都有中文字段说明。切换后下一次提示符生效；编辑后需重新选择同一主题。
 
-更新会刷新 `theme/` 下的内置主题，保留 `custom/themes/` 中的个人主题和选择文件。旧名称没有别名，也不会自动重命名。**不支持 v1 主题**，升级前先备份。升级步骤和配置方式见[主题说明](docs/themes.zh-CN.md)。
+更新会刷新 `theme/` 下的随包文件名，其它 JSON 和 `theme.json` 留下。旧名称没有别名，也不会自动重命名。**不支持 v1 主题**，升级前先备份。升级步骤和配置方式见[主题说明](docs/themes.zh-CN.md)。
 
 ## 个人配置
 
@@ -165,7 +165,7 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 function global:work { cd (winpath '/i/my work') }
 ```
 
-自带的 `w`、`t`、`i`、`d`、`gs` 目前仍在 `custom/alias.ps1`，直到去掉 overlay。终端上报也可写在 `user-settings.ps1`。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
+自带的 `w`、`t`、`i`、`d`、`gs` 写在 `user-settings.ps1`。终端上报也可写在同一文件。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。
 
 ## 从源码安装
 

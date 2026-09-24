@@ -14,7 +14,6 @@ $fakeHome = Join-Path $root 'home'
 $originalHome = $HOME
 $originalUpwshHome = $env:UPWSH_HOME
 $locationPushed = $false
-$customOverlay = $null
 $script:Passed = 0
 $script:Failures = [Collections.Generic.List[string]]::new()
 
@@ -179,14 +178,11 @@ try {
     & (Join-Path $PSScriptRoot '..\src\script\install_profile.ps1') -Deploy | Out-Null
     $profilePath = Join-Path $HOME '.config\upwsh\profile.ps1'
     $env:UPWSH_HOME = Split-Path -Parent $profilePath
-    $customDir = Join-Path (Split-Path -Parent $profilePath) 'custom'
-    New-Item -ItemType Directory -Path $customDir -Force | Out-Null
-    $customOverlay = Join-Path $customDir 'zz.ps1'
-    Set-Content -LiteralPath $customOverlay -Value @'
-Set-Alias -Name zz -Value Get-Date -Scope Global -Force
-'@
     $userSettings = Join-Path (Split-Path -Parent $profilePath) 'user-settings.ps1'
     Set-Content -LiteralPath $userSettings -Value @'
+$script:CommandMap['w'] = 'cd /i/workspace'
+$script:CommandMap['gs'] = 'git status'
+Install-CommandMap
 Set-Alias -Name user_settings_marker -Value Get-Date -Scope Global -Force
 '@
     . (Resolve-Path $profilePath)
@@ -211,22 +207,16 @@ Set-Alias -Name user_settings_marker -Value Get-Date -Scope Global -Force
         Assert-Equal $command.CommandType.ToString() 'Alias'
         Assert-Equal $command.Definition 'nvim'
     }
-    Invoke-CompletionTest 'personal shortcuts come from custom' {
+    Invoke-CompletionTest 'personal shortcuts come from user-settings' {
         $command = Get-Command w -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Function'
         $command = Get-Command gs -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Function'
     }
-    Invoke-CompletionTest 'custom overlay is dotted after stock aliases' {
-        $command = Get-Command zz -ErrorAction Stop
-        Assert-Equal $command.CommandType.ToString() 'Alias'
-        Assert-Equal $command.Definition 'Get-Date'
-    }
-    Invoke-CompletionTest 'user-settings.ps1 loads after custom overlay' {
+    Invoke-CompletionTest 'user-settings.ps1 loads after stock aliases' {
         $command = Get-Command user_settings_marker -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Alias'
         Assert-Equal $command.Definition 'Get-Date'
-        Assert-Equal (Get-Command zz -ErrorAction Stop).Definition 'Get-Date'
     }
     Push-Location $work
     $locationPushed = $true
@@ -847,9 +837,6 @@ Set-Alias -Name user_settings_marker -Value Get-Date -Scope Global -Force
     }
     Set-Variable -Name HOME -Value $originalHome -Scope Global -Force
     $env:UPWSH_HOME = $originalUpwshHome
-    if ($customOverlay -and (Test-Path -LiteralPath $customOverlay)) {
-        Remove-Item -LiteralPath $customOverlay -Force
-    }
     if (Test-Path -LiteralPath $root) {
         Remove-Item -LiteralPath $root -Recurse -Force
     }
