@@ -430,7 +430,7 @@ if ($parsed.Command -in @('load', 'unload')) {
     $sessionProfile = if ($parsed.Command -eq 'load') { Get-UpwshSessionProfilePath }
     Complete-Upwsh 0 $scriptInvocation
     if ($sessionProfile) {
-        . $sessionProfile
+        & $sessionProfile
     }
     return
 }
@@ -456,7 +456,7 @@ if ($parsed.Command -eq 'edit') {
     }
     Complete-Upwsh 0 $scriptInvocation
     if ($sessionProfile) {
-        . $sessionProfile
+        & $sessionProfile
     }
     return
 }

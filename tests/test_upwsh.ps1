@@ -523,9 +523,10 @@ try {
         $sentinel = Join-Path $installHome 'user-settings.ps1'
         [IO.File]::WriteAllText($sentinel, 'Set-Alias -Name installed_only -Value Get-Date -Scope Global -Force')
         $result = Invoke-Upwsh -LoadSession -Tokens @('load')
+        Assert-Equal $result.Code 0
+        Assert-True ($result.Text -notlike '*Import-ShellModule*') 'load lost Import-ShellModule'
         Assert-Equal (Get-Command installed_only -ErrorAction Stop).Definition 'Get-Date'
         Assert-True ((Get-Command prompt).Definition -like '*Get-UpwshThemeRevision*') 'load did not enable the prompt'
-        Assert-Equal $result.Code 0
         $command = Get-Command vim -ErrorAction Stop
         Assert-Equal $command.CommandType.ToString() 'Alias'
         Assert-Equal $command.Definition 'nvim'
