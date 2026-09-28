@@ -806,6 +806,19 @@ Set-Alias -Name user_settings_marker -Value Get-Date -Scope Global -Force
         Assert-Contains $values 'target-dir/child-dir/'
         Assert-NoBackslash $values
     }
+    Invoke-CompletionTest 'tab: reserved Windows device names do not throw' {
+        $reserved = Join-Path $work 'nul'
+        $extended = '\\?\' + $reserved
+        [IO.File]::WriteAllText($extended, '')
+        try {
+            $values = @(Get-TabCompletionTexts 'rm nu')
+            Assert-True ('nul' -notin @($values)) 'reserved device name was offered as a completion'
+            $files = @(Get-FileSystemCompletionTexts 'nu')
+            Assert-True ('nul' -notin @($files)) 'filesystem completer offered a reserved device name'
+        } finally {
+            if ([IO.File]::Exists($extended)) { [IO.File]::Delete($extended) }
+        }
+    }
     Invoke-CompletionTest 'enter: functions and applications share path rewriting' {
         Assert-True (
             Test-WindowsCommandLineReplacement `

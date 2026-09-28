@@ -160,6 +160,74 @@ function Get-HookCompletionEdit {
     [pscustomobject]@{ Start = $State.ReplacementIndex; Length = $length; Text = $text }
 }
 
+function Complete-HookTab {
+    param(
+        [string]$Line,
+        [int]$Cursor
+    )
+
+    $state = Complete-HookLine -Line $Line -Cursor $Cursor
+    $currentText = ''
+    if (
+        $state.ReplacementIndex -ge 0 -and
+        $state.ReplacementLength -ge 0 -and
+        $state.ReplacementIndex -le $Line.Length -and
+        $state.ReplacementLength -le ($Line.Length - $state.ReplacementIndex)
+    ) {
+        $currentText = $Line.Substring(
+            $state.ReplacementIndex,
+            $state.ReplacementLength
+        )
+    }
+
+    $decision = Get-CompletionDecision `
+        -Matches $state.Matches `
+        -CurrentText $currentText `
+        -LiteralPaths:$state.LiteralPaths `
+        -Normalized:$state.MatchesNormalized
+
+    if ($decision.MatchCount -eq 1) {
+        $edit = Get-HookCompletionEdit -State $state -Decision $decision
+        [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+            $edit.Start,
+            $edit.Length,
+            $edit.Text
+        )
+        return
+    }
+
+    $currentHasGlob = (
+        -not $currentText.StartsWith("'") -and
+        -not $currentText.StartsWith('"') -and
+        $currentText -match '[*?]'
+    )
+
+    if ($decision.MatchCount -gt 1) {
+        if (
+            -not $currentHasGlob -and
+            $decision.Replacement -and
+            -not $decision.Replacement.Equals(
+                $currentText,
+                [StringComparison]::OrdinalIgnoreCase
+            )
+        ) {
+            [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+                $state.ReplacementIndex,
+                $state.ReplacementLength,
+                $decision.Replacement
+            )
+            return
+        }
+
+        $script:CompletionDisplayState = $state
+        try {
+            [Microsoft.PowerShell.PSConsoleReadLine]::PossibleCompletions()
+        } finally {
+            $script:CompletionDisplayState = $null
+        }
+    }
+}
+
 function global:TabExpansion2 {
     [CmdletBinding(DefaultParameterSetName = 'ScriptInputSet')]
     param(
@@ -252,66 +320,10 @@ if ($Host.Name -eq 'ConsoleHost' -and (Get-Module PSReadLine)) {
         $line = $null
         $cursor = 0
         [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
-
-        $state = Complete-HookLine -Line $line -Cursor $cursor
-        $currentText = ''
-        if (
-            $state.ReplacementIndex -ge 0 -and
-            $state.ReplacementLength -ge 0 -and
-            $state.ReplacementIndex -le $line.Length -and
-            $state.ReplacementLength -le ($line.Length - $state.ReplacementIndex)
-        ) {
-            $currentText = $line.Substring(
-                $state.ReplacementIndex,
-                $state.ReplacementLength
-            )
-        }
-
-        $decision = Get-CompletionDecision `
-            -Matches $state.Matches `
-            -CurrentText $currentText `
-            -LiteralPaths:$state.LiteralPaths `
-            -Normalized:$state.MatchesNormalized
-
-        if ($decision.MatchCount -eq 1) {
-            $edit = Get-HookCompletionEdit -State $state -Decision $decision
-            [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
-                $edit.Start,
-                $edit.Length,
-                $edit.Text
-            )
-            return
-        }
-
-        $currentHasGlob = (
-            -not $currentText.StartsWith("'") -and
-            -not $currentText.StartsWith('"') -and
-            $currentText -match '[*?]'
-        )
-
-        if ($decision.MatchCount -gt 1) {
-            if (
-                -not $currentHasGlob -and
-                $decision.Replacement -and
-                -not $decision.Replacement.Equals(
-                    $currentText,
-                    [StringComparison]::OrdinalIgnoreCase
-                )
-            ) {
-                [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
-                    $state.ReplacementIndex,
-                    $state.ReplacementLength,
-                    $decision.Replacement
-                )
-                return
-            }
-
-            $script:CompletionDisplayState = $state
-            try {
-                [Microsoft.PowerShell.PSConsoleReadLine]::PossibleCompletions()
-            } finally {
-                $script:CompletionDisplayState = $null
-            }
+        try {
+            Complete-HookTab -Line $line -Cursor $cursor
+        } catch {
+            # A thrown Tab handler leaves PSReadLine unable to process Ctrl+C.
         }
     }
 

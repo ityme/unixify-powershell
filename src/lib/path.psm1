@@ -282,8 +282,19 @@ function Get-UnixPathCompletion {
     $matcher = if ($leaf.Contains('*') -or $leaf.Contains('?')) {
         [WildcardPattern]::new($leaf, [Management.Automation.WildcardOptions]::IgnoreCase)
     } else { $null }
+    $reserved = [Collections.Generic.HashSet[string]]::new(
+        [string[]]@(
+            'CON', 'PRN', 'AUX', 'NUL',
+            'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+            'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+        ),
+        [StringComparer]::OrdinalIgnoreCase
+    )
     try {
         foreach ($item in ([IO.DirectoryInfo]::new($lookupParent)).EnumerateFileSystemInfos()) {
+            if ($reserved.Contains($item.Name)) { continue }
+            $dot = $item.Name.IndexOf('.')
+            if ($dot -gt 0 -and $reserved.Contains($item.Name.Substring(0, $dot))) { continue }
             $isDirectory = ($item.Attributes -band [IO.FileAttributes]::Directory) -ne 0
             if ($DirectoryOnly -and -not $isDirectory) { continue }
             if (-not $includeHidden -and ($item.Attributes -band ([IO.FileAttributes]::Hidden -bor [IO.FileAttributes]::System))) { continue }

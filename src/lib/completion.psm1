@@ -3,11 +3,15 @@
 function Invoke-PowerShellCompletionHook {
     param($State)
 
-    $completion = [System.Management.Automation.CommandCompletion]::CompleteInput(
-        $State.Line,
-        $State.Cursor,
-        $null
-    )
+    try {
+        $completion = [System.Management.Automation.CommandCompletion]::CompleteInput(
+            $State.Line,
+            $State.Cursor,
+            $null
+        )
+    } catch {
+        return $State
+    }
 
     $State.ReplacementIndex = $completion.ReplacementIndex
     $State.ReplacementLength = $completion.ReplacementLength
