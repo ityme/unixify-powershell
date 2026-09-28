@@ -124,35 +124,63 @@ upwsh theme use "pure-classic"
 
 ### pure-* · 透明背景
 
-![五套 pure 主题：默认、冷色、暖色、极简、浅色背景](docs/assets/themes/pure.png)
+每张图只有一条提示符。主题名在图外。示例身份是 `user@host`，目录 `project`，分支 `dev`，失败码 `7`，耗时 `2.345s`。
 
-| 主题 | 外观 |
-| --- | --- |
-| [pure-classic](src/theme/pure-classic.json) | 原有绿色用户/主机、黄色斜体目录、青色分支 |
-| [pure-glacier](src/theme/pure-glacier.json) | 冰蓝目录、淡紫分支 |
-| [pure-ember](src/theme/pure-ember.json) | 琥珀目录、暖白分支 |
-| [pure-quiet](src/theme/pure-quiet.json) | 极简，隐藏用户/主机和耗时；成功 `>`，失败 `!` |
-| [pure-daylight](src/theme/pure-daylight.json) | 深蓝目录、深紫分支，适合浅色终端背景 |
+**[pure-classic](src/theme/pure-classic.json)** — 绿色用户/主机，黄色斜体目录，青色分支
+
+![pure-classic 提示符](docs/assets/themes/pure-classic.png)
+
+**[pure-glacier](src/theme/pure-glacier.json)** — 冰蓝目录，淡紫分支
+
+![pure-glacier 提示符](docs/assets/themes/pure-glacier.png)
+
+**[pure-ember](src/theme/pure-ember.json)** — 琥珀目录，暖白分支
+
+![pure-ember 提示符](docs/assets/themes/pure-ember.png)
+
+**[pure-quiet](src/theme/pure-quiet.json)** — 隐藏用户/主机和耗时；成功 `>`，失败 `!`
+
+![pure-quiet 提示符](docs/assets/themes/pure-quiet.png)
+
+**[pure-daylight](src/theme/pure-daylight.json)** — 深蓝、深紫，适合浅色终端背景
+
+![pure-daylight 提示符](docs/assets/themes/pure-daylight.png)
 
 ### colorful-* · 连续色块
 
-![七套 colorful 主题：用户、主机、目录与 Git 使用连续色块](docs/assets/themes/colorful.png)
+**[colorful-blue](src/theme/colorful-blue.json)** — 深青、湖绿、亮青、冰青
 
-| 主题 | 配色顺序 |
-| --- | --- |
-| [colorful-blue](src/theme/colorful-blue.json) | 深青 → 湖绿 → 亮青 → 冰青 |
-| [colorful-green](src/theme/colorful-green.json) | 鼠尾草绿 → 抹茶绿 → 春芽绿 → 极地薄荷 |
-| [colorful-macaron](src/theme/colorful-macaron.json) | 香芋紫 → 天空蓝 → 湖水绿 → 嫩芽绿 |
-| [colorful-morandi](src/theme/colorful-morandi.json) | 豆沙灰 → 灰粉 → 燕麦 → 亚麻 |
-| [colorful-cyberpunk](src/theme/colorful-cyberpunk.json) | 霓虹紫 → 极光蓝 → 荧光绿 → 冰蓝 |
-| [colorful-retro](src/theme/colorful-retro.json) | 森林暗绿 → 砖赭 → 暖棕 → 象牙白 |
-| [colorful-memphis](src/theme/colorful-memphis.json) | 亮粉 → 柠檬黄 → 青绿 → 极浅蓝 |
+![colorful-blue 提示符](docs/assets/themes/colorful-blue.png)
+
+**[colorful-green](src/theme/colorful-green.json)** — 鼠尾草绿、抹茶绿、春芽绿、极地薄荷
+
+![colorful-green 提示符](docs/assets/themes/colorful-green.png)
+
+**[colorful-macaron](src/theme/colorful-macaron.json)** — 香芋紫、天空蓝、湖水绿、嫩芽绿
+
+![colorful-macaron 提示符](docs/assets/themes/colorful-macaron.png)
+
+**[colorful-morandi](src/theme/colorful-morandi.json)** — 豆沙灰、灰粉、燕麦、亚麻
+
+![colorful-morandi 提示符](docs/assets/themes/colorful-morandi.png)
+
+**[colorful-cyberpunk](src/theme/colorful-cyberpunk.json)** — 霓虹紫、极光蓝、荧光绿、冰蓝
+
+![colorful-cyberpunk 提示符](docs/assets/themes/colorful-cyberpunk.png)
+
+**[colorful-retro](src/theme/colorful-retro.json)** — 森林暗绿、砖赭、暖棕、象牙白
+
+![colorful-retro 提示符](docs/assets/themes/colorful-retro.png)
+
+**[colorful-memphis](src/theme/colorful-memphis.json)** — 亮粉、柠檬黄、青绿、极浅蓝
+
+![colorful-memphis 提示符](docs/assets/themes/colorful-memphis.png)
 
 Colorful 的用户、主机、目录、Git 使用连续色块。耗时、返回码与 `❯` 用终端默认背景。非仓库、短耗时或成功时对应段隐藏，不留多余箭头。文字对比记录在各 JSON 的 `_Comment.ContrastAdjustments`。
 
 Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭。Colorful 的色块后只留一个空格，耗时、返回码、提示字符与 pure 一样紧接，例如 ` 6s418ms1❯`。
 
-预览使用示例用户/主机、分支 `dev`、失败码 `7` 和耗时 `2.345s`；Quiet 隐藏耗时。深色预览背景为 `#1a1b26`，Daylight 为白色。选择主题不会更改终端整体背景。**Colorful 需要含 Powerline 字形的字体**，例如 JetBrainsMono Nerd Font。
+上面每张图只有该主题的提示符。Quiet 隐藏耗时。深色图背景是 `#1a1b26`，Daylight 是白色。选择主题不会改终端整体背景。**Colorful 需要含 Powerline 字形的字体**，例如 JetBrainsMono Nerd Font。
 
 想像预览页一样切换八种命令状态，下载仓库后用浏览器打开 **[docs/themes.html](docs/themes.html)**，无需联网或启动服务。GitHub 可能显示 HTML 源码，不直接运行页面。
 

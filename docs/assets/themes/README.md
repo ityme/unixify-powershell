@@ -1,8 +1,8 @@
 # Theme preview assets
 
-`pure.png` and `colorful.png` are browser captures of `docs/themes.html`, generated from the repository's real PowerShell renderer and bundled JSON themes. They are not AI-generated images. Sample identity is `user@host`; branch `dev`, failed exit code `7`, and elapsed time `2345ms` are fixture inputs. The screenshots use JetBrainsMono NFM (an installed Nerd Font) and a 1000px browser viewport.
+Each PNG is one prompt from `docs/themes.html`, captured from the real renderer and bundled JSON. The file name is the theme. The picture itself has no theme title. Sample identity is `user@host`; branch `dev`, exit code `7`, and elapsed time `2345ms` are fixtures. JetBrainsMono NFM supplies Powerline glyphs. Dark prompts use `#1a1b26`; `pure-daylight.png` uses white.
 
-Colorful palette notes live in each theme JSON under `_Comment`. Pure keeps the original prompt styles. Sample identity in the HTML and screenshots is `user@host`.
+Colorful images include the blank line from `AddNewline`. Pure images do not.
 
 ## Regenerate
 
@@ -12,14 +12,13 @@ From the repository root, with Python 3 and PowerShell 7:
 python tests/render_theme_gallery.py
 ```
 
-This uses a temporary runtime and local Git fixture; it does not write to the installed runtime. Open `docs/themes.html` in a browser with Powerline glyph support, set the viewport width to 1000px and keep the default state: Git, exit 7, 2.345 seconds. Capture the `#pure` and `#colorful` elements as `pure.png` and `colorful.png` here. Collapse the palette-adjustment disclosures before capture.
-
-Example using an existing Playwright CLI session on that page:
+Serve `docs/` over HTTP. Playwright blocks `file:`. Keep a session with `-s=themes`, open the page, then screenshot each visible prompt:
 
 ```text
-playwright-cli resize 1000 1000
-playwright-cli screenshot '#pure' --filename docs/assets/themes/pure.png
-playwright-cli screenshot '#colorful' --filename docs/assets/themes/colorful.png
+playwright-cli -s=themes open http://127.0.0.1:8765/docs/themes.html
+playwright-cli -s=themes screenshot '#pure-classic-state-3' --filename docs/assets/themes/pure-classic.png
+playwright-cli -s=themes screenshot '#colorful-blue-state-3' --filename docs/assets/themes/colorful-blue.png
+playwright-cli -s=themes close
 ```
 
-Check glyph rendering, colors, text, and that both files contain their entire series. Both READMEs embed these same images. The HTML gallery contains eight states per theme and works offline; screenshots are the static GitHub-readable view.
+Repeat for `pure-glacier`, `pure-ember`, `pure-quiet`, `pure-daylight`, `colorful-green`, `colorful-macaron`, `colorful-morandi`, `colorful-cyberpunk`, `colorful-retro`, and `colorful-memphis`. State `3` is Git, exit 7, 2.345 seconds. Do not capture the article heading. Both READMEs link these files by name.

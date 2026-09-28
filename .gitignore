@@ -55,3 +55,4 @@ nohup.out
 test-results/
 **/tmp/
 **/temp/
+.playwright-cli/

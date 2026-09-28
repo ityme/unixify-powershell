@@ -124,35 +124,63 @@ upwsh theme use "pure-classic"
 
 ### pure-* · transparent backgrounds
 
-![Five pure themes: default, glacier, ember, quiet and daylight](docs/assets/themes/pure.png)
+Each image is one prompt. The theme name is the heading, not part of the picture. Sample identity is `user@host`, folder `project`, branch `dev`, exit `7`, duration `2.345s`.
 
-| Theme | Appearance |
-| --- | --- |
-| [pure-classic](src/theme/pure-classic.json) | Original green user/host, yellow italic folder, cyan branch |
-| [pure-glacier](src/theme/pure-glacier.json) | Ice-blue folder, lavender branch |
-| [pure-ember](src/theme/pure-ember.json) | Amber folder, warm-white branch |
-| [pure-quiet](src/theme/pure-quiet.json) | Minimal: hides user/host and duration; `>` on success, `!` on failure |
-| [pure-daylight](src/theme/pure-daylight.json) | Deep blue and purple for a light terminal background |
+**[pure-classic](src/theme/pure-classic.json)** — green user/host, yellow italic folder, cyan branch
+
+![pure-classic prompt](docs/assets/themes/pure-classic.png)
+
+**[pure-glacier](src/theme/pure-glacier.json)** — ice-blue folder, lavender branch
+
+![pure-glacier prompt](docs/assets/themes/pure-glacier.png)
+
+**[pure-ember](src/theme/pure-ember.json)** — amber folder, warm-white branch
+
+![pure-ember prompt](docs/assets/themes/pure-ember.png)
+
+**[pure-quiet](src/theme/pure-quiet.json)** — hides user/host and duration; `>` on success, `!` on failure
+
+![pure-quiet prompt](docs/assets/themes/pure-quiet.png)
+
+**[pure-daylight](src/theme/pure-daylight.json)** — deep blue and purple for a light terminal background
+
+![pure-daylight prompt](docs/assets/themes/pure-daylight.png)
 
 ### colorful-* · connected color blocks
 
-![Seven colorful themes with connected user, host, directory and Git segments](docs/assets/themes/colorful.png)
+**[colorful-blue](src/theme/colorful-blue.json)** — deep teal, lake green, bright teal, ice teal
 
-| Theme | Palette |
-| --- | --- |
-| [colorful-blue](src/theme/colorful-blue.json) | Deep teal → lake green → bright teal → ice teal |
-| [colorful-green](src/theme/colorful-green.json) | Sage → matcha → spring green → pale mint |
-| [colorful-macaron](src/theme/colorful-macaron.json) | Lilac → sky blue → lake green → soft green |
-| [colorful-morandi](src/theme/colorful-morandi.json) | Sage grey → dusty pink → oat → linen |
-| [colorful-cyberpunk](src/theme/colorful-cyberpunk.json) | Neon purple → electric blue → aqua → ice blue |
-| [colorful-retro](src/theme/colorful-retro.json) | Forest green → ochre → warm tan → ivory |
-| [colorful-memphis](src/theme/colorful-memphis.json) | Pink → lemon yellow → cyan → pale blue |
+![colorful-blue prompt](docs/assets/themes/colorful-blue.png)
+
+**[colorful-green](src/theme/colorful-green.json)** — sage, matcha, spring green, pale mint
+
+![colorful-green prompt](docs/assets/themes/colorful-green.png)
+
+**[colorful-macaron](src/theme/colorful-macaron.json)** — lilac, sky blue, lake green, soft green
+
+![colorful-macaron prompt](docs/assets/themes/colorful-macaron.png)
+
+**[colorful-morandi](src/theme/colorful-morandi.json)** — sage grey, dusty pink, oat, linen
+
+![colorful-morandi prompt](docs/assets/themes/colorful-morandi.png)
+
+**[colorful-cyberpunk](src/theme/colorful-cyberpunk.json)** — neon purple, electric blue, aqua, ice blue
+
+![colorful-cyberpunk prompt](docs/assets/themes/colorful-cyberpunk.png)
+
+**[colorful-retro](src/theme/colorful-retro.json)** — forest green, ochre, warm tan, ivory
+
+![colorful-retro prompt](docs/assets/themes/colorful-retro.png)
+
+**[colorful-memphis](src/theme/colorful-memphis.json)** — pink, lemon yellow, cyan, pale blue
+
+![colorful-memphis prompt](docs/assets/themes/colorful-memphis.png)
 
 Colorful uses connected user, host, folder and Git blocks. Duration, exit code and `❯` stay on the terminal background. Missing Git, short commands and successful commands hide those segments without leftover arrows. Foreground contrast notes are in each JSON's `_Comment.ContrastAdjustments`.
 
 Colorful enables `AddNewline` for one blank line before the prompt; pure disables it. One space follows the color strip, then duration, exit code and symbol join as in pure: ` 6s418ms1❯`.
 
-Screenshots show sample user/host, branch `dev`, exit code `7`, and duration `2.345s`; Quiet hides duration. Dark previews use `#1a1b26`, Daylight uses white. Terminal backgrounds are not changed by selecting a theme. **Colorful needs Powerline glyphs**, for example JetBrainsMono Nerd Font.
+Each picture above is that theme's prompt only. Quiet hides duration. Dark pictures use `#1a1b26`; Daylight uses white. Selecting a theme does not change the terminal background. **Colorful needs Powerline glyphs**, for example JetBrainsMono Nerd Font.
 
 For an interactive comparison of all eight command states, download the repository and open **[docs/themes.html](docs/themes.html)** in a browser. It works offline; GitHub may show the HTML source rather than run it.
 
