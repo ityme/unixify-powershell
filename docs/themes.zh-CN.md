@@ -12,7 +12,7 @@ upwsh theme use "colorful-blue" # 选择已有的本地主题，不下载
 upwsh theme use "pure-classic"  # 恢复默认外观
 ```
 
-[README 主题画廊](../README.zh-CN.md#主题)包含全部 12 套主题的介绍和预览图；下载仓库后用浏览器打开 [themes.html](themes.html)，可离线切换八种命令状态。
+[README 主题画廊](../README.zh-CN.md#主题)包含全部 12 套主题的介绍和预览图；下载仓库后用浏览器打开 [gallery.html](assets/themes/gallery.html)，可离线切换八种命令状态。
 
 - **pure-***：`pure-classic`（原 iWonder）、`pure-glacier`、`pure-ember`、`pure-quiet`、`pure-daylight`。透明背景，原有外观不变；Daylight 用于浅色终端背景。
 - **colorful-***：`colorful-blue`、`colorful-green`、`colorful-macaron`、`colorful-morandi`、`colorful-cyberpunk`、`colorful-retro`、`colorful-memphis`。用户、主机、目录、Git 使用连续色块；耗时、返回码和提示字符使用透明背景，需要含 Powerline 字形的字体。

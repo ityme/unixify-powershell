@@ -182,7 +182,7 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 
 上面每张图只有该主题的提示符。Quiet 隐藏耗时。深色图背景是 `#1a1b26`，Daylight 是白色。选择主题不会改终端整体背景。**Colorful 需要含 Powerline 字形的字体**，例如 JetBrainsMono Nerd Font。
 
-想像预览页一样切换八种命令状态，下载仓库后用浏览器打开 **[docs/themes.html](docs/themes.html)**，无需联网或启动服务。GitHub 可能显示 HTML 源码，不直接运行页面。
+想像预览页一样切换八种命令状态，下载仓库后用浏览器打开 **[docs/assets/themes/gallery.html](docs/assets/themes/gallery.html)**，无需联网或启动服务。GitHub 可能显示 HTML 源码，不直接运行页面。
 
 所有提示符主题都在 `~/.config/upwsh/theme/`，`theme.json` 记录选择。复制一份内置 JSON、改名后再改。v2 用 `Order`、`Modules` 配置颜色、排列和连接符，每份 JSON 都有中文字段说明。切换后下一次提示符生效；编辑后需重新选择同一主题。
 

@@ -14,7 +14,7 @@ upwsh theme use "pure-classic"
 
 ## Bundled themes
 
-The [README gallery](../README.md#themes) introduces all 12 themes with screenshots. Open [themes.html](themes.html) locally to compare all eight command states offline.
+The [README gallery](../README.md#themes) introduces all 12 themes with screenshots. Open [gallery.html](assets/themes/gallery.html) locally to compare all eight command states offline.
 
 - **pure-***: `pure-classic` (formerly iWonder), `pure-glacier`, `pure-ember`, `pure-quiet`, `pure-daylight`. Transparent backgrounds; the original appearances are unchanged. Daylight targets light terminal backgrounds.
 - **colorful-***: `colorful-blue`, `colorful-green`, `colorful-macaron`, `colorful-morandi`, `colorful-cyberpunk`, `colorful-retro`, `colorful-memphis`. Connected user/host/directory/Git color blocks, followed by duration, exit code and symbol on transparent backgrounds. Requires Powerline glyphs.

@@ -182,7 +182,7 @@ Colorful enables `AddNewline` for one blank line before the prompt; pure disable
 
 Each picture above is that theme's prompt only. Quiet hides duration. Dark pictures use `#1a1b26`; Daylight uses white. Selecting a theme does not change the terminal background. **Colorful needs Powerline glyphs**, for example JetBrainsMono Nerd Font.
 
-For an interactive comparison of all eight command states, download the repository and open **[docs/themes.html](docs/themes.html)** in a browser. It works offline; GitHub may show the HTML source rather than run it.
+For an interactive comparison of all eight command states, download the repository and open **[docs/assets/themes/gallery.html](docs/assets/themes/gallery.html)** in a browser. It works offline; GitHub may show the HTML source rather than run it.
 
 All prompt themes live in `~/.config/upwsh/theme/`; `theme.json` records the selection. Copy a bundled JSON, rename it, and edit the copy. V2 uses `Order` and `Modules` for colors, layout and attached connectors. Each JSON includes Chinese field explanations. Switching refreshes the next prompt; editing requires reselecting the theme.
 
