@@ -35,7 +35,7 @@ Colorful 保留设计的背景色，仅修正部分文字对比；每份 JSON �
 
 ## 从 v1 升级
 
-**只支持 `Version: 2`，不兼容或自动转换 v1。** `Colors`、`Symbols`、`Display` 已删除；不能只把版本号从 1 改成 2。
+不读取 v1。`Colors`、`Symbols`、`Display` 无效。主题需要 `Order` 和 `Modules`。
 
 更新会刷新 `theme/` 下的随包主题，并留下其它 JSON、`theme.json`、`user-settings.ps1` 和工具。自定义 v1 文件请参考 v2 模板手动重写。
 
@@ -47,7 +47,6 @@ Colorful 保留设计的背景色，仅修正部分文字对比；每份 JSON �
 
 ```json
 {
-  "Version": 2,
   "Name": "My Theme",
   "Order": ["user", "at", "host", "directory", "symbol", "space"],
   "Modules": {
@@ -75,7 +74,6 @@ Colorful 保留设计的背景色，仅修正部分文字对比；每份 JSON �
 
 | 字段 | 规则 |
 | --- | --- |
-| `Version` | 整数 `2` |
 | `Name` | 与文件名一致，不含 `.json` |
 | `Order` | 从左到右的模块名称数组，1–128 项，可重复；未列入的段不渲染 |
 | `AddNewline` | 可选布尔值，省略为 `false`；提示符前增加一个空行。pure 默认关闭，colorful 默认开启。终端只能按整行留白，更细的行距需在终端配置中调整 |
@@ -134,7 +132,7 @@ Colorful 保留设计的背景色，仅修正部分文字对比；每份 JSON �
 
 查找时跳过隐藏段及其他 `text` 段，重复引用的连接符按每个位置分别解析。没有邻居时回退到终端默认；当引用颜色用作前景、但邻居背景为 `transparent` 时，回退到 `default`，因为程序不知道终端默认背景的 RGB。
 
-下面是可复制进主题的局部配置（还需保留根对象 `Version`、`Name`）：
+下面是可复制进主题的局部配置（还需保留根对象 `Name`）：
 
 ```json
 "Order": ["directory", "dirArrow", "git", "gitArrow", "duration", "timeArrow", "exitCode", "errorArrow", "symbol"],

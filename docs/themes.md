@@ -31,7 +31,7 @@ The optional selection file `~/.config/upwsh/theme.json` contains a filename, fo
 
 The first update after this layout change moves leftover files from `custom/themes/` and the old `themes/` directory into `theme/` when the destination name is free. Bundled filenames still replace the package copies. Rewrite v1 files from a v2 template before selecting them.
 
-**Only Version 2 is supported.** There is no v1 reader or automatic conversion. `Colors`, `Symbols`, and `Display` no longer exist; changing just the version number is insufficient.
+There is no v1 reader. `Colors`, `Symbols`, and `Display` are not read. A theme needs `Order` and `Modules`.
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/script/update.ps1 --source src
@@ -45,7 +45,6 @@ Save this as `theme/My Theme.json`, then select `My Theme`:
 
 ```json
 {
-  "Version": 2,
   "Name": "My Theme",
   "Order": ["user", "at", "host", "directory", "symbol", "space"],
   "Modules": {

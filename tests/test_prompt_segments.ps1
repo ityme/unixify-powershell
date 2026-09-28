@@ -36,7 +36,7 @@ function Use-Theme {
 }
 function New-Theme {
     @{
-        Version = 2; Name = 'Segments'
+        Name = 'Segments'
         Order = @('directory', 'dirArrow', 'git', 'gitArrow', 'duration', 'timeArrow', 'exitCode', 'errorArrow', 'symbol')
         Modules = @{
             directory = @{ Foreground = '#FFFFFF'; Background = '#112233' }
@@ -102,7 +102,7 @@ try {
         Assert-Equal (Get-UpwshPromptText -Color Never) $env:USERNAME
     }
     Test-Segments 'text-only layouts have terminal-default neighbor fallbacks and repeat literally' {
-        Use-Theme @{ Version = 2; Name = 'Segments'; Order = @('cap', 'gap', 'cap'); Modules = @{
+        Use-Theme @{ Name = 'Segments'; Order = @('cap', 'gap', 'cap'); Modules = @{
             cap = @{ Type = 'text'; Text = '>'; Foreground = 'previous.background'; Background = 'next.background' }
             gap = @{ Type = 'text'; Text = ' ' }
         } }
@@ -163,7 +163,7 @@ try {
         } finally { & $module { param($body) Set-Item Function:Get-PromptGitBranch $body } $saved }
     }
     Test-Segments 'a repeated connector resolves colors separately at each occurrence' {
-        Use-Theme @{ Version = 2; Name = 'Segments'; Order = @('user', 'join', 'host', 'join', 'directory'); Modules = @{
+        Use-Theme @{ Name = 'Segments'; Order = @('user', 'join', 'host', 'join', 'directory'); Modules = @{
             user = @{ Background = '#112233' }
             host = @{ Background = '#223344' }
             directory = @{ Background = '#334455' }
@@ -188,7 +188,7 @@ try {
         try { Assert-Equal (Get-UpwshPromptText -Color Never) 'Env:\|>' } finally { Pop-Location }
     }
     Test-Segments 'literal text is never evaluated as PowerShell and NoColor strips all SGR' {
-        Use-Theme @{ Version = 2; Name = 'Segments'; Order = @('literal'); Modules = @{
+        Use-Theme @{ Name = 'Segments'; Order = @('literal'); Modules = @{
             literal = @{ Type = 'text'; Text = '$(throw "do not execute")'; Background = '#102030' }
         } }
         Assert-Equal (Get-UpwshPromptText -Color Never) '$(throw "do not execute")'

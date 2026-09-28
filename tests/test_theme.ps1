@@ -74,7 +74,7 @@ try {
                 $file = Join-Path $themes "$name.json"
                 $data = [IO.File]::ReadAllText($file) | ConvertFrom-Json -AsHashtable
                 Assert-Equal $data.Name $name
-                Assert-Equal $data.Version 2
+                Assert-True (-not $data.Contains('Version')) "Version is unused in $name"
                 Assert-True ($data._Comment.Contains('AttachTo')) "missing connector documentation in $name"
                 Assert-True ($data._Comment.Contains('Background')) "missing background documentation in $name"
                 Assert-Equal (Invoke-ThemeCli @('theme','use',$name)).Code 0
@@ -205,7 +205,7 @@ try {
     }
     Test-Theme 'unknown or invalid themes do not replace the active selection' {
         $before = [IO.File]::ReadAllText($selection)
-        [IO.File]::WriteAllText((Join-Path $themes 'Broken.json'), '{"Name":"Broken","Version":2}')
+        [IO.File]::WriteAllText((Join-Path $themes 'Broken.json'), '{"Name":"Broken"}')
         foreach ($name in @('missing', 'Broken', '../pure-classic', 'C:\pure-classic', 'pure-classic.json')) {
             $result = Invoke-ThemeCli @('theme','use',$name)
             Assert-Equal $result.Code 1
@@ -240,8 +240,8 @@ try {
             { param($data) $data.Order = @('User') }
             { param($data) $data.Order = 'user' }
             { param($data) $data.Modules.directory.Forground = '#123456' }
-            { param($data) $data.Version = 1 }
-            { param($data) $data.Version = '2' }
+            { param($data) $data.Remove('Order') }
+            { param($data) $data.Remove('Modules') }
         )
         foreach ($mutate in $mutations) {
             $bad = [IO.File]::ReadAllText((Join-Path $themes 'pure-classic.json')) | ConvertFrom-Json -AsHashtable
@@ -334,7 +334,7 @@ try {
         $beforePrompt = [IO.File]::ReadAllText($promptPath)
         $beforeSelection = [IO.File]::ReadAllText($selection)
         try {
-            [IO.File]::WriteAllText($file, '{"Version":1,"Name":"pure-classic"}')
+            [IO.File]::WriteAllText($file, '{"Name":"pure-classic","Colors":{}}')
             $result = Invoke-UpwshTestProcess -UserHome $HOME -File (Join-Path $runtime 'script\update.ps1') -Arguments @('--source', $runtime)
             Assert-Equal $result.Code 0
             Assert-Equal ([IO.File]::ReadAllText($promptPath)) $beforePrompt

@@ -9,9 +9,8 @@ function Test-UpwshThemeHeaders {
             if ([IO.FileInfo]::new($file).Length -gt 65536) { throw 'theme exceeds 64 KiB' }
             $data = [IO.File]::ReadAllText($file) | ConvertFrom-Json -AsHashtable -ErrorAction Stop
             if ($data -isnot [Collections.IDictionary] -or
-                ($data.Version -isnot [int] -and $data.Version -isnot [long]) -or $data.Version -ne 2 -or
                 $data.Modules -isnot [Collections.IDictionary] -or $data.Order -isnot [array]) {
-                throw 'requires Version 2 with Order/Modules'
+                throw 'requires Order and Modules'
             }
         } catch {
             throw "cannot deploy with theme '$file': $($_.Exception.Message). Back up old themes outside theme/, replace them with v2 files or move them out, then retry. No theme conversion or overwrite is performed."

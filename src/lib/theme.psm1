@@ -52,10 +52,10 @@ function Read-UpwshTheme {
     if ([IO.FileInfo]::new($file).Length -gt 65536) { throw "theme is too large: $Name" }
     $data = [IO.File]::ReadAllText($file) | ConvertFrom-Json -AsHashtable -ErrorAction Stop
     if ($data -isnot [Collections.IDictionary] -or
-        ($data.Version -isnot [int] -and $data.Version -isnot [long]) -or $data.Version -ne 2) {
-        throw "theme $Name requires Version 2 (Order/Modules); old formats are not supported"
+        $data.Modules -isnot [Collections.IDictionary] -or $data.Order -isnot [array]) {
+        throw "theme $Name requires Order and Modules; old formats are not supported"
     }
-    Assert-ThemeKeys $data @('Version', 'Name', 'AddNewline', 'Order', 'Modules', '_Comment') $Name
+    Assert-ThemeKeys $data @('Name', 'AddNewline', 'Order', 'Modules', '_Comment') $Name
     if (-not $data.Contains('AddNewline')) { $data.Add('AddNewline', $false) }
     if ($data.AddNewline -isnot [bool]) { throw "invalid AddNewline in theme $Name" }
     if ($data.Name -isnot [string]) { throw "invalid theme name: $Name" }
