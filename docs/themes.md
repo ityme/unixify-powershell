@@ -1,4 +1,4 @@
-# Local themes (v2)
+# Local themes
 
 [README](../README.md) · [中文配置指南](themes.zh-CN.md)
 
@@ -23,15 +23,15 @@ All names and filenames use lowercase hyphenated names. Updates refresh bundled 
 
 Colorful keeps the designed background colors. Some foregrounds were adjusted for contrast; each JSON's `_Comment.ContrastAdjustments` lists the differences. User and host use separate colors. Terminal font, window opacity, and overall background remain terminal settings.
 
-## Files and upgrading
+## Files
 
 All prompt themes live in `~/.config/upwsh/theme/`. Install/update replace the bundled filenames from `src/theme/` and leave other JSON files in that directory. Copy a bundled file, rename it, and edit the copy.
 
-The optional selection file `~/.config/upwsh/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-classic is the default. Invalid selections keep the session's last valid theme or fall back to a valid v2 pure-classic.
+The optional selection file `~/.config/upwsh/theme.json` contains a filename, for example `{"Theme":"colorful-blue.json"}`. Without it, pure-classic is the default. Invalid selections keep the session's last valid theme or fall back to pure-classic.
 
-The first update after this layout change moves leftover files from `custom/themes/` and the old `themes/` directory into `theme/` when the destination name is free. Bundled filenames still replace the package copies. Rewrite v1 files from a v2 template before selecting them.
+The first update after the `theme/` layout change moves leftover files from `custom/themes/` and the old `themes/` directory into `theme/` when the destination name is free. Bundled filenames still replace the package copies.
 
-There is no v1 reader. `Colors`, `Symbols`, and `Display` are not read. A theme needs `Order` and `Modules`.
+A theme needs `Order` and `Modules`. `Colors`, `Symbols`, and `Display` are not read.
 
 ```powershell
 pwsh -NoLogo -NoProfile -File src/script/update.ps1 --source src

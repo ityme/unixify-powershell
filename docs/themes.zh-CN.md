@@ -1,4 +1,4 @@
-# 本地主题（v2）
+# 本地主题
 
 [README](../README.zh-CN.md) · [English](themes.md)
 
@@ -31,13 +31,11 @@ Colorful 保留设计的背景色，仅修正部分文字对比；每份 JSON �
 
 选择后下一次提示符生效。在另一个窗口或通过 `upwsh.cmd` 切换时，本窗口下次生成提示符才会读取选择，不在空闲输入过程中自行重绘。**编辑已选中的主题后，也要再执行一次 `upwsh theme use "名称"`**。解析结果有缓存，不在每次按键时读取整个主题。
 
-选中无效主题会报错并保留原选择。选择文件损坏或引用不受支持的主题时，已有会话保留上次可用主题，新会话回退到有效的 v2 pure-classic。
+选中无效主题会报错并保留原选择。选择文件损坏或引用不受支持的主题时，已有会话保留上次可用主题，新会话回退到 pure-classic。
 
-## 从 v1 升级
+主题需要 `Order` 和 `Modules`。`Colors`、`Symbols`、`Display` 不读取。
 
-不读取 v1。`Colors`、`Symbols`、`Display` 无效。主题需要 `Order` 和 `Modules`。
-
-更新会刷新 `theme/` 下的随包主题，并留下其它 JSON、`theme.json`、`user-settings.ps1` 和工具。自定义 v1 文件请参考 v2 模板手动重写。
+更新会刷新 `theme/` 下的随包主题，并留下其它 JSON、`theme.json`、`user-settings.ps1` 和工具。
 
 卸载会删除 `theme/` 和 `theme.json`。改过的 `user-settings.ps1` 可能留下；主题不留。卸载前另行备份。
 

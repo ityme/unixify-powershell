@@ -13,7 +13,7 @@ function Test-UpwshThemeHeaders {
                 throw 'requires Order and Modules'
             }
         } catch {
-            throw "cannot deploy with theme '$file': $($_.Exception.Message). Back up old themes outside theme/, replace them with v2 files or move them out, then retry. No theme conversion or overwrite is performed."
+            throw "cannot deploy with theme '$file': $($_.Exception.Message). Back up old themes outside theme/, replace them with Order/Modules files or move them out, then retry. No theme conversion or overwrite is performed."
         }
     }
 }
