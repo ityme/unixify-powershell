@@ -126,7 +126,7 @@ def main():
             if not name.startswith(series + '-'):
                 continue
             samples = [row for row in renders if row['Name'] == name]
-            examples = ''.join(f'<pre data-state="{i}" tabindex="0" aria-label="{name} prompt" {"hidden" if i != 3 else ""}>{ansi_html(row["Text"]).replace(chr(10), '<span></span>' + chr(10))}</pre>' for i, row in enumerate(samples))
+            examples = ''.join(f'<pre id="{name}-state-{i}" data-state="{i}" tabindex="0" aria-label="{name} prompt" {"hidden" if i != 3 else ""}>{ansi_html(row["Text"]).replace(chr(10), '<span></span>' + chr(10))}</pre>' for i, row in enumerate(samples))
             comment = themes[name]['_Comment']
             notes = ''
             if series == 'colorful':

@@ -5,22 +5,22 @@ A native Unix-style prompt, paths, commands, and Tab completion for **PowerShell
 The prompt follows this shape:
 
 ```text
-ityme@win project dev ❯
+user@host project dev ❯
 ```
 
 The path segment shows only the current folder name (`~` at home); outside a Git repository, the branch is omitted. Colors and `❯` follow the Starship visual reference: a failed command adds its numeric error code in red, and commands lasting at least two seconds show their duration. The native renderer reads local `.git/HEAD` first, using Git to locate it in subdirectories and worktrees. It does not run Starship.
 
 [简体中文](README.zh-CN.md)
 
-Use `/c/Users` and `~/projects`, run familiar commands such as `ls`, `cp -r`, and `grep`, and complete paths with forward slashes. Your shell still uses PowerShell syntax and pipelines.
+Use `/d/work` and `~/projects`, run familiar commands such as `ls`, `cp -r`, and `grep`, and complete paths with forward slashes. Your shell still uses PowerShell syntax and pipelines.
 
 | Task | PowerShell | With unixify-powershell |
 | --- | --- | --- |
-| Change directory | `cd I:\ispace` | `cd /i/ispace` |
+| Change directory | `cd D:\work` | `cd /d/work` |
 | List files | `Get-ChildItem` | `ls` / `ll` (via eza) |
 | Copy a directory | `Copy-Item -Recurse src backup` | `cp -r src backup` |
 | Search a file | `Select-String error app.log` | `grep error app.log` |
-| Complete a path with Tab | `I:\ispace\project\` | `/i/ispace/project/` |
+| Complete a path with Tab | `D:\work\project\` | `/d/work/project/` |
 
 ## Install
 
@@ -33,8 +33,8 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/i
 This installs into `~/.config/upwsh`, adds `upwsh` to Path, defines `upwsh` in the current pwsh, and loads the profile. If `eza`, `dust`, or `btm` are missing, install prints:
 
 ```text
-missing  eza dust btm
-install  upwsh tool install eza dust btm
+missing   eza, dust, btm
+next      upwsh tool install eza dust btm
 ```
 
 ## Use paths
@@ -42,7 +42,7 @@ install  upwsh tool install eza dust btm
 At the interactive prompt, write paths with a lowercase drive prefix and forward slashes:
 
 ```powershell
-cd /i/ispace
+cd /d/work
 cd ~/Desktop
 cd -                         # Return to the previous directory
 ```
@@ -59,6 +59,8 @@ cd (winpath '~/my work')
 ```
 
 Both commands accept multiple paths and pipeline input; paths need not exist. Tab inserts `(winpath '…')` when an absolute Unix path needs quoting. Comments, embedded scripts, redirections, and combined arguments such as `--output=/c/a` are not automatically rewritten.
+
+`rm` sends local fixed-drive files to the Recycle Bin. Windows reserved names (`nul`, `con`, `aux`, `prn`, `com1`–`com9`, `lpt1`–`lpt9`) cannot use that API. Tab skips them. Delete with an extended path: `[IO.File]::Delete('\\?\D:\work\nul')`.
 
 ## Git completion
 
@@ -146,7 +148,7 @@ upwsh theme use "pure-classic"
 | [colorful-retro](src/theme/colorful-retro.json) | Forest green → ochre → warm tan → ivory |
 | [colorful-memphis](src/theme/colorful-memphis.json) | Pink → lemon yellow → cyan → pale blue |
 
-Colorful follows the approved `starship-colorful.toml` palette reference. User, host, folder and Git form a connected strip; duration, exit code and `❯` keep transparent backgrounds. Missing Git, short commands and successful commands hide their conditional segments without leaving orphan arrows. Foreground readability corrections are recorded in each JSON's `_Comment.ContrastAdjustments`.
+Colorful uses connected user, host, folder and Git blocks. Duration, exit code and `❯` stay on the terminal background. Missing Git, short commands and successful commands hide those segments without leftover arrows. Foreground contrast notes are in each JSON's `_Comment.ContrastAdjustments`.
 
 Colorful enables `AddNewline` for one blank line before the prompt; pure disables it. One space follows the color strip, then duration, exit code and symbol join as in pure: ` 6s418ms1❯`.
 
@@ -163,7 +165,7 @@ Updates refresh bundled filenames in `theme/` and leave extra JSON plus `theme.j
 Edit `~/.config/upwsh/user-settings.ps1` after the built-in aliases load, or run `upwsh edit` to open it in nvim (`vim` if nvim is missing). When the editor exits, `upwsh edit` reloads this pwsh. `upwsh.cmd` can only reload that child process. `upwsh update` leaves an existing copy in place. Uninstall keeps the file when it differs from the shipped template; an unchanged copy is deleted with the runtime. Themes are always deleted.
 
 ```powershell
-function global:work { cd (winpath '/i/my work') }
+function global:work { cd (winpath '/d/my work') }
 ```
 
 Commented examples for `w`, `t`, `i`, `d`, and `gs` are in `user-settings.ps1`. Uncomment and edit them. Terminal status reporting can go there too. Full command text is off by default; see [Terminal Reporting](docs/terminal-reporting.md) for fields and privacy settings.

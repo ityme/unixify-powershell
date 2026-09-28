@@ -5,22 +5,22 @@
 提示符形如：
 
 ```text
-ityme@win project dev ❯
+user@host project dev ❯
 ```
 
 路径只显示当前文件夹名，用户主目录显示 `~`，非 Git 仓库省略分支。颜色和 `❯` 按 Starship 样式参考：失败时显示红色数字错误码，耗时达到 2 秒时显示执行时间。原生提示符优先读取当前目录的 `.git/HEAD`，在子目录和 worktree 中交给 Git 定位，不运行 Starship。
 
 [English](README.md)
 
-用 `/c/Users`、`~/projects` 表示路径，用 `ls`、`cp -r`、`grep` 等熟悉的命令操作文件，Tab 也补全为正斜杠路径。语法和管道仍使用 PowerShell。
+用 `/d/work`、`~/projects` 表示路径，用 `ls`、`cp -r`、`grep` 等熟悉的命令操作文件，Tab 也补全为正斜杠路径。语法和管道仍使用 PowerShell。
 
 | 操作 | 原生 PowerShell | 使用 unixify-powershell |
 | --- | --- | --- |
-| 切换目录 | `cd I:\ispace` | `cd /i/ispace` |
+| 切换目录 | `cd D:\work` | `cd /d/work` |
 | 列出文件 | `Get-ChildItem` | `ls` / `ll`（通过 eza） |
 | 复制目录 | `Copy-Item -Recurse src backup` | `cp -r src backup` |
 | 搜索文件内容 | `Select-String error app.log` | `grep error app.log` |
-| Tab 补全路径 | `I:\ispace\project\` | `/i/ispace/project/` |
+| Tab 补全路径 | `D:\work\project\` | `/d/work/project/` |
 
 ## 安装
 
@@ -33,8 +33,8 @@ irm https://raw.githubusercontent.com/ityme/unixify-powershell/main/src/script/i
 安装位置为 `~/.config/upwsh`，会把 `upwsh` 加入 Path，在当前 pwsh 中定义 `upwsh` 命令，并加载 profile。若缺少 `eza`、`dust` 或 `btm`，安装结束会提示：
 
 ```text
-missing  eza dust btm
-install  upwsh tool install eza dust btm
+missing   eza, dust, btm
+next      upwsh tool install eza dust btm
 ```
 
 ## 使用路径
@@ -42,7 +42,7 @@ install  upwsh tool install eza dust btm
 交互输入时，用小写盘符前缀和正斜杠表示路径：
 
 ```powershell
-cd /i/ispace
+cd /d/work
 cd ~/Desktop
 cd -                         # 返回上一个目录
 ```
@@ -59,6 +59,8 @@ cd (winpath '~/my work')
 ```
 
 两条命令都支持多个路径和管道输入，不要求路径存在。Tab 遇到需要引号的 Unix 绝对路径时，会生成 `(winpath '…')`。注释、内嵌脚本、重定向和 `--output=/c/a` 这类组合参数不会自动转换。
+
+`rm` 在本地固定磁盘上把目标送进回收站。Windows 保留名（`nul`、`con`、`aux`、`prn`、`com1`–`com9`、`lpt1`–`lpt9`）不能走回收站。Tab 会跳过这些名字。删除用扩展路径：`[IO.File]::Delete('\\?\D:\work\nul')`。
 
 ## Git 补全
 
@@ -146,7 +148,7 @@ upwsh theme use "pure-classic"
 | [colorful-retro](src/theme/colorful-retro.json) | 森林暗绿 → 砖赭 → 暖棕 → 象牙白 |
 | [colorful-memphis](src/theme/colorful-memphis.json) | 亮粉 → 柠檬黄 → 青绿 → 极浅蓝 |
 
-Colorful 按已确认的 `starship-colorful.toml` 配色制作。用户、主机、目录、Git 使用连续色块和实心三角，耗时、返回码与 `❯` 保持透明背景。非仓库、短耗时或成功时，相应模块隐藏，不留下多余箭头。文字对比调整记录在各 JSON 的 `_Comment.ContrastAdjustments` 中。
+Colorful 的用户、主机、目录、Git 使用连续色块。耗时、返回码与 `❯` 用终端默认背景。非仓库、短耗时或成功时对应段隐藏，不留多余箭头。文字对比记录在各 JSON 的 `_Comment.ContrastAdjustments`。
 
 Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭。Colorful 的色块后只留一个空格，耗时、返回码、提示字符与 pure 一样紧接，例如 ` 6s418ms1❯`。
 
@@ -163,7 +165,7 @@ Colorful 在提示符前留一空行（`AddNewline: true`），pure 默认关闭
 编辑 `~/.config/upwsh/user-settings.ps1`，在内置别名之后加载；也可 `upwsh edit` 用 nvim 打开（没有 nvim 时用 vim）。编辑器退出后会重载当前 pwsh。`upwsh.cmd` 只能重载那个子进程。`upwsh update` 不会覆盖已有文件。卸载时若文件与随包模板不同则留下，未改过的模板随运行时删除。主题一律删除。
 
 ```powershell
-function global:work { cd (winpath '/i/my work') }
+function global:work { cd (winpath '/d/my work') }
 ```
 
 `user-settings.ps1` 里有注释掉的 `w`、`t`、`i`、`d`、`gs` 示例，取消注释并改路径即可。终端上报也可写在同一文件。默认不发送完整命令文本，字段和隐私开关见[终端上报说明](docs/terminal-reporting.md)。

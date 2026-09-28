@@ -19,7 +19,7 @@ upwsh theme use "pure-classic"  # 恢复默认外观
 
 主题名称和文件名统一使用小写、短横线。更新会刷新内置文件名，`theme/` 里其它 JSON 会留下。没有旧名称别名。
 
-Colorful 保留参考的背景色，仅修正部分文字对比；每份 JSON 的 `_Comment.ContrastAdjustments` 列出差异。原 OS / Username 两级配色用于 user / host，没有增加时钟或 OS 模块。整体背景和窗口透明度仍由终端控制。
+Colorful 保留设计的背景色，仅修正部分文字对比；每份 JSON 的 `_Comment.ContrastAdjustments` 列出差异。用户和主机用独立颜色。整体背景和窗口透明度仍由终端控制。
 
 ## 文件与生效方式
 

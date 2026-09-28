@@ -2,7 +2,7 @@
 
 `pure.png` and `colorful.png` are browser captures of `docs/themes.html`, generated from the repository's real PowerShell renderer and bundled JSON themes. They are not AI-generated images. Sample identity is `user@host`; branch `dev`, failed exit code `7`, and elapsed time `2345ms` are fixture inputs. The screenshots use JetBrainsMono NFM (an installed Nerd Font) and a 1000px browser viewport.
 
-Colorful backgrounds originate from the user-supplied `starship-colorful.toml` palette reference. Each theme records the palette identifier and foreground corrections under `_Comment`; no external TOML file is required to regenerate these assets. Pure preserves the project's original prompt styles.
+Colorful palette notes live in each theme JSON under `_Comment`. Pure keeps the original prompt styles. Sample identity in the HTML and screenshots is `user@host`.
 
 ## Regenerate
 

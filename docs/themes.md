@@ -21,7 +21,7 @@ The [README gallery](../README.md#themes) introduces all 12 themes with screensh
 
 All names and filenames use lowercase hyphenated names. Updates refresh bundled files and leave extra JSON files in `theme/` in place. There are no old-name aliases.
 
-Colorful preserves the reference background colors. Some foreground colors were adjusted for readability; each JSON's `_Comment.ContrastAdjustments` lists the differences. The reference OS/username palette steps map to user/host here; no clock or OS module is added. Terminal font, window opacity, and overall background remain terminal settings.
+Colorful keeps the designed background colors. Some foregrounds were adjusted for contrast; each JSON's `_Comment.ContrastAdjustments` lists the differences. User and host use separate colors. Terminal font, window opacity, and overall background remain terminal settings.
 
 ## Files and upgrading
 
